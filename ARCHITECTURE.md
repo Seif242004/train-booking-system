@@ -2,38 +2,7 @@
 
 ## 1. Microservices Architecture
 
-```
-Web App (React) -> API Gateway (Express) -> Auth | Train & Schedule | Booking & Seat
-Booking & Seat  -> Payment | Ticket | Notification
-Payment         -> Stripe (external)
-Notification    -> Email Provider / SMTP (external)
-Auth, Train & Schedule, Booking & Seat -> PostgreSQL
-```
-
-### 1.1 Components
-
-| Component | Responsibility |
-|---|---|
-| **Web App (React)** | Passenger screens (search, seat map, payment page with countdown, my bookings) and admin screens |
-| **API Gateway (Express)** | Single entry point. Verifies the user's JWT, checks the role, routes requests, and proxies the WebSocket connection |
-| **Authentication Service** | Registration, login, JWT issuing, roles (`USER`, `ADMIN`) |
-| **Train & Schedule Service** | Admin CRUD for trains, coaches, seats, standing capacity, routes and trips. Serves seat layouts and trip search |
-| **Booking & Seat Service** | Seat and standing availability for the full journey, 5-minute holds, confirmation, cancellation, live seat updates (WebSocket), and the hold-expiry job |
-| **Payment Service** | Creates payments with Stripe, verifies Stripe webhooks, issues refunds |
-| **Ticket Service** | Generates the ticket (PDF with QR code) and invalidates it on cancellation |
-| **Notification Service** | Sends emails (ticket, cancellation, refund) through the email provider, with retries |
-| **PostgreSQL** | Persistent storage used by Auth, Train & Schedule, and Booking & Seat |
-| **Stripe** *(external)* | Hosted payment page, payment result webhook, refunds |
-| **Email Provider (SMTP)** *(external)* | Delivers emails |
-
-### 1.2 Communication
-
-- The Web App only talks to the **API Gateway**.
-- The Gateway routes to Auth, Train & Schedule, and Booking & Seat.
-- **Booking & Seat** calls Payment, Ticket and Notification.
-- **Payment** calls Stripe. Stripe sends payment results back as a **webhook** that enters through the Gateway and is forwarded to Payment.
-- **Notification** calls the email provider.
-- Live seat updates are pushed from Booking & Seat to the browser over **WebSocket**, through the Gateway.
+![Train Booking System - Microservices Architecture](docs/architecture.png)
 
 ## 2. Flows
 

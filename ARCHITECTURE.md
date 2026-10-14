@@ -151,7 +151,7 @@ All admin requests carry a Keycloak JWT with the `ADMIN` role. The Gateway rejec
 Used when a trip will not run (breakdown, strike, weather). Every booking on the trip is cancelled and fully refunded.
 
 1. Admin selects the trip, chooses **Cancel trip** and enters a reason. Gateway checks the `ADMIN` role.
-2. Gateway forwards the request to Booking & Seat. Booking checks that the trip has not departed, then **closes the trip for new holds** and starts cancelling its bookings.
+2. Gateway forwards the request to Booking & Seat. Booking checks that the trip has not yet left its first stop, then **closes the trip for new holds** and starts cancelling its bookings.
 3. Booking tells Train & Schedule to mark the trip `CANCELLED`, so it disappears from search results. Booking retries this call until Train & Schedule accepts it.
 4. Booking handles the **active holds** on the trip: it asks Payment to cancel the pending Stripe payment, releases the seats and sets the booking to `EXPIRED`. The user's payment page redirects back with the message "This trip was cancelled".
 5. Booking handles each **confirmed booking** on the trip, one by one, as in the cancellation of Flow 6: release the seats, set `CANCELLED`, invalidate the ticket, refund the **full amount** through Payment and Stripe, and email the user that the trip was cancelled.

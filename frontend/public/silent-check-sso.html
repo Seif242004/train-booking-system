@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+  <body>
+    <!-- keycloak-js loads this page in a hidden iframe to check for an existing Keycloak session without
+         redirecting the whole window. It hands the result back to the app and does nothing else. -->
+    <script>
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>

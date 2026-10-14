@@ -1,0 +1,65 @@
+{
+  "realm": "train-booking",
+  "enabled": true,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": false,
+  "roles": {
+    "realm": [
+      { "name": "USER", "description": "Passenger" },
+      { "name": "ADMIN", "description": "Administrator (support and train management)" },
+      { "name": "offline_access", "description": "Keycloak built-in role" },
+      { "name": "uma_authorization", "description": "Keycloak built-in role" },
+      {
+        "name": "default-roles-train-booking",
+        "description": "Roles every new user gets",
+        "composite": true,
+        "composites": { "realm": ["USER"] }
+      }
+    ]
+  },
+  "defaultRole": { "name": "default-roles-train-booking", "composite": true, "clientRole": false },
+  "clients": [
+    {
+      "clientId": "web-app",
+      "name": "Web App",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "dev.user@example.com",
+      "email": "dev.user@example.com",
+      "firstName": "Dev",
+      "lastName": "Passenger",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "${KEYCLOAK_DEV_USER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["default-roles-train-booking"]
+    },
+    {
+      "username": "dev.admin@example.com",
+      "email": "dev.admin@example.com",
+      "firstName": "Dev",
+      "lastName": "Admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "${KEYCLOAK_DEV_ADMIN_PASSWORD}", "temporary": false }],
+      "realmRoles": ["default-roles-train-booking", "ADMIN"]
+    }
+  ]
+}

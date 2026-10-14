@@ -144,6 +144,30 @@ button:focus-visible {
   gap: 8px;
 }
 
+.actions-center {
+  justify-content: center;
+}
+
+.hero {
+  padding: 12vh 0 0;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+}
+
+.hero .actions {
+  margin-top: 28px;
+}
+
+.button-large {
+  min-width: 140px;
+  padding: 12px 28px;
+  font-size: 1.05rem;
+}
+
 .facts {
   display: grid;
   grid-template-columns: max-content 1fr;

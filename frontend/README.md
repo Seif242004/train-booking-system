@@ -6,8 +6,9 @@ registration or account screens: Login and Register send the browser to Keycloak
 
 ## What it does
 
-- **Login / Register:** full-page redirect to Keycloak (authorization code flow with PKCE, `keycloak-js`).
-  **Logout** ends the Keycloak session and returns to the home page.
+- **Login / Register:** two buttons in the middle of the home page (shown while logged out), each a full-page
+  redirect to Keycloak (authorization code flow with PKCE, `keycloak-js`). **Logout** is in the header once signed
+  in; it ends the Keycloak session and returns to the home page.
 - **Profile** (`/profile`): name, email and roles read from the access token, plus the live response of
   `GET /me` through the Gateway. Buttons also try `GET /admin/ping` (403 for a normal user) and `GET /me` without a
   token (401).

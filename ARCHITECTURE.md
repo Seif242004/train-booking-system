@@ -92,20 +92,28 @@ When the 5 minutes run out, the user must not be able to pay. The payment is blo
 - If the payment is still **processing**, Booking keeps the seats held and retries on the next sweep until Stripe settles. If it succeeds, the booking is confirmed. If it fails or is cancelled, the hold expires as above. Only card payments are accepted, so this takes seconds.
 - The seats of a paid booking are never released, and an expired hold is never charged.
 
-### Flow 6 — Cancel and refund (done by the admin as support)
+### Flow 6 — Cancel and refund (by the user, or by an admin as support)
 
-Users do not cancel on their own. A user who wants to cancel asks the admin (support), and the admin cancels the booking on their behalf. "My bookings" shows the booking status and a "Contact support to cancel" note instead of a cancel button.
+A confirmed booking can be cancelled in two ways. Both run the **same cancellation** (below); they differ only in who starts it.
 
+**Way A — the user cancels (instant)**
+1. In "My bookings" the user opens a `CONFIRMED` booking, chooses **Cancel booking** and confirms. Web App sends the request to the Gateway, which forwards it to Booking & Seat.
+2. Booking checks that the booking belongs to the caller (the user id in the JWT) and runs the cancellation. No approval is needed, so the seats are released immediately.
+
+**Way B — an admin cancels on the user's behalf (support)**
+This simulates a user who contacted customer support instead of cancelling in the app.
 1. The user contacts support with the booking reference.
 2. Admin searches for the booking (Flow 7, Support) and opens it. Web App sends the request to the Gateway, which checks the `ADMIN` role and forwards it to Booking & Seat.
-3. Admin chooses **Cancel booking** and enters a reason.
-4. Booking checks that the booking is `CONFIRMED` and the train has not departed. Otherwise the cancellation is refused with the reason.
-5. Booking releases the seats on every segment and sets the booking to `CANCELLED`. It records which admin cancelled it and the reason.
-6. Booking asks the Ticket Service to invalidate the ticket's QR code.
-7. Booking asks Payment to refund. Payment sends the refund request to Stripe. The refund status becomes `REFUND_PENDING`.
-8. Stripe later confirms the refund by webhook. The status becomes `REFUNDED`, or `REFUND_FAILED` for admin follow-up.
-9. Booking asks Notification to email the cancellation and refund details to the user.
-10. Booking pushes "seats released" over WebSocket, so other users' seat maps update immediately.
+3. Admin chooses **Cancel booking** and enters a reason. Booking runs the cancellation and records which admin did it and the reason.
+
+**The cancellation (same for both ways)**
+1. Booking checks that the booking is `CONFIRMED` and the train has not departed. Otherwise the cancellation is refused with the reason. If the booking is already `CANCELLED`, Booking returns its current state, so a retry is safe.
+2. Booking releases the seats on every segment and sets the booking to `CANCELLED`. It records who cancelled it: the user, or the admin with the reason.
+3. Booking asks the Ticket Service to invalidate the ticket's QR code.
+4. Booking asks Payment to refund. Payment sends the refund request to Stripe. The refund status becomes `REFUND_PENDING`.
+5. Stripe later confirms the refund by webhook. The status becomes `REFUNDED`, or `REFUND_FAILED` for admin follow-up.
+6. Booking asks Notification to email the cancellation and refund details to the user.
+7. Booking pushes "seats released" over WebSocket, so other users' seat maps update immediately.
 
 ### Flow 7 — Admin: manage trains and support
 
@@ -135,7 +143,7 @@ All admin requests carry a Keycloak JWT with the `ADMIN` role. The Gateway rejec
 **Support: look up and cancel bookings**
 1. Admin searches bookings by booking reference, user email, trip or status. Gateway checks the `ADMIN` role and forwards the request to Booking & Seat.
 2. Booking returns the booking details: user, trip, journey, seats, status, payment status and refund status.
-3. To cancel a booking for a user who asked, the admin follows Flow 6.
+3. To cancel a booking for a user who asked, the admin follows Flow 6, Way B.
 4. Admin can also see the `REFUND_FAILED` bookings and follow them up.
 
 ### Flow 8 — Admin cancels a whole trip
@@ -146,7 +154,7 @@ Used when a trip will not run (breakdown, strike, weather). Every booking on the
 2. Gateway forwards the request to Booking & Seat. Booking checks that the trip has not departed, then **closes the trip for new holds** and starts cancelling its bookings.
 3. Booking tells Train & Schedule to mark the trip `CANCELLED`, so it disappears from search results. Booking retries this call until Train & Schedule accepts it.
 4. Booking handles the **active holds** on the trip: it asks Payment to cancel the pending Stripe payment, releases the seats and sets the booking to `EXPIRED`. The user's payment page redirects back with the message "This trip was cancelled".
-5. Booking handles each **confirmed booking** on the trip, one by one, as in Flow 6 (steps 5 to 9): release the seats, set `CANCELLED`, invalidate the ticket, refund the **full amount** through Payment and Stripe, and email the user that the trip was cancelled.
+5. Booking handles each **confirmed booking** on the trip, one by one, as in the cancellation of Flow 6: release the seats, set `CANCELLED`, invalidate the ticket, refund the **full amount** through Payment and Stripe, and email the user that the trip was cancelled.
 6. Booking pushes "trip cancelled" over WebSocket to everyone viewing the trip.
 7. Each booking is processed independently and retried on failure. A refund that fails stays `REFUND_FAILED` for admin follow-up (Flow 7, Support).
 8. If step 3 or step 5 fails part-way, the admin sees the trip as `CANCELLED - bookings pending` (Booking keeps its own copy of the trip as `CANCELLING` until every booking is processed) and can retry. Retrying is safe because bookings that are already cancelled are skipped.

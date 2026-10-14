@@ -1,0 +1,10 @@
+* text=auto
+
+# Files that run inside Linux containers or via the shell must keep LF endings,
+# otherwise Windows checkouts convert them to CRLF and they fail to execute.
+*.sh text eol=lf
+*.sql text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+
+*.jar binary

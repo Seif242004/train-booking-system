@@ -1,0 +1,35 @@
+plugins {
+    // Declared once here so every Spring service uses the same Spring Boot version.
+    // A service applies it with: id 'org.springframework.boot'
+    id 'org.springframework.boot' version '4.1.1' apply false
+}
+
+group = 'com.trainbooking'
+version = '0.0.1-SNAPSHOT'
+
+// Conventions shared by all Spring services. Dependencies are declared in each service's own build.gradle.
+subprojects {
+    group = rootProject.group
+    version = rootProject.version
+
+    repositories {
+        mavenCentral()
+    }
+
+    plugins.withType(JavaPlugin).configureEach {
+        // Compile and test with JDK 21 regardless of the JDK that runs Gradle.
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(21)
+            }
+        }
+
+        tasks.withType(JavaCompile).configureEach {
+            options.encoding = 'UTF-8'
+        }
+
+        tasks.withType(Test).configureEach {
+            useJUnitPlatform()
+        }
+    }
+}

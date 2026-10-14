@@ -1,0 +1,26 @@
+# Secrets: only .env.example is committed
+.env
+.env.*
+!.env.example
+
+# Gradle / Java
+.gradle/
+build/
+out/
+*.log
+
+# Node (API Gateway, frontend)
+node_modules/
+dist/
+
+# IDE files (VS Code Java extension, IntelliJ)
+.classpath
+.project
+.settings/
+bin/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

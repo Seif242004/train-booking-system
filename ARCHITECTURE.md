@@ -26,7 +26,7 @@
 **Search**
 1. Web App sends the search (from, to, date) to the Gateway.
 2. Gateway verifies the JWT and forwards the request to Train & Schedule.
-3. Train & Schedule returns the trips that run from the origin to the destination on that date, with times.
+3. Train & Schedule returns the trips that run from the origin to the destination on that date, with times. Cancelled trips are not returned.
 
 **Seat map**
 1. User opens a trip. Web App sends the trip, boarding stop and destination stop to the Gateway.
@@ -45,7 +45,7 @@
 ### Flow 3 — Hold seats
 
 1. User confirms the selected seats and/or standing places. Web App sends the trip, journey and selection to the Gateway.
-2. Gateway forwards it to Booking & Seat.
+2. Gateway forwards it to Booking & Seat. Booking refuses the request if the trip was closed or cancelled (Flow 8).
 3. Booking & Seat tries to hold the seats on **every segment** of the journey in one database transaction. The database rejects a seat that is already held or booked on any segment. The hold is all-or-nothing.
 4. **If any seat was just taken:** nothing is held. Booking returns "no longer available" with the lost seats, and the Web App refreshes the seat map.
 5. **If all seats are free:**
@@ -125,7 +125,7 @@ All admin requests carry a JWT with the `ADMIN` role. The Gateway rejects other 
 **Delete**
 1. Admin deletes a train.
 2. Train & Schedule checks for future trips with confirmed bookings.
-3. If there are any, the delete is refused (deactivate the train instead, or cancel those bookings first as in Flow 6). Otherwise the train is deleted.
+3. If there are any, the delete is refused (deactivate the train instead, or cancel the trips first as in Flow 8). Otherwise the train is deleted.
 
 **Read**
 - Admin lists and filters trains by number, name and status.
@@ -135,3 +135,16 @@ All admin requests carry a JWT with the `ADMIN` role. The Gateway rejects other 
 2. Booking returns the booking details: user, trip, journey, seats, status, payment status and refund status.
 3. To cancel a booking for a user who asked, the admin follows Flow 6.
 4. Admin can also see the `REFUND_FAILED` bookings and follow them up.
+
+### Flow 8 — Admin cancels a whole trip
+
+Used when a trip will not run (breakdown, strike, weather). Every booking on the trip is cancelled and fully refunded.
+
+1. Admin selects the trip, chooses **Cancel trip** and enters a reason. Gateway checks the `ADMIN` role.
+2. Gateway forwards the request to Booking & Seat. Booking checks that the trip has not departed, then **closes the trip for new holds** and starts cancelling its bookings.
+3. Gateway tells Train & Schedule to mark the trip `CANCELLED`, so it disappears from search results.
+4. Booking handles the **active holds** on the trip: it asks Payment to cancel the pending Stripe payment, releases the seats and sets the booking to `EXPIRED`. The user's payment page redirects back with the message "This trip was cancelled".
+5. Booking handles each **confirmed booking** on the trip, one by one, as in Flow 6 (steps 5 to 9): release the seats, set `CANCELLED`, invalidate the ticket, refund the **full amount** through Payment and Stripe, and email the user that the trip was cancelled.
+6. Booking pushes "trip cancelled" over WebSocket to everyone viewing the trip.
+7. Each booking is processed independently and retried on failure. A refund that fails stays `REFUND_FAILED` for admin follow-up (Flow 7, Support).
+8. If step 3 or step 5 fails part-way, the admin sees the trip as `CANCELLED - bookings pending` and can retry. Retrying is safe because bookings that are already cancelled are skipped.

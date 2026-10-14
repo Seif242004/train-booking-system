@@ -8,18 +8,19 @@
 
 ### Flow 1 — Register and login
 
+The Authentication Service is **Keycloak**. It stores the users, hashes the passwords, shows the login and registration pages, and issues the JWTs. We write no login code of our own.
+
 **Register**
-1. Web App sends the registration data (name, email, password) to the Gateway.
-2. Gateway forwards it to the Auth Service.
-3. Auth saves the user in PostgreSQL. The password is stored as a hash.
-4. Auth confirms the account was created.
+1. User clicks Register in the Web App. Web App sends the user to Keycloak's registration page through the Gateway.
+2. User enters name, email and password. Keycloak validates them and creates the account in its database (Oracle). The password is stored as a hash.
+3. The new user gets the realm role `USER`. Admin accounts get the role `ADMIN`, assigned in Keycloak by an administrator.
 
 **Login**
-1. Web App sends email and password to the Gateway.
-2. Gateway forwards the request to Auth.
-3. Auth looks up the user and verifies the password hash.
-4. Auth signs a **JWT** containing the user id and role (`USER` / `ADMIN`) and returns it.
-5. Web App sends the JWT with every later request. The Gateway verifies it before routing.
+1. User clicks Login in the Web App. Web App sends the user to Keycloak's login page through the Gateway (authorization code flow with PKCE).
+2. Keycloak verifies the email and password.
+3. Keycloak returns a signed **JWT** (access token) containing the user id and the role (`USER` / `ADMIN`).
+4. Web App sends the JWT with every later request.
+5. The Gateway verifies the token signature with Keycloak's public keys, checks that it has not expired, and reads the role before routing. The user id in the token identifies the user in all other services.
 
 ### Flow 2 — Search trips and view the seat map
 
@@ -107,12 +108,12 @@ Users do not cancel on their own. A user who wants to cancel asks the admin (sup
 
 ### Flow 7 — Admin: manage trains and support
 
-All admin requests carry a JWT with the `ADMIN` role. The Gateway rejects other roles with `403`.
+All admin requests carry a Keycloak JWT with the `ADMIN` role. The Gateway rejects other roles with `403`.
 
 **Create a train**
 1. Admin submits the train (number, name, type, status).
 2. Gateway checks the role and forwards the request to Train & Schedule.
-3. Train & Schedule saves the train in PostgreSQL.
+3. Train & Schedule saves the train in the database (Oracle).
 
 **Define coaches, seats and standing capacity**
 1. Admin adds a coach (code, class), its seats (number, row, column) and its **standing capacity**.

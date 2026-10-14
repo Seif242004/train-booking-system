@@ -81,7 +81,7 @@ The Authentication Service is **Keycloak**. It stores the users, hashes the pass
 When the 5 minutes run out, the user must not be able to pay. The payment is blocked **before** any money moves, so no refund is needed.
 
 1. The countdown on the payment page reaches 0:00 and the payment form is disabled.
-2. A job inside Booking & Seat runs every few seconds and finds holds past `expires_at`. Booking also refuses any new payment request for an expired hold.
+2. A job inside Booking & Seat runs every second and finds holds past `expires_at`. Booking also refuses any new payment request for an expired hold.
 3. Booking asks Payment to **cancel the pending Stripe payment first**. Stripe then rejects any later attempt to pay it.
 4. Once Stripe confirms the cancellation, Booking releases the seats on every segment and sets the booking to `EXPIRED`.
 5. Booking pushes "hold expired" to the user's browser. The Web App **redirects the user back to the seat map** for that trip with the message "Your 5 minutes ran out. The seats were released, please select again."
@@ -149,4 +149,4 @@ Used when a trip will not run (breakdown, strike, weather). Every booking on the
 5. Booking handles each **confirmed booking** on the trip, one by one, as in Flow 6 (steps 5 to 9): release the seats, set `CANCELLED`, invalidate the ticket, refund the **full amount** through Payment and Stripe, and email the user that the trip was cancelled.
 6. Booking pushes "trip cancelled" over WebSocket to everyone viewing the trip.
 7. Each booking is processed independently and retried on failure. A refund that fails stays `REFUND_FAILED` for admin follow-up (Flow 7, Support).
-8. If step 3 or step 5 fails part-way, the admin sees the trip as `CANCELLED - bookings pending` and can retry. Retrying is safe because bookings that are already cancelled are skipped.
+8. If step 3 or step 5 fails part-way, the admin sees the trip as `CANCELLED - bookings pending` (Booking keeps its own copy of the trip as `CANCELLING` until every booking is processed) and can retry. Retrying is safe because bookings that are already cancelled are skipped.

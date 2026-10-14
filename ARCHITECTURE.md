@@ -88,7 +88,8 @@ When the 5 minutes run out, the user must not be able to pay. The payment is blo
 6. Booking pushes "seats released" over WebSocket, so other users see the seats as available immediately.
 
 **Payment at the last second**
-- If Stripe refuses the cancellation because the payment already succeeded or is being processed, the payment wins: Booking confirms the booking and continues with the ticket and email (Flow 4) instead of expiring it.
+- If Stripe refuses the cancellation because the payment already **succeeded**, the payment wins: Booking confirms the booking and continues with the ticket and email (Flow 4) instead of expiring it.
+- If the payment is still **processing**, Booking keeps the seats held and retries on the next sweep until Stripe settles. If it succeeds, the booking is confirmed. If it fails or is cancelled, the hold expires as above. Only card payments are accepted, so this takes seconds.
 - The seats of a paid booking are never released, and an expired hold is never charged.
 
 ### Flow 6 — Cancel and refund (done by the admin as support)
@@ -143,7 +144,7 @@ Used when a trip will not run (breakdown, strike, weather). Every booking on the
 
 1. Admin selects the trip, chooses **Cancel trip** and enters a reason. Gateway checks the `ADMIN` role.
 2. Gateway forwards the request to Booking & Seat. Booking checks that the trip has not departed, then **closes the trip for new holds** and starts cancelling its bookings.
-3. Gateway tells Train & Schedule to mark the trip `CANCELLED`, so it disappears from search results.
+3. Booking tells Train & Schedule to mark the trip `CANCELLED`, so it disappears from search results. Booking retries this call until Train & Schedule accepts it.
 4. Booking handles the **active holds** on the trip: it asks Payment to cancel the pending Stripe payment, releases the seats and sets the booking to `EXPIRED`. The user's payment page redirects back with the message "This trip was cancelled".
 5. Booking handles each **confirmed booking** on the trip, one by one, as in Flow 6 (steps 5 to 9): release the seats, set `CANCELLED`, invalidate the ticket, refund the **full amount** through Payment and Stripe, and email the user that the trip was cancelled.
 6. Booking pushes "trip cancelled" over WebSocket to everyone viewing the trip.

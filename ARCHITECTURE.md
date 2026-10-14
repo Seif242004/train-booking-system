@@ -11,16 +11,16 @@
 The Authentication Service is **Keycloak**. It stores the users, hashes the passwords, shows the login and registration pages, and issues the JWTs. We write no login code of our own.
 
 **Register**
-1. User clicks Register in the Web App. Web App sends the user to Keycloak's registration page through the Gateway.
+1. User clicks Register in the Web App. The browser goes **directly to Keycloak's** registration page. This step does not pass through the Gateway.
 2. User enters name, email and password. Keycloak validates them and creates the account in its database (Oracle). The password is stored as a hash.
 3. The new user gets the realm role `USER`. Admin accounts get the role `ADMIN`, assigned in Keycloak by an administrator.
 
 **Login**
-1. User clicks Login in the Web App. Web App sends the user to Keycloak's login page through the Gateway (authorization code flow with PKCE).
+1. User clicks Login in the Web App. The browser goes **directly to Keycloak's** login page (authorization code flow with PKCE).
 2. Keycloak verifies the email and password.
-3. Keycloak returns a signed **JWT** (access token) containing the user id and the role (`USER` / `ADMIN`).
-4. Web App sends the JWT with every later request.
-5. The Gateway verifies the token signature with Keycloak's public keys, checks that it has not expired, and reads the role before routing. The user id in the token identifies the user in all other services.
+3. Keycloak redirects back to the Web App, which exchanges the code with Keycloak for a signed **JWT** (access token) containing the user id and the role (`USER` / `ADMIN`).
+4. From then on, Web App sends the JWT to the **Gateway** with every API request.
+5. The Gateway verifies the token signature with Keycloak's public keys (fetched from Keycloak and cached), checks that it has not expired, and reads the role before routing. The user id in the token identifies the user in all other services.
 
 ### Flow 2 — Search trips and view the seat map
 

@@ -107,7 +107,7 @@ This simulates a user who contacted customer support instead of cancelling in th
 3. Admin chooses **Cancel booking** and enters a reason. Booking runs the cancellation and records which admin did it and the reason.
 
 **The cancellation (same for both ways)**
-1. Booking checks that the booking is `CONFIRMED` and the train has not departed. Otherwise the cancellation is refused with the reason. If the booking is already `CANCELLED`, Booking returns its current state, so a retry is safe.
+1. Booking checks that the booking is `CONFIRMED` and the train has not yet left the user's boarding stop. Otherwise the cancellation is refused with the reason. If the booking is already `CANCELLED`, Booking returns its current state, so a retry is safe.
 2. Booking releases the seats on every segment and sets the booking to `CANCELLED`. It records who cancelled it: the user, or the admin with the reason.
 3. Booking asks the Ticket Service to invalidate the ticket's QR code.
 4. Booking asks Payment to refund. Payment sends the refund request to Stripe. The refund status becomes `REFUND_PENDING`.

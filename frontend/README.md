@@ -15,6 +15,12 @@ registration or account screens: Login and Register send the browser to Keycloak
 - **Admin** (`/admin`): reachable only with the `ADMIN` role; calls `GET /admin/ping` and links to the admin pages.
 - **Stations** (`/admin/stations`): list, add, edit and delete stations through the Gateway. Duplicate codes and
   invalid input show their message next to the field; delete asks for confirmation first.
+- **Trains** (`/admin/trains`): list with filters (number, name, status), add, edit and delete; deleting a train also
+  deletes its coaches and seats, and the confirmation says so.
+- **Train page** (`/admin/trains/:id`): the train's coaches in train order, with add, edit and delete, standing
+  capacity, and a **Seats** panel per coach: a seat map, a layout generator (start row, number of rows, column
+  letters, saved all at once or not at all) and edit or delete of a single seat. A seat's class is always its coach's
+  class and is shown on the panel; it changes when the coach's class changes.
 - **Route guards:** logged-out visitors are redirected to Keycloak's login page; signed-in users without `ADMIN`
   are sent back to their profile. The guards only shape the UI: the Gateway enforces the token and the role.
 - **Token refresh:** `updateToken` runs before every Gateway call and in the background (every 20 s, renewing when

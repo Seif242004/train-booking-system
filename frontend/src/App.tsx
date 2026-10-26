@@ -6,6 +6,8 @@ import { Admin } from './pages/Admin';
 import { Home } from './pages/Home';
 import { Profile } from './pages/Profile';
 import { Stations } from './pages/Stations';
+import { TrainDetail } from './pages/TrainDetail';
+import { Trains } from './pages/Trains';
 
 export function App() {
   return (
@@ -20,6 +22,8 @@ export function App() {
               <Route element={<RequireAdmin />}>
                 <Route path="admin" element={<Admin />} />
                 <Route path="admin/stations" element={<Stations />} />
+                <Route path="admin/trains" element={<Trains />} />
+                <Route path="admin/trains/:id" element={<TrainDetail />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

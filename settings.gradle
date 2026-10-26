@@ -1,6 +1,6 @@
 rootProject.name = 'train-booking-system'
 
 // One Gradle subproject per Spring Boot service, living under services/.
-// Each service is included here when it is built, for example:
-//   include 'services:train-schedule-service'
+// Each service is included here when it is built.
 // The API Gateway and the frontend are Node projects and are not part of the Gradle build.
+include 'services:train-schedule'

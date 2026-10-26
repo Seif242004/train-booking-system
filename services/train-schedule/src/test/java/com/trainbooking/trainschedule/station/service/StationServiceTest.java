@@ -77,6 +77,26 @@ class StationServiceTest {
         verify(audit).record(eq("admin-1"), eq("station"), eq(5L), eq("DELETE"), anyString());
     }
 
+    @Test
+    void delete_aStationThatARouteUses_isReportedAsInUse_andNothingIsAudited() {
+        given(stations.findById(5)).willReturn(Optional.of(new Station(5, "CAI", "Cairo Ramses", "Cairo")));
+        given(stations.delete(5)).willThrow(new org.springframework.dao.DataIntegrityViolationException(
+                "ORA-02292: integrity constraint (TRAIN_SCHEDULE.FK_ROUTE_STOP_STATION) violated - child record found"));
+
+        assertThatThrownBy(() -> service.delete(5, "admin-1"))
+                .isInstanceOf(com.trainbooking.trainschedule.station.model.StationInUseException.class);
+        verify(audit, never()).record(any(), any(), anyLong(), any(), any());
+    }
+
+    @Test
+    void delete_anotherIntegrityProblem_isNotHiddenAsInUse() {
+        given(stations.findById(5)).willReturn(Optional.of(new Station(5, "CAI", "Cairo Ramses", "Cairo")));
+        given(stations.delete(5)).willThrow(new org.springframework.dao.DataIntegrityViolationException("something else"));
+
+        assertThatThrownBy(() -> service.delete(5, "admin-1"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
     private static long anyLong() {
         return org.mockito.ArgumentMatchers.anyLong();
     }

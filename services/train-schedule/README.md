@@ -2,8 +2,8 @@
 
 Spring Boot service (Java 21, Gradle, Spring MVC: controller → service → repository) that owns trains, coaches,
 seats, standing capacity, routes, trips and stations (`CLAUDE.md`, "Services"). So far it has **stations**, **trains**,
-**coaches** (with standing capacity) and **seats**, all admin CRUD with the audit log required by FR-A10. Routes, fares
-and trips follow in later slices.
+**coaches** (with standing capacity), **seats**, **routes** with ordered stops and **fares**, all admin CRUD with the
+audit log required by FR-A10. Trips follow in the next slice.
 
 ## Responsibility
 
@@ -15,7 +15,7 @@ and trips follow in later slices.
 
 ## Code layout
 
-Feature first, then layer (`CLAUDE.md`, "Code standards"): `station`, `train`, `coach` and `seat` each have
+Feature first, then layer (`CLAUDE.md`, "Code standards"): `station`, `train`, `coach`, `seat`, `route` and `fare` each have
 `controller/`, `service/`, `repository/` and `model/` (records, request bodies and the feature's exceptions).
 `audit/` (audit log), `security/` (resource-server setup) and `common/` (error shape and handler) are shared.
 
@@ -34,6 +34,9 @@ All require the `ADMIN` role. Browsers reach them through the Gateway. JSON fiel
 | PUT / DELETE | `/admin/coaches/{id}` | update / delete; a delete also deletes the coach's seats |
 | GET / POST | `/admin/coaches/{id}/seats` | list in seat-map order / **bulk add**: a JSON list of `{ seatNumber, row, column }` |
 | PUT / DELETE | `/admin/seats/{id}` | update `{ seatNumber, row, column }` / delete |
+| GET / POST | `/admin/routes` | list routes with their stops in order / create `{ name, stops: [stationId, ...] }` |
+| GET / PUT / DELETE | `/admin/routes/{id}` | read / update (`?clearFares=true` to confirm a stops change, see below) / delete; a delete also deletes the route's stops and fares |
+| GET / PUT | `/admin/routes/{id}/fares` | read the fares / **replace** the route's whole fare set with a JSON list of `{ segmentIndex, class, amount }` |
 
 Rules worth knowing:
 
@@ -45,10 +48,22 @@ Rules worth knowing:
 - **Bulk seat add is all or nothing.** Any invalid seat, a seat number or a row and column repeated inside the list (400),
   or a clash with an existing seat of the coach (409) rejects the whole request and saves nothing. Errors name the
   position in the list, for example `[2].seatNumber`. At most 200 seats per request.
+- **Routes:** `stops` are station ids in travel order (the first is stop 0), 2 to 50 of them, each an existing station, and
+  a station may appear only once. Responses add each stop's station code, name and city. Segment *k* is the leg from
+  stop *k* to stop *k*+1, so a route with *n* stops has *n*-1 segments.
+- **Fares** are in EGP only (the response carries `currency: "EGP"`). `amount` is more than 0 with at most 2 decimals,
+  `class` is `FIRST`, `SECOND` or `THIRD`, and `segmentIndex` must exist on the route. The PUT is all or nothing: any
+  invalid fare, a segment and class repeated in the list, or a segment that does not exist rejects the request and the
+  existing fares stay. A segment or class may be left without a fare for now; a journey will cost the sum of its segments.
+- **Changing a route's stops while it has fares is refused** (409 `route_has_fares`), because fares belong to segment
+  positions. Repeating the request with `clearFares=true` removes the fares and saves; the audit row records how many.
+  Renaming a route never touches its fares.
+- **A station that a route uses cannot be deleted** (409 `station_in_use`).
 - **Errors** have one JSON shape: `{ "error": { "code", "message", "details": [ { "field", "message" } ] } }`
   (`details` for validation and seat conflicts). A missing value reports only "is required". Security failures use the
   same shape: `401 unauthenticated` or `invalid_token`, `403 forbidden`.
-- **TODOs for when trips and bookings exist:** refuse deleting a train that has future trips with confirmed bookings
+- **TODOs for when trips and bookings exist:** refuse deleting a route, or changing its stops, when trips use it; require
+  a fare for every segment and class when a trip is created (slice 4); refuse deleting a train that has future trips with confirmed bookings
   (FR-A4, Flow 7), and refuse capacity changes (removing seats or coaches, lowering standing capacity) that conflict
   with active holds or confirmed bookings (FR-A9). Until then these deletes and changes always go through.
 
@@ -59,6 +74,9 @@ Flyway migrations live in `src/main/resources/db/migration` and run at startup a
 - `V1`: `station(id, code, name, city)` and `audit_log`.
 - `V2`: `train`, `coach` and `seat`, with the unique and check constraints above and `ON DELETE CASCADE` from train to
   coach to seat.
+- `V3`: `route`, `route_stop` (primary key route and stop index, one row per station per route, no cascade from station)
+  and `fare` (primary key route, segment and class; amount above 0; currency fixed to EGP). Deleting a route cascades to
+  its stops and fares.
 
 Three SRS column names are Oracle reserved words, so the database columns are renamed (the JSON API keeps the SRS
 names, and the migration comments say so): `train.number` is `train_number`, `seat.row` is `seat_row`, `seat.column` is

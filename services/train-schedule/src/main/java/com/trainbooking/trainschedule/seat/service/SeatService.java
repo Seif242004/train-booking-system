@@ -4,7 +4,7 @@ import com.trainbooking.trainschedule.audit.AuditTrail;
 import com.trainbooking.trainschedule.coach.model.Coach;
 import com.trainbooking.trainschedule.coach.service.CoachService;
 import com.trainbooking.trainschedule.common.ApiError;
-import com.trainbooking.trainschedule.common.FieldProblems;
+import com.trainbooking.trainschedule.common.ListValidation;
 import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.seat.model.Seat;
 import com.trainbooking.trainschedule.seat.model.SeatConflictException;
@@ -60,7 +60,8 @@ public class SeatService {
     public List<Seat> addSeats(long coachId, List<SeatRequest> requests, String adminId) {
         Coach coach = coaches.get(coachId); // 404 if the coach does not exist
 
-        validateList(requests);
+        // The list as a whole and every seat in it, reporting every problem at once (seats are saved all or nothing).
+        ListValidation.require(validator, requests, "seats", MAX_SEATS_PER_REQUEST);
         List<SeatRequest> clean = requests.stream().map(SeatService::normalize).toList();
         rejectDuplicatesInsideTheList(clean);
 
@@ -122,28 +123,6 @@ public class SeatService {
             throw new SeatNotFoundException(id);
         }
         audit.change(adminId, ENTITY, id, "DELETE", before, null);
-    }
-
-    /** Checks the list as a whole and every seat in it, collecting every problem so the admin sees them all at once. */
-    private void validateList(List<SeatRequest> requests) {
-        List<ApiError.Detail> problems = new ArrayList<>();
-        if (requests == null || requests.isEmpty()) {
-            problems.add(new ApiError.Detail("seats", "at least one seat is required"));
-        } else if (requests.size() > MAX_SEATS_PER_REQUEST) {
-            problems.add(new ApiError.Detail("seats", "at most " + MAX_SEATS_PER_REQUEST + " seats per request"));
-        } else {
-            for (int i = 0; i < requests.size(); i++) {
-                SeatRequest request = requests.get(i);
-                if (request == null) {
-                    problems.add(new ApiError.Detail("[" + i + "]", "is required"));
-                    continue;
-                }
-                problems.addAll(FieldProblems.fromViolations(validator.validate(request), "[" + i + "]."));
-            }
-        }
-        if (!problems.isEmpty()) {
-            throw new RequestValidationException(problems);
-        }
     }
 
     /** A seat number, or a row and column position, may appear only once in the list. */

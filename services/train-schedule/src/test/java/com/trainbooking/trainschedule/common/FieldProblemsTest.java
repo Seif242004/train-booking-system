@@ -37,10 +37,17 @@ class FieldProblemsTest {
     }
 
     @Test
-    void coachRequestFieldNamesAreUnaffected() {
+    void theJavaNameCoachClassIsReportedUnderItsJsonNameClass() {
         List<ApiError.Detail> details = FieldProblems.fromViolations(validator.validate(new CoachRequest("", "FOURTH", null, -1)), "");
 
         assertThat(details).extracting(ApiError.Detail::field)
-                .containsExactlyInAnyOrder("code", "coachClass", "position", "standingCapacity");
+                .containsExactlyInAnyOrder("code", "class", "position", "standingCapacity");
+    }
+
+    @Test
+    void theJsonNameIsAlsoUsedInsideAListPosition() {
+        List<ApiError.Detail> details = FieldProblems.fromViolations(validator.validate(new CoachRequest("A1", "FOURTH", 1, 0)), "[3].");
+
+        assertThat(details).containsExactly(new ApiError.Detail("[3].class", "must be FIRST, SECOND or THIRD"));
     }
 }

@@ -1,8 +1,11 @@
 package com.trainbooking.trainschedule.station.repository;
 
 import com.trainbooking.trainschedule.station.model.Station;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -22,6 +25,17 @@ public class StationRepository {
         return jdbc.sql("SELECT id, code, name, city FROM station ORDER BY code")
                 .query(Station.class)
                 .list();
+    }
+
+    /** The ids from the given ones that exist. Used to check the stops of a route in one query. */
+    public Set<Long> findExistingIds(Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(jdbc.sql("SELECT id FROM station WHERE id IN (:ids)")
+                .param("ids", ids)
+                .query(Long.class)
+                .list());
     }
 
     public Optional<Station> findById(long id) {

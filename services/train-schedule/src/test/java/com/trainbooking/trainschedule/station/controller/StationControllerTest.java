@@ -148,6 +148,16 @@ class StationControllerTest {
     }
 
     @Test
+    void asAdmin_deletingAStationARouteUses_returns409() throws Exception {
+        org.mockito.Mockito.doThrow(new com.trainbooking.trainschedule.station.model.StationInUseException(7))
+                .when(service).delete(7, "admin-sub");
+
+        mvc.perform(delete("/admin/stations/7").with(admin()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("station_in_use"));
+    }
+
+    @Test
     void asAdmin_deleteReturns204() throws Exception {
         mvc.perform(delete("/admin/stations/7").with(admin()))
                 .andExpect(status().isNoContent());

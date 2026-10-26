@@ -3,9 +3,12 @@ package com.trainbooking.trainschedule.common;
 import com.trainbooking.trainschedule.coach.model.CoachCodeTakenException;
 import com.trainbooking.trainschedule.coach.model.CoachNotFoundException;
 import com.trainbooking.trainschedule.coach.model.CoachPositionTakenException;
+import com.trainbooking.trainschedule.route.model.RouteHasFaresException;
+import com.trainbooking.trainschedule.route.model.RouteNotFoundException;
 import com.trainbooking.trainschedule.seat.model.SeatConflictException;
 import com.trainbooking.trainschedule.seat.model.SeatNotFoundException;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
+import com.trainbooking.trainschedule.station.model.StationInUseException;
 import com.trainbooking.trainschedule.station.model.StationNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainNumberTakenException;
@@ -32,7 +35,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalidBody(MethodArgumentNotValidException e) {
-        List<ApiError.Detail> details = FieldProblems.fromFieldErrors(e.getBindingResult().getFieldErrors(), GlobalExceptionHandler::jsonName);
+        List<ApiError.Detail> details = FieldProblems.fromFieldErrors(e.getBindingResult().getFieldErrors(), FieldProblems::jsonName);
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("validation_failed", "The request body is not valid.", details));
     }
 
@@ -73,6 +76,11 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("seat_not_found", e.getMessage()));
     }
 
+    @ExceptionHandler(RouteNotFoundException.class)
+    ResponseEntity<ApiError> routeNotFound(RouteNotFoundException e) {
+        return respond(HttpStatus.NOT_FOUND, ApiError.of("route_not_found", e.getMessage()));
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> noRoute() {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("not_found", "No such route."));
@@ -83,6 +91,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StationCodeTakenException.class)
     ResponseEntity<ApiError> stationCodeTaken(StationCodeTakenException e) {
         return respond(HttpStatus.CONFLICT, ApiError.of("station_code_taken", e.getMessage()));
+    }
+
+    @ExceptionHandler(StationInUseException.class)
+    ResponseEntity<ApiError> stationInUse(StationInUseException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("station_in_use", e.getMessage()));
+    }
+
+    @ExceptionHandler(RouteHasFaresException.class)
+    ResponseEntity<ApiError> routeHasFares(RouteHasFaresException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("route_has_fares", e.getMessage()));
     }
 
     @ExceptionHandler(TrainNumberTakenException.class)
@@ -116,11 +134,6 @@ public class GlobalExceptionHandler {
     ResponseEntity<ApiError> unexpected(Exception e) {
         log.error("Unhandled error", e);
         return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiError.of("internal_error", "Something went wrong."));
-    }
-
-    /** Validation reports Java property names; {@code class} is a Java keyword, so its property is {@code coachClass}. */
-    private static String jsonName(String property) {
-        return "coachClass".equals(property) ? "class" : property;
     }
 
     private static ResponseEntity<ApiError> respond(HttpStatus status, ApiError body) {

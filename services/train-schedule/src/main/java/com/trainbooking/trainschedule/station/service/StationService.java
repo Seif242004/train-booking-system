@@ -3,11 +3,15 @@ package com.trainbooking.trainschedule.station.service;
 import com.trainbooking.trainschedule.audit.AuditTrail;
 import com.trainbooking.trainschedule.station.model.Station;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
+import com.trainbooking.trainschedule.station.model.StationInUseException;
 import com.trainbooking.trainschedule.station.model.StationNotFoundException;
 import com.trainbooking.trainschedule.station.model.StationRequest;
 import com.trainbooking.trainschedule.station.repository.StationRepository;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,11 +69,26 @@ public class StationService {
         return after;
     }
 
+    /** The ids from the given ones that exist (used to validate the stops of a route). */
+    @Transactional(readOnly = true)
+    public Set<Long> existingIds(Collection<Long> ids) {
+        return stations.findExistingIds(ids);
+    }
+
     @Transactional
     public void delete(long id, String adminId) {
         Station before = get(id);
-        if (!stations.delete(id)) {
-            throw new StationNotFoundException(id);
+        try {
+            if (!stations.delete(id)) {
+                throw new StationNotFoundException(id);
+            }
+        } catch (DataIntegrityViolationException e) {
+            // ORA-02292: a route_stop row still points at this station. The foreign key is the real guard.
+            String message = String.valueOf(e.getMessage()).toUpperCase(Locale.ROOT);
+            if (message.contains("ORA-02292") || message.contains("FK_ROUTE_STOP_STATION")) {
+                throw new StationInUseException(id);
+            }
+            throw e;
         }
         audit.change(adminId, ENTITY, id, "DELETE", before, null);
     }

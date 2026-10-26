@@ -39,8 +39,16 @@ public final class FieldProblems {
                     (kept, next) -> isRequired(ruleOf(next)) && !isRequired(ruleOf(kept)) ? next : kept);
         }
         return chosen.entrySet().stream()
-                .map(entry -> new ApiError.Detail(prefix + entry.getKey(), entry.getValue().getMessage()))
+                .map(entry -> new ApiError.Detail(prefix + jsonName(entry.getKey()), entry.getValue().getMessage()))
                 .toList();
+    }
+
+    /**
+     * Validation reports Java property names, but clients send and read JSON names. {@code class} is a Java keyword, so
+     * the record component is {@code coachClass} while the JSON field is {@code class}; errors must name the JSON field.
+     */
+    public static String jsonName(String property) {
+        return "coachClass".equals(property) ? "class" : property;
     }
 
     private static String ruleOf(ConstraintViolation<?> violation) {

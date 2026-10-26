@@ -40,7 +40,11 @@ export function createApp() {
   // here and never reaches the service), then forwards the call with the caller's token. express.raw only reads the
   // body of requests that passed the checks, and keeps it as bytes so it is forwarded unchanged.
   const passThroughBody = express.raw({ type: () => true, limit: '1mb' });
-  app.use('/admin/stations', requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.trainScheduleUrl, '/admin/stations'));
+  // Train & Schedule owns stations, trains, coaches and seats (SRS 9.2). Note that /admin/trains/{id}/coaches is
+  // under /admin/trains, and the seats of a coach are under /admin/coaches/{id}/seats.
+  for (const prefix of ['/admin/stations', '/admin/trains', '/admin/coaches', '/admin/seats']) {
+    app.use(prefix, requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.trainScheduleUrl, prefix));
+  }
 
   app.use((req, res) => {
     sendError(res, 404, 'not_found', `No route for ${req.method} ${req.path}.`);

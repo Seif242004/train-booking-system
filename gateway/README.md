@@ -14,7 +14,8 @@ the Stripe webhook forwarding come with their steps.
 | GET | `/health` | none | `{ "status": "UP" }` |
 | GET | `/me` | any valid token | `{ sub, name, email, roles }` |
 | GET | `/admin/ping` | role `ADMIN` | `{ "message": "pong", "admin": "<sub>" }` (example admin-only route) |
-| any | `/admin/stations/**`, `/admin/trains/**` (including `/admin/trains/{id}/coaches`), `/admin/coaches/**` (including `/admin/coaches/{id}/seats`), `/admin/seats/**`, `/admin/routes/**` (including `/admin/routes/{id}/fares`) | role `ADMIN` | forwarded to Train & Schedule (`TRAIN_SCHEDULE_URL`), answer relayed unchanged |
+| any | `/admin/stations/**`, `/admin/trains/**` (including `/admin/trains/{id}/coaches`), `/admin/coaches/**` (including `/admin/coaches/{id}/seats`), `/admin/seats/**`, `/admin/routes/**` (including `/admin/routes/{id}/fares`), `/admin/trips/**` | role `ADMIN` | forwarded to Train & Schedule (`TRAIN_SCHEDULE_URL`), answer relayed unchanged |
+| GET | `/trips?from=&to=&date=`, `/stations` | any valid token | forwarded to Train & Schedule: trip search and the station list for the search page (exact paths only; `/trips/{id}/...` is routed later, to its own service) |
 
 ## Forwarding to services
 
@@ -62,7 +63,7 @@ All are optional; the defaults are for local development. See `.env.example`.
 | `HOST` | `127.0.0.1` | Listen address |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the JWKS URL is derived from it |
 | `CORS_ORIGIN` | `http://localhost:5173` | The one allowed browser origin |
-| `TRAIN_SCHEDULE_URL` | `http://localhost:8081` | Where the stations, trains, coaches, seats, routes and fares routes are forwarded |
+| `TRAIN_SCHEDULE_URL` | `http://localhost:8081` | Where the stations, trains, coaches, seats, routes, fares and trips routes are forwarded |
 | `UPSTREAM_TIMEOUT_MS` | `10000` | How long to wait for a service before answering 504 |
 
 ## Run

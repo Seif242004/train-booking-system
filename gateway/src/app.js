@@ -40,12 +40,18 @@ export function createApp() {
   // here and never reaches the service), then forwards the call with the caller's token. express.raw only reads the
   // body of requests that passed the checks, and keeps it as bytes so it is forwarded unchanged.
   const passThroughBody = express.raw({ type: () => true, limit: '1mb' });
-  // Train & Schedule owns stations, trains, coaches, seats, routes and fares (SRS 9.2). Note that
+  // Train & Schedule owns stations, trains, coaches, seats, routes, fares and trips (SRS 9.2). Note that
   // /admin/trains/{id}/coaches is under /admin/trains, the seats of a coach are under /admin/coaches/{id}/seats, and
   // the fares of a route are under /admin/routes/{id}/fares.
-  for (const prefix of ['/admin/stations', '/admin/trains', '/admin/coaches', '/admin/seats', '/admin/routes']) {
+  for (const prefix of ['/admin/stations', '/admin/trains', '/admin/coaches', '/admin/seats', '/admin/routes', '/admin/trips']) {
     app.use(prefix, requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.trainScheduleUrl, prefix));
   }
+
+  // Read-only routes for any signed-in user (not only admins): trip search, and the station list that the search page
+  // offers. They are exact GET paths on purpose: /trips/{id}/... (the seat map, availability, layout) is routed later,
+  // each to its own service, and must not be swallowed by a broad /trips prefix.
+  app.get('/trips', requireAuth, forwardTo(config.trainScheduleUrl, '/trips'));
+  app.get('/stations', requireAuth, forwardTo(config.trainScheduleUrl, '/stations'));
 
   app.use((req, res) => {
     sendError(res, 404, 'not_found', `No route for ${req.method} ${req.path}.`);

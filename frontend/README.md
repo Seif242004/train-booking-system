@@ -17,6 +17,11 @@ registration or account screens: Login and Register send the browser to Keycloak
   invalid input show their message next to the field; delete asks for confirmation first.
 - **Trains** (`/admin/trains`): list with filters (number, name, status), add, edit and delete; deleting a train also
   deletes its coaches and seats, and the confirmation says so.
+- **Routes** (`/admin/routes`): list (name and stops as `CAI → TNT → ALX`), add, edit and delete. The stop editor picks
+  stations one at a time, with Up, Down and Remove to set the order. Changing the stops of a route that has fares asks
+  for confirmation first, because the fares are removed.
+- **Fares** (`/admin/routes/:id/fares`): a grid of segments by class with one EGP box per cell and the total for the
+  whole route per class. Saving replaces the route's fares; an empty box means no fare; errors show on the box.
 - **Train page** (`/admin/trains/:id`): the train's coaches in train order, with add, edit and delete, standing
   capacity, and a **Seats** panel per coach: a seat map, a layout generator (start row, number of rows, column
   letters, saved all at once or not at all) and edit or delete of a single seat. A seat's class is always its coach's

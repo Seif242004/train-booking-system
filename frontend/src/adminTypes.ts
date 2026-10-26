@@ -26,6 +26,36 @@ export interface Coach {
   standingCapacity: number;
 }
 
+export interface Station {
+  id: number;
+  code: string;
+  name: string;
+  city: string;
+}
+
+/** One stop of a route, with its station's details. Segment k is the leg from stop k to stop k+1. */
+export interface RouteStop {
+  stopIndex: number;
+  stationId: number;
+  stationCode: string;
+  stationName: string;
+  stationCity: string;
+}
+
+export interface Route {
+  id: number;
+  name: string;
+  stops: RouteStop[];
+}
+
+/** The price of one route segment for one class, in EGP. */
+export interface Fare {
+  segmentIndex: number;
+  class: CoachClass;
+  amount: number;
+  currency: 'EGP';
+}
+
 export interface Seat {
   id: number;
   coachId: number;

@@ -5,6 +5,8 @@ import { Layout } from './components/Layout';
 import { Admin } from './pages/Admin';
 import { Home } from './pages/Home';
 import { Profile } from './pages/Profile';
+import { RouteFares } from './pages/RouteFares';
+import { RouteList } from './pages/RouteList';
 import { Stations } from './pages/Stations';
 import { TrainDetail } from './pages/TrainDetail';
 import { Trains } from './pages/Trains';
@@ -24,6 +26,8 @@ export function App() {
                 <Route path="admin/stations" element={<Stations />} />
                 <Route path="admin/trains" element={<Trains />} />
                 <Route path="admin/trains/:id" element={<TrainDetail />} />
+                <Route path="admin/routes" element={<RouteList />} />
+                <Route path="admin/routes/:id/fares" element={<RouteFares />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -2,7 +2,7 @@
 
 ## 1. Microservices Architecture
 
-![Train Booking System - Microservices Architecture](docs/architecture.png)
+![Train Booking System - Microservices Architecture](architecture.png)
 
 ## 2. Flows
 

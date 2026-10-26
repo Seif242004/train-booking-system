@@ -50,6 +50,6 @@ SQL
   create_schema payment        "${PAYMENT_DB_PASSWORD}"
   create_schema ticket         "${TICKET_DB_PASSWORD}"
   create_schema notification   "${NOTIFICATION_DB_PASSWORD}"
-  # Keycloak stores its users in Oracle too (ARCHITECTURE.md, Flow 1). It gets its own schema like the services.
+  # Keycloak stores its users in Oracle too (docs/ARCHITECTURE.md, Flow 1). It gets its own schema like the services.
   create_schema keycloak       "${KEYCLOAK_DB_PASSWORD}"
 ) || exit 1

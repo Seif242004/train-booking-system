@@ -85,6 +85,26 @@ class TrainServiceTest {
     }
 
     @Test
+    void delete_aTrainThatTripsUse_isReportedAsInUse_andNothingIsAudited() {
+        given(trains.findById(5)).willReturn(Optional.of(EXISTING));
+        given(trains.delete(5)).willThrow(new org.springframework.dao.DataIntegrityViolationException(
+                "ORA-02292: integrity constraint (TRAIN_SCHEDULE.FK_TRIP_TRAIN) violated - child record found"));
+
+        assertThatThrownBy(() -> service.delete(5, "admin-1"))
+                .isInstanceOf(com.trainbooking.trainschedule.train.model.TrainInUseException.class);
+        verify(auditLog, never()).record(any(), any(), anyLong(), any(), any());
+    }
+
+    @Test
+    void delete_anotherIntegrityProblem_isNotHiddenAsInUse() {
+        given(trains.findById(5)).willReturn(Optional.of(EXISTING));
+        given(trains.delete(5)).willThrow(new org.springframework.dao.DataIntegrityViolationException("something else"));
+
+        assertThatThrownBy(() -> service.delete(5, "admin-1"))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+    }
+
+    @Test
     void list_blankFiltersAreIgnored_andAnUnknownStatusIsRejected() {
         service.list(" ", "", null);
         verify(trains).search(null, null, null);

@@ -2,8 +2,9 @@
 
 Spring Boot service (Java 21, Gradle, Spring MVC: controller → service → repository) that owns trains, coaches,
 seats, standing capacity, routes, trips and stations (`CLAUDE.md`, "Services"). So far it has **stations**, **trains**,
-**coaches** (with standing capacity), **seats**, **routes** with ordered stops and **fares**, all admin CRUD with the
-audit log required by FR-A10. Trips follow in the next slice.
+**coaches** (with standing capacity), **seats**, **routes** with ordered stops, **fares** and **trips**, all admin CRUD
+with the audit log required by FR-A10, plus passenger **trip search**. The Booking & Seat service and the trip snapshot
+push to it come next.
 
 ## Responsibility
 
@@ -15,7 +16,7 @@ audit log required by FR-A10. Trips follow in the next slice.
 
 ## Code layout
 
-Feature first, then layer (`CLAUDE.md`, "Code standards"): `station`, `train`, `coach`, `seat`, `route` and `fare` each have
+Feature first, then layer (`CLAUDE.md`, "Code standards"): `station`, `train`, `coach`, `seat`, `route`, `fare` and `trip` each have
 `controller/`, `service/`, `repository/` and `model/` (records, request bodies and the feature's exceptions).
 `audit/` (audit log), `security/` (resource-server setup) and `common/` (error shape and handler) are shared.
 
@@ -37,6 +38,10 @@ All require the `ADMIN` role. Browsers reach them through the Gateway. JSON fiel
 | GET / POST | `/admin/routes` | list routes with their stops in order / create `{ name, stops: [stationId, ...] }` |
 | GET / PUT / DELETE | `/admin/routes/{id}` | read / update (`?clearFares=true` to confirm a stops change, see below) / delete; a delete also deletes the route's stops and fares |
 | GET / PUT | `/admin/routes/{id}/fares` | read the fares / **replace** the route's whole fare set with a JSON list of `{ segmentIndex, class, amount }` |
+| GET / POST | `/admin/trips` | list trips by first departure (`?date=yyyy-MM-dd` to filter) / create `{ trainId, routeId, departureDate, stops: [{ arrivalTime, departureTime }, ...] }` |
+| GET / PUT / DELETE | `/admin/trips/{id}` | read / replace train, route, date and all stop times / delete (the stops go with it) |
+| GET | `/trips?from=CAI&to=ALX&date=2026-11-02` | **passenger trip search**, any signed-in user (see below) |
+| GET | `/stations` | read-only station list for any signed-in user, so the search page can offer the stations |
 
 Rules worth knowing:
 
@@ -59,11 +64,37 @@ Rules worth knowing:
   positions. Repeating the request with `clearFares=true` removes the fares and saves; the audit row records how many.
   Renaming a route never touches its fares.
 - **A station that a route uses cannot be deleted** (409 `station_in_use`).
+- **Trips:** a trip is a train on a route with a departure date and the time at every stop. `stops` has one entry per
+  route stop, in the route's order, with times as `HH:mm` (24 hours, local time of `trainbooking.timezone`, default
+  `Africa/Cairo`; stored with their offset). The first stop has only a departure and the last only an arrival; a time
+  earlier than the one before it means the next day, so a trip can run past midnight, and a trip lasts at most 24 hours.
+  The response has full local date-times such as `2026-11-03T00:15:00`. A trip starts `ACTIVE`; the API cannot set
+  `CANCELLED`, which belongs to the whole-trip cancel (slice 12).
+- **Creating or changing a trip is refused** (409) when the train is `INACTIVE` (`train_inactive`; changing only the times of
+  an existing trip is still allowed), when the train has no coaches (`train_has_no_coaches`), or when the route's fares are
+  **not complete** for the train (`route_fares_incomplete`): every segment needs a fare for every class that the train has
+  a coach of, and every missing one is listed in `details`.
+- **Trip search** returns the trips that leave the origin on the given date (the departure date at the origin stop, in the
+  service time zone) and later arrive at the destination: cancelled trips are never returned, and only trips where the
+  origin comes before the destination on the route. Each result has the times at both stations, the stop positions of the
+  journey, **all the stops of the trip** (`stops`, in route order, with the same fields and local date-times as the admin
+  trip: the stops outside the journey are included so a client can dim them) and the journey fare per class in EGP (the
+  sum of the segments it uses). The answer is `{ "trips": [...], "nextAvailableDate": "2026-11-09" }`: when `date` is
+  today (in the service time zone) the trips that have already left the origin are left out, and when there are no trips
+  `nextAvailableDate` is the next date, after the searched one and never in the past, that has a trip from the origin to
+  the destination; it is omitted when there is none, and always omitted when trips were found. `from` and `to` are station codes (any
+  case); an unknown code, the same station twice or a bad date is a 400.
+  TODO(slice 6): add the seats and standing places left for each journey, which Booking & Seat owns (FR-S2).
+- **Trips use trains, routes and stations:** a train or a route that has trips cannot be deleted (409 `train_in_use`,
+  `route_in_use`), and the stops of a route that has trips cannot change (409 `route_in_use`; renaming is fine).
+- **Trip snapshot:** `TripSnapshotPublisher` is called when a trip is created or changed and does nothing yet.
+  TODO(slice 5): push the immutable snapshot (coaches, seats, capacity, stops and times, fares) to Booking & Seat through
+  an outbox and retry poller, and commit the trip only after Booking accepts it.
 - **Errors** have one JSON shape: `{ "error": { "code", "message", "details": [ { "field", "message" } ] } }`
   (`details` for validation and seat conflicts). A missing value reports only "is required". Security failures use the
   same shape: `401 unauthenticated` or `invalid_token`, `403 forbidden`.
-- **TODOs for when trips and bookings exist:** refuse deleting a route, or changing its stops, when trips use it; require
-  a fare for every segment and class when a trip is created (slice 4); refuse deleting a train that has future trips with confirmed bookings
+- **TODOs for when bookings exist (slice 5 on):** refuse changing or deleting a trip that has holds or confirmed bookings,
+  and relax the train delete to FR-A4 exactly (only future trips with confirmed bookings block it); refuse deleting a train that has future trips with confirmed bookings
   (FR-A4, Flow 7), and refuse capacity changes (removing seats or coaches, lowering standing capacity) that conflict
   with active holds or confirmed bookings (FR-A9). Until then these deletes and changes always go through.
 
@@ -77,6 +108,9 @@ Flyway migrations live in `src/main/resources/db/migration` and run at startup a
 - `V3`: `route`, `route_stop` (primary key route and stop index, one row per station per route, no cascade from station)
   and `fare` (primary key route, segment and class; amount above 0; currency fixed to EGP). Deleting a route cascades to
   its stops and fares.
+- `V4`: `trip` (train, route, departure date, status) and `trip_stop` (the stop times as `TIMESTAMP WITH TIME ZONE`; the
+  stations and times are copied from the route and the request). Trains, routes and stations that trips use are protected
+  by foreign keys without cascade; deleting a trip cascades to its stops.
 
 Three SRS column names are Oracle reserved words, so the database columns are renamed (the JSON API keeps the SRS
 names, and the migration comments say so): `train.number` is `train_number`, `seat.row` is `seat_row`, `seat.column` is
@@ -92,6 +126,7 @@ Set in `services/train-schedule/.env` (git-ignored; copy `.env.example`), or in 
 | `TRAIN_SCHEDULE_DB_URL` | `jdbc:oracle:thin:@//localhost:1521/FREEPDB1` | JDBC URL |
 | `TRAIN_SCHEDULE_DB_USER` | `train_schedule` | Oracle user |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the keys are fetched from it |
+| `TRAINBOOKING_TIMEZONE` | `Africa/Cairo` | Time zone of trip times (entered, shown and used for "the date of a trip") |
 
 The service listens on port **8081**.
 

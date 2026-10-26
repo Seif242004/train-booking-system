@@ -38,6 +38,13 @@ public class StationRepository {
                 .list());
     }
 
+    public Optional<Station> findByCode(String code) {
+        return jdbc.sql("SELECT id, code, name, city FROM station WHERE UPPER(code) = :code")
+                .param("code", code.strip().toUpperCase(java.util.Locale.ROOT))
+                .query(Station.class)
+                .optional();
+    }
+
     public Optional<Station> findById(long id) {
         return jdbc.sql("SELECT id, code, name, city FROM station WHERE id = :id")
                 .param("id", id)

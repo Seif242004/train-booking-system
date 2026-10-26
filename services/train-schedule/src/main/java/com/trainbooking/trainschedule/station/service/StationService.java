@@ -69,6 +69,12 @@ public class StationService {
         return after;
     }
 
+    /** The station with this code (any case), if there is one. Used by trip search. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Station> findByCode(String code) {
+        return stations.findByCode(code);
+    }
+
     /** The ids from the given ones that exist (used to validate the stops of a route). */
     @Transactional(readOnly = true)
     public Set<Long> existingIds(Collection<Long> ids) {

@@ -20,11 +20,13 @@ import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.fare.repository.FareRepository;
 import com.trainbooking.trainschedule.route.model.Route;
 import com.trainbooking.trainschedule.route.model.RouteHasFaresException;
+import com.trainbooking.trainschedule.route.model.RouteInUseException;
 import com.trainbooking.trainschedule.route.model.RouteNotFoundException;
 import com.trainbooking.trainschedule.route.model.RouteRequest;
 import com.trainbooking.trainschedule.route.model.RouteStop;
 import com.trainbooking.trainschedule.route.repository.RouteRepository;
 import com.trainbooking.trainschedule.station.service.StationService;
+import com.trainbooking.trainschedule.trip.repository.TripRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -35,10 +37,11 @@ class RouteServiceTest {
 
     private final RouteRepository routes = mock(RouteRepository.class);
     private final FareRepository fares = mock(FareRepository.class);
+    private final TripRepository trips = mock(TripRepository.class);
     private final StationService stations = mock(StationService.class);
     private final AuditLogRepository auditLog = mock(AuditLogRepository.class);
     private final RouteService service =
-            new RouteService(routes, fares, stations, new AuditTrail(auditLog, JsonMapper.builder().build()));
+            new RouteService(routes, fares, trips, stations, new AuditTrail(auditLog, JsonMapper.builder().build()));
 
     private static Route route(long id, String name, long... stationIds) {
         RouteStop[] stops = new RouteStop[stationIds.length];
@@ -138,6 +141,36 @@ class RouteServiceTest {
 
         verify(routes).insertStops(eq(4L), anyList());
         verify(fares, never()).deleteByRoute(anyLong());
+    }
+
+    @Test
+    void update_changingTheStopsOfARouteThatTripsUse_isRefused_evenWithClearFares() {
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "R", 1, 2, 3)));
+        given(trips.countByRoute(4)).willReturn(2);
+
+        assertThatThrownBy(() -> service.update(4, new RouteRequest("R", List.of(1L, 2L, 4L)), true, "admin-1"))
+                .isInstanceOf(RouteInUseException.class);
+        verify(routes, never()).deleteStops(anyLong());
+        verify(fares, never()).deleteByRoute(anyLong());
+    }
+
+    @Test
+    void update_renamingARouteThatTripsUse_isFine() {
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "Old", 1, 2, 3)), Optional.of(route(4, "New", 1, 2, 3)));
+        given(routes.updateName(4, "New")).willReturn(true);
+        given(trips.countByRoute(4)).willReturn(2);
+
+        assertThat(service.update(4, new RouteRequest("New", List.of(1L, 2L, 3L)), false, "admin-1").name()).isEqualTo("New");
+    }
+
+    @Test
+    void delete_aRouteThatTripsUse_isReportedAsInUse_andNothingIsAudited() {
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "R", 1, 2, 3)));
+        given(routes.delete(4)).willThrow(new org.springframework.dao.DataIntegrityViolationException(
+                "ORA-02292: integrity constraint (TRAIN_SCHEDULE.FK_TRIP_ROUTE) violated - child record found"));
+
+        assertThatThrownBy(() -> service.delete(4, "admin-1")).isInstanceOf(RouteInUseException.class);
+        verify(auditLog, never()).record(any(), any(), anyLong(), any(), any());
     }
 
     @Test

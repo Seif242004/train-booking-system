@@ -6,17 +6,21 @@ import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.fare.repository.FareRepository;
 import com.trainbooking.trainschedule.route.model.Route;
 import com.trainbooking.trainschedule.route.model.RouteHasFaresException;
+import com.trainbooking.trainschedule.route.model.RouteInUseException;
 import com.trainbooking.trainschedule.route.model.RouteNotFoundException;
 import com.trainbooking.trainschedule.route.model.RouteRequest;
 import com.trainbooking.trainschedule.route.model.RouteStop;
 import com.trainbooking.trainschedule.route.repository.RouteRepository;
 import com.trainbooking.trainschedule.station.service.StationService;
+import com.trainbooking.trainschedule.trip.repository.TripRepository;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,12 +32,15 @@ public class RouteService {
 
     private final RouteRepository routes;
     private final FareRepository fares;
+    private final TripRepository trips;
     private final StationService stations;
     private final AuditTrail audit;
 
-    public RouteService(RouteRepository routes, FareRepository fares, StationService stations, AuditTrail audit) {
+    public RouteService(RouteRepository routes, FareRepository fares, TripRepository trips, StationService stations,
+                        AuditTrail audit) {
         this.routes = routes;
         this.fares = fares;
+        this.trips = trips;
         this.stations = stations;
         this.audit = audit;
     }
@@ -62,7 +69,7 @@ public class RouteService {
      * Updates the name and the stops. Fares belong to segment positions (segment k is the leg from stop k to stop k+1),
      * so when the list of stations changes they no longer describe the same legs. A route that has fares therefore
      * refuses the change unless the caller confirms with {@code clearFares}, in which case the fares are removed.
-     * TODO(slice 4): once trips exist, refuse changing the stops of a route that trips use.
+     * The stops of a route that trips use cannot change at all: they are copied into every trip (409 route_in_use).
      */
     @Transactional
     public Route update(long id, RouteRequest request, boolean clearFares, String adminId) {
@@ -72,6 +79,9 @@ public class RouteService {
 
         int faresCleared = 0;
         if (stopsChanged) {
+            if (trips.countByRoute(id) > 0) {
+                throw new RouteInUseException(id);
+            }
             checkStops(request.stops());
             int fareCount = fares.countByRoute(id);
             if (fareCount > 0 && !clearFares) {
@@ -97,15 +107,24 @@ public class RouteService {
     }
 
     /**
-     * Deletes a route together with its stops and fares (database cascade).
-     * TODO(slice 4): once trips exist, refuse deleting a route that trips use.
+     * Deletes a route together with its stops and fares (database cascade). A route that trips use cannot be deleted
+     * (409 route_in_use): the foreign key from trip to route is the guard.
      */
     @Transactional
     public void delete(long id, String adminId) {
         Route before = get(id);
         int fareCount = fares.countByRoute(id); // counted first: the cascade removes the rows
-        if (!routes.delete(id)) {
-            throw new RouteNotFoundException(id);
+        try {
+            if (!routes.delete(id)) {
+                throw new RouteNotFoundException(id);
+            }
+        } catch (DataIntegrityViolationException e) {
+            // ORA-02292: a trip still points at this route.
+            String message = String.valueOf(e.getMessage()).toUpperCase(Locale.ROOT);
+            if (message.contains("ORA-02292") || message.contains("FK_TRIP_ROUTE")) {
+                throw new RouteInUseException(id);
+            }
+            throw e;
         }
         Map<String, Object> diff = new LinkedHashMap<>();
         diff.put("before", before);

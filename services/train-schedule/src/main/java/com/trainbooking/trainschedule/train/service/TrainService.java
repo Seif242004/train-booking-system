@@ -4,6 +4,7 @@ import com.trainbooking.trainschedule.audit.AuditTrail;
 import com.trainbooking.trainschedule.common.ApiError;
 import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.train.model.Train;
+import com.trainbooking.trainschedule.train.model.TrainInUseException;
 import com.trainbooking.trainschedule.train.model.TrainNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainNumberTakenException;
 import com.trainbooking.trainschedule.train.model.TrainRequest;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,10 +75,10 @@ public class TrainService {
     }
 
     /**
-     * Deletes a train together with its coaches and seats (database cascade).
-     * TODO(FR-A4, Flow 7): refuse the delete, or deactivate the train instead, when it has future trips with confirmed
-     * bookings (the admin can cancel those trips first, Flow 8). Trips and bookings do not exist yet, so for now the
-     * delete always goes through.
+     * Deletes a train together with its coaches and seats (database cascade). A train that has any trips cannot be
+     * deleted (409 train_in_use): the foreign key from trip to train is the guard. It can be set to INACTIVE instead.
+     * TODO(FR-A4, slice 5): once bookings exist, relax this to FR-A4 exactly: refuse only when future trips have confirmed
+     * bookings, and let the admin delete or deactivate otherwise.
      */
     @Transactional
     public void delete(long id, String adminId) {
@@ -84,8 +86,17 @@ public class TrainService {
         // Count first: after the delete the cascaded rows are gone. The counts go into the audit row.
         int coaches = trains.countCoaches(id);
         int seats = trains.countSeats(id);
-        if (!trains.delete(id)) {
-            throw new TrainNotFoundException(id);
+        try {
+            if (!trains.delete(id)) {
+                throw new TrainNotFoundException(id);
+            }
+        } catch (DataIntegrityViolationException e) {
+            // ORA-02292: a trip still points at this train. The foreign key is the real guard.
+            String message = String.valueOf(e.getMessage()).toUpperCase(Locale.ROOT);
+            if (message.contains("ORA-02292") || message.contains("FK_TRIP_TRAIN")) {
+                throw new TrainInUseException(id);
+            }
+            throw e;
         }
         Map<String, Object> diff = new LinkedHashMap<>();
         diff.put("before", before);

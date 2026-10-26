@@ -4,14 +4,20 @@ import com.trainbooking.trainschedule.coach.model.CoachCodeTakenException;
 import com.trainbooking.trainschedule.coach.model.CoachNotFoundException;
 import com.trainbooking.trainschedule.coach.model.CoachPositionTakenException;
 import com.trainbooking.trainschedule.route.model.RouteHasFaresException;
+import com.trainbooking.trainschedule.route.model.RouteInUseException;
 import com.trainbooking.trainschedule.route.model.RouteNotFoundException;
 import com.trainbooking.trainschedule.seat.model.SeatConflictException;
 import com.trainbooking.trainschedule.seat.model.SeatNotFoundException;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
 import com.trainbooking.trainschedule.station.model.StationInUseException;
 import com.trainbooking.trainschedule.station.model.StationNotFoundException;
+import com.trainbooking.trainschedule.train.model.TrainInUseException;
 import com.trainbooking.trainschedule.train.model.TrainNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainNumberTakenException;
+import com.trainbooking.trainschedule.trip.model.RouteFaresIncompleteException;
+import com.trainbooking.trainschedule.trip.model.TrainHasNoCoachesException;
+import com.trainbooking.trainschedule.trip.model.TrainInactiveException;
+import com.trainbooking.trainschedule.trip.model.TripNotFoundException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +27,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -54,6 +61,11 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("invalid_parameter", "The parameter '" + e.getName() + "' is not valid."));
     }
 
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ApiError> missingParameter(MissingServletRequestParameterException e) {
+        return respond(HttpStatus.BAD_REQUEST, ApiError.of("missing_parameter", "The parameter '" + e.getParameterName() + "' is required."));
+    }
+
     // ---- 404: the thing does not exist -------------------------------------------------------------------------
 
     @ExceptionHandler(StationNotFoundException.class)
@@ -76,6 +88,11 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("seat_not_found", e.getMessage()));
     }
 
+    @ExceptionHandler(TripNotFoundException.class)
+    ResponseEntity<ApiError> tripNotFound(TripNotFoundException e) {
+        return respond(HttpStatus.NOT_FOUND, ApiError.of("trip_not_found", e.getMessage()));
+    }
+
     @ExceptionHandler(RouteNotFoundException.class)
     ResponseEntity<ApiError> routeNotFound(RouteNotFoundException e) {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("route_not_found", e.getMessage()));
@@ -96,6 +113,31 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StationInUseException.class)
     ResponseEntity<ApiError> stationInUse(StationInUseException e) {
         return respond(HttpStatus.CONFLICT, ApiError.of("station_in_use", e.getMessage()));
+    }
+
+    @ExceptionHandler(TrainInUseException.class)
+    ResponseEntity<ApiError> trainInUse(TrainInUseException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("train_in_use", e.getMessage()));
+    }
+
+    @ExceptionHandler(RouteInUseException.class)
+    ResponseEntity<ApiError> routeInUse(RouteInUseException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("route_in_use", e.getMessage()));
+    }
+
+    @ExceptionHandler(TrainInactiveException.class)
+    ResponseEntity<ApiError> trainInactive(TrainInactiveException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("train_inactive", e.getMessage()));
+    }
+
+    @ExceptionHandler(TrainHasNoCoachesException.class)
+    ResponseEntity<ApiError> trainHasNoCoaches(TrainHasNoCoachesException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("train_has_no_coaches", e.getMessage()));
+    }
+
+    @ExceptionHandler(RouteFaresIncompleteException.class)
+    ResponseEntity<ApiError> routeFaresIncomplete(RouteFaresIncompleteException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of("route_fares_incomplete", e.getMessage(), e.details()));
     }
 
     @ExceptionHandler(RouteHasFaresException.class)

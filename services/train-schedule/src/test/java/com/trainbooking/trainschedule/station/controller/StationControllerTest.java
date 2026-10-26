@@ -1,4 +1,4 @@
-package com.trainbooking.trainschedule.station;
+package com.trainbooking.trainschedule.station.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -17,6 +17,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.trainbooking.trainschedule.common.GlobalExceptionHandler;
 import com.trainbooking.trainschedule.security.JsonErrorHandlers;
 import com.trainbooking.trainschedule.security.SecurityConfig;
+import com.trainbooking.trainschedule.station.model.Station;
+import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
+import com.trainbooking.trainschedule.station.model.StationNotFoundException;
+import com.trainbooking.trainschedule.station.service.StationService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

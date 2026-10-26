@@ -1,4 +1,4 @@
-package com.trainbooking.trainschedule.station;
+package com.trainbooking.trainschedule.station.model;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

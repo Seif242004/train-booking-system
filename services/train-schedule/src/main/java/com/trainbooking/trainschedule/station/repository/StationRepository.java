@@ -1,5 +1,6 @@
-package com.trainbooking.trainschedule.station;
+package com.trainbooking.trainschedule.station.repository;
 
+import com.trainbooking.trainschedule.station.model.Station;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;

@@ -1,7 +1,7 @@
 package com.trainbooking.trainschedule.common;
 
-import com.trainbooking.trainschedule.station.StationCodeTakenException;
-import com.trainbooking.trainschedule.station.StationNotFoundException;
+import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
+import com.trainbooking.trainschedule.station.model.StationNotFoundException;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

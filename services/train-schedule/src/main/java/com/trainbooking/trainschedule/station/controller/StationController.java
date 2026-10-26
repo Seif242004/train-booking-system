@@ -1,5 +1,8 @@
-package com.trainbooking.trainschedule.station;
+package com.trainbooking.trainschedule.station.controller;
 
+import com.trainbooking.trainschedule.station.model.Station;
+import com.trainbooking.trainschedule.station.model.StationRequest;
+import com.trainbooking.trainschedule.station.service.StationService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;

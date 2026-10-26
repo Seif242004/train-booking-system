@@ -1,4 +1,4 @@
-package com.trainbooking.trainschedule.station;
+package com.trainbooking.trainschedule.station.model;
 
 public class StationNotFoundException extends RuntimeException {
 

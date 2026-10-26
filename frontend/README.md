@@ -22,6 +22,18 @@ registration or account screens: Login and Register send the browser to Keycloak
   for confirmation first, because the fares are removed.
 - **Fares** (`/admin/routes/:id/fares`): a grid of segments by class with one EGP box per cell and the total for the
   whole route per class. Saving replaces the route's fares; an empty box means no fare; errors show on the box.
+- **Trips** (`/admin/trips`): list (date, train, route and the times at every stop, with +1 after midnight), add, edit
+  and delete. Choosing a route shows a table with the arrival and departure time at each stop (the first stop has no
+  arrival, the last no departure); errors show on the cell. If the route's fares are not complete for the train, the page
+  lists the missing fares and links to the route's fares page.
+- **Search trips** (`/search`, any signed-in user): choose From, To and a date and see the trips with the times, the
+  duration, the train, the journey fare per class in EGP and a line with every stop of the trip and its time (for example
+  "08:00 Cairo → 08:40 Giza → 10:45 Alexandria"); the stops of the passenger's journey are bold and the others dimmed. A stop
+  shows its departure time at the first stop and at the boarding stop and its arrival time elsewhere; +1 means after
+  midnight, counted from the trip's first departure. **Today** and **Tomorrow** buttons next to the date box set the date;
+  **Previous day** / **Next day** arrows above the results search the neighbouring day (previous is disabled on today);
+  when a day has no trips the page says "No trips on <date>. Next available: <date>" with a button that searches that
+  date. For today the page notes that trips that have already left are not shown (the service does the filtering). Seats left and booking come in later steps.
 - **Train page** (`/admin/trains/:id`): the train's coaches in train order, with add, edit and delete, standing
   capacity, and a **Seats** panel per coach: a seat map, a layout generator (start row, number of rows, column
   letters, saved all at once or not at all) and edit or delete of a single seat. A seat's class is always its coach's

@@ -31,6 +31,9 @@ export function Admin() {
         <li>
           <Link to="/admin/routes">Routes and fares</Link>
         </li>
+        <li>
+          <Link to="/admin/trips">Trips</Link>
+        </li>
       </ul>
       <h2>Gateway check for the admin role</h2>
       <GatewayResultView result={result} />

@@ -7,8 +7,10 @@ import { Home } from './pages/Home';
 import { Profile } from './pages/Profile';
 import { RouteFares } from './pages/RouteFares';
 import { RouteList } from './pages/RouteList';
+import { SearchTrips } from './pages/SearchTrips';
 import { Stations } from './pages/Stations';
 import { TrainDetail } from './pages/TrainDetail';
+import { Trips } from './pages/Trips';
 import { Trains } from './pages/Trains';
 
 export function App() {
@@ -21,12 +23,14 @@ export function App() {
             {/* Everything below needs a signed-in user; /admin also needs the ADMIN role. */}
             <Route element={<RequireAuth />}>
               <Route path="profile" element={<Profile />} />
+              <Route path="search" element={<SearchTrips />} />
               <Route element={<RequireAdmin />}>
                 <Route path="admin" element={<Admin />} />
                 <Route path="admin/stations" element={<Stations />} />
                 <Route path="admin/trains" element={<Trains />} />
                 <Route path="admin/trains/:id" element={<TrainDetail />} />
                 <Route path="admin/routes" element={<RouteList />} />
+                <Route path="admin/trips" element={<Trips />} />
                 <Route path="admin/routes/:id/fares" element={<RouteFares />} />
               </Route>
             </Route>

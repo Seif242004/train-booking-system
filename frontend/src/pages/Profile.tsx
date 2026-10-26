@@ -14,6 +14,7 @@ const CHECKS: Check[] = [
   { label: 'GET /admin/stations', path: '/admin/stations', withToken: true },
   { label: 'GET /admin/trains', path: '/admin/trains', withToken: true },
   { label: 'GET /admin/routes', path: '/admin/routes', withToken: true },
+  { label: 'GET /admin/trips', path: '/admin/trips', withToken: true },
   { label: 'GET /me without a token', path: '/me', withToken: false },
 ];
 

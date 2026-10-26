@@ -11,6 +11,7 @@ export function Layout() {
           Train Booking
         </Link>
         <nav aria-label="Main">
+          {authenticated && <NavLink to="/search">Search trips</NavLink>}
           {authenticated && <NavLink to="/profile">Profile</NavLink>}
           {hasRole('ADMIN') && <NavLink to="/admin">Admin</NavLink>}
         </nav>

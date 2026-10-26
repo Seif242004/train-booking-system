@@ -9,7 +9,7 @@ export function Home() {
       <section className="hero">
         <h1>Train Booking</h1>
         <p>
-          Signed in as <strong>{user?.name ?? user?.email}</strong>. See your <Link to="/profile">profile</Link>.
+          Signed in as <strong>{user?.name ?? user?.email}</strong>. <Link to="/search">Search trips</Link> or see your <Link to="/profile">profile</Link>.
         </p>
       </section>
     );

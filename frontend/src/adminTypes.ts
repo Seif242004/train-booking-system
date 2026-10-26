@@ -56,6 +56,60 @@ export interface Fare {
   currency: 'EGP';
 }
 
+export type TripStatus = 'ACTIVE' | 'CANCELLED';
+
+/** One stop of a trip. The times are local date-times such as "2026-11-02T08:00:00"; the first stop has no arrival and the last no departure. */
+export interface TripStop {
+  stopIndex: number;
+  stationId: number;
+  stationCode: string;
+  stationName: string;
+  arrivalTime: string | null;
+  departureTime: string | null;
+}
+
+export interface Trip {
+  id: number;
+  trainId: number;
+  trainNumber: string;
+  trainName: string;
+  routeId: number;
+  routeName: string;
+  departureDate: string;
+  status: TripStatus;
+  stops: TripStop[];
+}
+
+/** The price of a whole journey for one class: the sum of its segments, in EGP. */
+export interface JourneyFare {
+  class: CoachClass;
+  amount: number;
+  currency: 'EGP';
+}
+
+/** One trip returned by the passenger search. */
+export interface TripSearchResult {
+  tripId: number;
+  trainNumber: string;
+  trainName: string;
+  trainType: string;
+  routeName: string;
+  from: Station;
+  to: Station;
+  fromStopIndex: number;
+  toStopIndex: number;
+  departureTime: string;
+  arrivalTime: string;
+  stops: TripStop[];
+  fares: JourneyFare[];
+}
+
+/** The answer of GET /trips: the date is present only when there are no trips and a later trip exists. */
+export interface TripSearchResponse {
+  trips: TripSearchResult[];
+  nextAvailableDate?: string;
+}
+
 export interface Seat {
   id: number;
   coachId: number;

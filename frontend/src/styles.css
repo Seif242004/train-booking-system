@@ -358,10 +358,24 @@ code {
 /* Keep the cell a real table cell (a flex cell breaks the row border); the controls flow inside it. */
 .row-actions {
   text-align: right;
+  white-space: nowrap; /* Edit and Delete stay on one line; the delete question below may wrap */
 }
 
 .row-actions > * {
   margin-left: 8px;
+}
+
+.row-actions > span {
+  display: inline-block;
+  max-width: 11rem;
+  vertical-align: middle;
+  white-space: normal;
+  text-align: right;
+}
+
+/* Dates and codes in a table cell must not break across lines. */
+.nowrap {
+  white-space: nowrap;
 }
 
 .form .notice {
@@ -504,6 +518,153 @@ h4 {
   padding-left: 20px;
 }
 
+/* Passenger trip search: one card per trip, with the times large and the fares as chips. */
+.search-form .field {
+  max-width: 260px;
+}
+
+.results {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.result-card {
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.result-times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.result-clock {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.result-arrow {
+  color: var(--muted);
+}
+
+.result-duration {
+  margin-left: 8px;
+}
+
+.result-train {
+  margin: 6px 0 4px;
+}
+
+.date-shortcuts {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Previous-day and next-day buttons around the headline of the results. */
+.day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.day-nav h2 {
+  margin: 12px 0;
+  font-size: 1.1rem;
+}
+
+.no-trips .button {
+  margin-left: 4px;
+}
+
+/* The stops of a trip on one line, "08:00 Cairo → 08:45 Giza → 11:30 Alexandria"; those outside the journey are dimmed. */
+.result-stops {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 0;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.result-stops li + li::before {
+  content: '→';
+  margin: 0 8px;
+  color: var(--muted);
+}
+
+.stop-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.result-stops .stop-on {
+  font-weight: 600;
+}
+
+.result-stops .stop-off {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fare-chips li strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Admin trips: the time at every stop, and the one-line summary in the list. */
+.stop-times th[scope='row'] {
+  font-weight: 400;
+}
+
+.stop-times td input[type='time'] {
+  font: inherit;
+  padding: 6px 8px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.stop-times td input[type='time']:disabled {
+  opacity: 0.5;
+}
+
+.stop-times td input[type='time']:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.stop-times td input[aria-invalid='true'] {
+  border-color: var(--fail);
+}
+
+.stop-times .field-error {
+  display: block;
+  max-width: 22rem;
+}
+
+.times-line {
+  margin-top: 2px;
+  font-size: 0.85em;
+}
+
 /* Fare grid: one price box per segment and class. */
 .fare-grid th[scope='row'] {
   font-weight: 400;
@@ -581,4 +742,12 @@ h4 {
   height: 2rem;
   border: 1px dashed var(--border);
   border-radius: 6px;
+}
+
+/* Compact buttons next to the search form and the results. */
+.date-shortcuts .button,
+.day-nav .button,
+.no-trips .button {
+  padding: 4px 12px;
+  font-size: 0.9rem;
 }

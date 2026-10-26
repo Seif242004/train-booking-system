@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Admin } from './pages/Admin';
 import { Home } from './pages/Home';
 import { Profile } from './pages/Profile';
+import { Stations } from './pages/Stations';
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
               <Route path="profile" element={<Profile />} />
               <Route element={<RequireAdmin />}>
                 <Route path="admin" element={<Admin />} />
+                <Route path="admin/stations" element={<Stations />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

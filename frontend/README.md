@@ -12,7 +12,9 @@ registration or account screens: Login and Register send the browser to Keycloak
 - **Profile** (`/profile`): name, email and roles read from the access token, plus the live response of
   `GET /me` through the Gateway. Buttons also try `GET /admin/ping` (403 for a normal user) and `GET /me` without a
   token (401).
-- **Admin** (`/admin`): reachable only with the `ADMIN` role; calls `GET /admin/ping`.
+- **Admin** (`/admin`): reachable only with the `ADMIN` role; calls `GET /admin/ping` and links to the admin pages.
+- **Stations** (`/admin/stations`): list, add, edit and delete stations through the Gateway. Duplicate codes and
+  invalid input show their message next to the field; delete asks for confirmation first.
 - **Route guards:** logged-out visitors are redirected to Keycloak's login page; signed-in users without `ADMIN`
   are sent back to their profile. The guards only shape the UI: the Gateway enforces the token and the role.
 - **Token refresh:** `updateToken` runs before every Gateway call and in the background (every 20 s, renewing when

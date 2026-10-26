@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { gatewayGet, type GatewayResult } from '../api';
 import { GatewayResultView } from '../components/GatewayResultView';
 
@@ -19,7 +20,13 @@ export function Admin() {
   return (
     <section>
       <h1>Admin</h1>
-      <p>Train management and support tools will live here. Gateway check for the admin role:</p>
+      <p>Train management and support tools will live here.</p>
+      <ul className="link-list">
+        <li>
+          <Link to="/admin/stations">Stations</Link>
+        </li>
+      </ul>
+      <h2>Gateway check for the admin role</h2>
       <GatewayResultView result={result} />
     </section>
   );

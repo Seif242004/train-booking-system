@@ -11,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
+import com.trainbooking.trainschedule.audit.AuditTrail;
 import com.trainbooking.trainschedule.station.model.Station;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
 import com.trainbooking.trainschedule.station.model.StationNotFoundException;
@@ -25,7 +26,7 @@ class StationServiceTest {
 
     private final StationRepository stations = mock(StationRepository.class);
     private final AuditLogRepository audit = mock(AuditLogRepository.class);
-    private final StationService service = new StationService(stations, audit, JsonMapper.builder().build());
+    private final StationService service = new StationService(stations, new AuditTrail(audit, JsonMapper.builder().build()));
 
     @Test
     void create_normalizesInput_andWritesAnAuditRowForTheAdmin() {

@@ -1,6 +1,6 @@
 package com.trainbooking.trainschedule.station.service;
 
-import com.trainbooking.trainschedule.audit.AuditLogRepository;
+import com.trainbooking.trainschedule.audit.AuditTrail;
 import com.trainbooking.trainschedule.station.model.Station;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
 import com.trainbooking.trainschedule.station.model.StationNotFoundException;
@@ -8,11 +8,9 @@ import com.trainbooking.trainschedule.station.model.StationRequest;
 import com.trainbooking.trainschedule.station.repository.StationRepository;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.json.JsonMapper;
 
 /** Station rules. Every change and its audit row are written in one transaction: both happen or neither does. */
 @Service
@@ -21,13 +19,11 @@ public class StationService {
     private static final String ENTITY = "station";
 
     private final StationRepository stations;
-    private final AuditLogRepository audit;
-    private final JsonMapper jsonMapper;
+    private final AuditTrail audit;
 
-    public StationService(StationRepository stations, AuditLogRepository audit, JsonMapper jsonMapper) {
+    public StationService(StationRepository stations, AuditTrail audit) {
         this.stations = stations;
         this.audit = audit;
-        this.jsonMapper = jsonMapper;
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +46,7 @@ public class StationService {
             // The unique constraint on code (ORA-00001) is the real guard; checking first would race with another admin.
             throw new StationCodeTakenException(code);
         }
-        audit.record(adminId, ENTITY, created.id(), "CREATE", diff(null, created));
+        audit.change(adminId, ENTITY, created.id(), "CREATE", null, created);
         return created;
     }
 
@@ -65,7 +61,7 @@ public class StationService {
         } catch (DuplicateKeyException e) {
             throw new StationCodeTakenException(after.code());
         }
-        audit.record(adminId, ENTITY, id, "UPDATE", diff(before, after));
+        audit.change(adminId, ENTITY, id, "UPDATE", before, after);
         return after;
     }
 
@@ -75,17 +71,10 @@ public class StationService {
         if (!stations.delete(id)) {
             throw new StationNotFoundException(id);
         }
-        audit.record(adminId, ENTITY, id, "DELETE", diff(before, null));
+        audit.change(adminId, ENTITY, id, "DELETE", before, null);
     }
 
     private static String normalizeCode(String code) {
         return code.strip().toUpperCase(Locale.ROOT);
-    }
-
-    private String diff(Station before, Station after) {
-        Map<String, Object> diff = new java.util.LinkedHashMap<>();
-        diff.put("before", before);
-        diff.put("after", after);
-        return jsonMapper.writeValueAsString(diff);
     }
 }

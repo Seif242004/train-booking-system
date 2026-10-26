@@ -4,8 +4,8 @@ Single entry point of the system (Express, Node.js). It verifies the Keycloak ac
 enforces roles. It does not handle logins or passwords: the browser talks to Keycloak directly (authorization code
 flow with PKCE). The Gateway only fetches Keycloak's public keys (JWKS) to check tokens, and it has no Keycloak proxy.
 
-This is the first slice. Routing to the other services, the WebSocket proxy and the Stripe webhook forwarding
-come with the later steps.
+Routes to the other services are added as each service is built. The WebSocket proxy, the seat-map composition and
+the Stripe webhook forwarding come with their steps.
 
 ## Endpoints
 
@@ -14,6 +14,19 @@ come with the later steps.
 | GET | `/health` | none | `{ "status": "UP" }` |
 | GET | `/me` | any valid token | `{ sub, name, email, roles }` |
 | GET | `/admin/ping` | role `ADMIN` | `{ "message": "pong", "admin": "<sub>" }` (example admin-only route) |
+| any | `/admin/stations`, `/admin/stations/{id}` | role `ADMIN` | forwarded to Train & Schedule (`TRAIN_SCHEDULE_URL`), answer relayed unchanged |
+
+## Forwarding to services
+
+Forwarded routes check the token and the role first, so a non-admin gets `403` from the Gateway and never reaches the
+service. The Gateway then sends the request on with the caller's `Authorization` header (the service validates the
+token again as an OAuth2 resource server). Only `Authorization`, `Content-Type` and `Accept` are passed on; the
+service's status, body and `Content-Type`/`Location` are relayed back. `src/proxy.js` has the commented code.
+
+| Status | `error.code` | When |
+|---|---|---|
+| 502 | `upstream_unavailable` | the service cannot be reached |
+| 504 | `upstream_timeout` | the service did not answer within `UPSTREAM_TIMEOUT_MS` |
 
 Errors always use one JSON shape: `{ "error": { "code": "...", "message": "..." } }`.
 
@@ -49,6 +62,8 @@ All are optional; the defaults are for local development. See `.env.example`.
 | `HOST` | `127.0.0.1` | Listen address |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the JWKS URL is derived from it |
 | `CORS_ORIGIN` | `http://localhost:5173` | The one allowed browser origin |
+| `TRAIN_SCHEDULE_URL` | `http://localhost:8081` | Where `/admin/stations` is forwarded |
+| `UPSTREAM_TIMEOUT_MS` | `10000` | How long to wait for a service before answering 504 |
 
 ## Run
 

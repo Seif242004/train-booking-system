@@ -10,6 +10,9 @@ export const config = {
   keycloakIssuer,
   jwksUri: `${keycloakIssuer}/protocol/openid-connect/certs`,
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  // Backend services the Gateway forwards to.
+  trainScheduleUrl: process.env.TRAIN_SCHEDULE_URL ?? 'http://localhost:8081',
+  upstreamTimeoutMs: Number(process.env.UPSTREAM_TIMEOUT_MS ?? 10_000),
 };
 
 if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {

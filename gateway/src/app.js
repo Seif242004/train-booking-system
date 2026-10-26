@@ -3,6 +3,7 @@ import express from 'express';
 import { requireAuth, requireRole } from './auth.js';
 import { config } from './config.js';
 import { HttpError, sendError } from './errors.js';
+import { forwardTo } from './proxy.js';
 
 export function createApp() {
   const app = express();
@@ -34,6 +35,12 @@ export function createApp() {
   app.get('/admin/ping', requireAuth, requireRole('ADMIN'), (req, res) => {
     res.json({ message: 'pong', admin: req.user.sub });
   });
+
+  // Routes to the backend services. The Gateway checks the token and the ADMIN role first (so a non-admin gets 403
+  // here and never reaches the service), then forwards the call with the caller's token. express.raw only reads the
+  // body of requests that passed the checks, and keeps it as bytes so it is forwarded unchanged.
+  const passThroughBody = express.raw({ type: () => true, limit: '1mb' });
+  app.use('/admin/stations', requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.trainScheduleUrl, '/admin/stations'));
 
   app.use((req, res) => {
     sendError(res, 404, 'not_found', `No route for ${req.method} ${req.path}.`);

@@ -17,6 +17,7 @@ the Stripe webhook forwarding come with their steps.
 | any | `/admin/stations/**`, `/admin/trains/**` (including `/admin/trains/{id}/coaches`), `/admin/coaches/**` (including `/admin/coaches/{id}/seats`), `/admin/seats/**`, `/admin/routes/**` (including `/admin/routes/{id}/fares`), `/admin/trips/**` | role `ADMIN` | forwarded to Train & Schedule (`TRAIN_SCHEDULE_URL`), answer relayed unchanged |
 | GET | `/trips?from=&to=&date=` | any valid token | **composed** (see "Trip search"): the trips of Train & Schedule, each with the seats and standing places left for the journey from Booking & Seat |
 | GET | `/stations` | any valid token | forwarded to Train & Schedule: the station list for the search page (exact path only) |
+| WebSocket | `/ws` | any valid token, offered as a subprotocol | **live seat updates** (`src/wsproxy.js`): the token is checked on the HTTP upgrade, then the connection is piped to Booking & Seat (`/ws`, STOMP). See "The WebSocket" below |
 | any | `/bookings/**` | any valid token | forwarded to Booking & Seat (`BOOKING_SEAT_URL`): hold (`POST /bookings`), a booking (`GET /bookings/{id}`) and, in later steps, payment, cancellation and "My bookings". The token is forwarded; Booking & Seat answers 404 for another user's booking |
 | GET | `/trips/{id}/seat-map?from=&to=` | any valid token | **composed** (`src/seatmap.js`): the layout of Train & Schedule (`/trips/{id}/layout`: coaches, seats, standing capacity, stops) with the availability of Booking & Seat (`/trips/{id}/availability`: the state of every seat, the standing places left, the journey fares). `from` and `to` are stop indexes. Both lookups run at the same time; an unknown trip (404) or a journey that does not fit (400) is relayed as it is, a failing service is a 502 and a slow one a 504. A seat that Booking does not know is shown as booked, never as free. `/trips/{id}/layout` and `/trips/{id}/availability` have no public route |
 
@@ -31,6 +32,10 @@ returns the timetable. Any answer of Train & Schedule that is not a 200 (a 400 f
 unchanged. There is no public route for `/trips/{id}/availability` and `/internal/**` is never forwarded.
 
 Tests: `npm test` (Node's built-in test runner, with small fake services).
+
+## The WebSocket
+
+The browser opens **one** WebSocket to the Gateway, separate from the HTTP calls, and subscribes with STOMP to `/topic/trips/{id}` (the seat events of a trip) and `/user/queue/holds` (events for the user only, for example `HOLD_EXPIRED`). The Gateway verifies the Keycloak token **on the upgrade request**, with the same verification as the HTTP routes, and only then connects the socket to Booking & Seat. A browser cannot set an Authorization header on a WebSocket, and the token must never be in the URL (URLs end up in logs), so the browser offers it as a second **subprotocol**: `new WebSocket(url, ['v12.stomp', 'access_token.<jwt>'])`. The `Sec-WebSocket-Protocol` header is passed on unchanged, so Booking & Seat checks the token again itself; it answers with `v12.stomp`, never the token. Refusals: 401 (no or invalid token), 503 (the Keycloak keys cannot be fetched), 403 (an `Origin` other than `CORS_ORIGIN`, which stops cross-site WebSocket hijacking), 404 (any path other than `/ws`), 502 (Booking & Seat is down). Neither the token nor the query string is ever logged. No library is used: after the upgrade is accepted the two sockets are piped into each other.
 
 ## Forwarding to services
 

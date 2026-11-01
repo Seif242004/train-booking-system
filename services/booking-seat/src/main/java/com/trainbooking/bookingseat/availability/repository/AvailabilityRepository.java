@@ -56,6 +56,11 @@ public class AvailabilityRepository {
                 .list();
     }
 
+    /** The change counter of the trip (0 until something changed). */
+    public long findVersion(long tripId) {
+        return jdbc.sql("SELECT version FROM trip_version WHERE trip_id = :t").param("t", tripId).query(Long.class).optional().orElse(0L);
+    }
+
     /** The fares of the trip: one per segment and class. */
     public List<FareInfo> findFares(long tripId) {
         return jdbc.sql("SELECT segment_index, class, amount FROM trip_fare WHERE trip_id = :tripId ORDER BY segment_index, class")

@@ -86,6 +86,19 @@ public class SnapshotRepository {
                 .param("t", tripId).query(Integer.class).single() == 1;
     }
 
+    /** True if any booking, whatever its status, refers to the trip: the history of a trip is never deleted. */
+    public boolean hasBookings(long tripId) {
+        return jdbc.sql("SELECT COUNT(*) FROM booking WHERE trip_id = :t").param("t", tripId).query(Integer.class).single() > 0;
+    }
+
+    /**
+     * True if the trip has a booking that was paid at some time (confirmed, or cancelled after it was confirmed). A hold that expired
+     * or was given up was never paid and does not count. The stops, times and fares of such a trip never change: tickets were issued.
+     */
+    public boolean hasPaidBookings(long tripId) {
+        return jdbc.sql("SELECT COUNT(*) FROM booking WHERE trip_id = :t AND status IN ('CONFIRMED', 'CANCELLED')").param("t", tripId).query(Integer.class).single() > 0;
+    }
+
     public Set<Long> findReservedSeatIds(long tripId) {
         return new HashSet<>(jdbc.sql("SELECT DISTINCT seat_id FROM seat_reservation WHERE trip_id = :t").param("t", tripId).query(Long.class).list());
     }
@@ -152,6 +165,11 @@ public class SnapshotRepository {
                 .param("trainName", s.train().name())
                 .param("trainType", s.train().type())
                 .param("routeName", s.routeName())
+                .update();
+        // The counter of live updates (SRS section 6) starts at 0 with the copy and is never reset by a later snapshot.
+        jdbc.sql("MERGE INTO trip_version v USING (SELECT :id AS trip_id FROM dual) src ON (v.trip_id = src.trip_id) "
+                        + "WHEN NOT MATCHED THEN INSERT (trip_id, version) VALUES (:id, 0)")
+                .param("id", tripId)
                 .update();
     }
 

@@ -63,6 +63,9 @@ public class SnapshotService {
             if (repository.hasReservations(tripId)) {
                 requireFrozenFactsUnchanged(tripId, snapshot);
                 requireCapacityStillCoversTheReservations(tripId, snapshot);
+            } else if (repository.hasPaidBookings(tripId)) {
+                // Nothing is reserved any more (every booking was cancelled), but tickets were issued for these stops, times and fares.
+                requireFrozenFactsUnchanged(tripId, snapshot);
             }
         }
 
@@ -97,7 +100,7 @@ public class SnapshotService {
         if (repository.lockTrip(tripId).isEmpty()) {
             return;
         }
-        if (repository.hasReservations(tripId)) {
+        if (repository.hasReservations(tripId) || repository.hasBookings(tripId)) {
             throw new SnapshotConflictException("trip_has_reservations", "Trip " + tripId + " has holds or bookings, so it cannot be deleted.", List.of());
         }
         SnapshotRepository.Counts before = repository.counts(tripId);

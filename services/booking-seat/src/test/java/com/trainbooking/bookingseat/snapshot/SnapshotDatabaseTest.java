@@ -333,4 +333,23 @@ class SnapshotDatabaseTest extends DatabaseTest {
     void deletingATripThatBookingNeverHad_isAccepted() throws Exception {
         mvc.perform(delete("/internal/trips/{id}", 999999).header("X-Internal-Api-Key", INTERNAL_KEY)).andExpect(status().isNoContent());
     }
+
+    @Test
+    void afterTicketsWereIssued_theStopsTimesAndFaresStayFrozen_evenWhenEveryBookingWasCancelled() throws Exception {
+        push(TRIP, valid()).andExpect(status().isOk());
+        ensureBooking(TRIP, 1, "CANCELLED"); // paid once, cancelled later: no reservation is left, but tickets were issued
+        TripSnapshot newFare = withFares(valid(), replace(valid().fares(), 0, f -> new TripSnapshot.Fare(0, CoachClass.FIRST, new BigDecimal("81.00"), "EGP")));
+
+        push(TRIP, newFare).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("trip_has_reservations"));
+        push(TRIP, valid()).andExpect(status().isOk()); // the same snapshot is always fine
+    }
+
+    @Test
+    void holdsThatExpiredOrWereGivenUp_neverFreezeATrip_theyWereNeverPaid() throws Exception {
+        push(TRIP, valid()).andExpect(status().isOk());
+        ensureBooking(TRIP, 2, "EXPIRED");
+        TripSnapshot newFare = withFares(valid(), replace(valid().fares(), 0, f -> new TripSnapshot.Fare(0, CoachClass.FIRST, new BigDecimal("81.00"), "EGP")));
+
+        push(TRIP, newFare).andExpect(status().isOk());
+    }
 }

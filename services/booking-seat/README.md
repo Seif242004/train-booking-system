@@ -26,7 +26,25 @@ the trips** that Train & Schedule pushes, the **inventory tables** (still empty:
 |---|---|---|---|
 | GET | `/trips/{id}/availability?from=&to=` | any signed-in user (the Gateway calls it for the browser) | Availability of the trip for the journey. `from` and `to` are **stop indexes** of the trip (the boarding stop and the destination stop). Returns `tripId`, `tripStatus`, `fromStop`, `toStop`, `summary { seatsLeft, standingLeft }` (counts per class) and, unless `view=summary`, `fares` (the price of the whole journey per class in EGP, the sum of its segments; a class with a missing segment fare is left out), `seats [{ seatId, coachId, state AVAILABLE\|HELD\|BOOKED }]` and `standing [{ coachId, capacity, remaining }]`. 400 for a journey that is not valid for the trip, 404 for an unknown trip |
 | PUT | `/internal/trips/{id}/snapshot` | Train & Schedule (API key) | Stores or updates the copy of a trip, all or nothing. Idempotent. Header `X-Acting-User` (optional): the admin whose action caused it, written to the audit log |
-| DELETE | `/internal/trips/{id}` | Train & Schedule (API key) | Removes the copy of a deleted trip (204; also 204 if there is none) |
+| DELETE | `/internal/trips/{id}` | Train & Schedule (API key) | Removes the copy of a deleted trip (204; also 204 if there is none); 409 if the trip has holds, bookings or any booking history |
+| POST | `/bookings` | any signed-in user | **Holds** seats and standing places: `{ tripId, fromStop, toStop, seatIds[], standing[{ coachId, qty }] }`. 201 with the booking (`PENDING_PAYMENT`, `reference`, `amount`, `expiresAt`, `serverTime`, `items`). 409 `seats_unavailable` (nothing held; `details` list the lost items as `seat:<id>` / `standing:<coachId>`), 409 `trip_closed` / `trip_departed`, 400 for a selection that is not valid for the trip, 404 for an unknown trip |
+| GET | `/bookings/{id}` | the owner | The booking; another user's booking is 404 `booking_not_found` |
+
+### Holds (Flow 3) and the sweeper (Flow 5)
+
+- **A hold is one database transaction, all or nothing:** the row of the trip is locked first (so a hold waits for a trip that is being closed or changed), then the booking and its items, one `seat_reservation` row per seat and per segment of the journey (inserted in sorted seat and segment order), and for standing places a conditional `UPDATE standing_usage ... WHERE used + :qty <= capacity` per segment (coaches and segments in ascending order; a statement that changes no row rolls everything back). The primary key rejects a seat that is taken on any segment (`ORA-00001`); deadlocks and lock timeouts are treated as a conflict too. The user is then told which items were lost.
+- **The amount is worked out on the server** (`BookingPricing`): a seat costs the journey fare of its class, a standing place the journey fare of the class of its coach. The request has no amount field.
+- **5 minutes exactly:** `expires_at` = the server's now + 5 min (`HoldService.HOLD_DURATION`), never extended. The answer carries `serverTime` so the browser corrects its countdown for a wrong clock.
+- **The trip must be open** (`OPEN`, not `CANCELLING` or `CANCELLED`) and the train must not have left the boarding stop (the same cutoff as the cancellation).
+- **An expired but unreleased hold keeps blocking its seat** and shows as held; nothing purges rows during a new hold.
+- **The sweeper** (`HoldSweeper`, `fixedDelay`, every 1 s, configurable) asks `ExpiryService` to handle each hold past its expiry: **first** Payment is asked to cancel the pending Stripe payment (`PaymentPort`, outside any transaction); then, if it was cancelled (or there was no payment), the seats and standing places are released and the booking is `EXPIRED` in one transaction (`HoldReleaseService`, which locks the booking and does nothing if it was confirmed in the meantime); if Stripe says the payment **succeeded**, the booking is confirmed instead (`ConfirmationService`, the payment wins); if it is **processing**, the seats stay held and are asked about again a second later; if Stripe or Payment is **down**, the seats stay held and the next attempt is delayed 2, 4, 8 ... up to 60 seconds (`next_attempt_at`). A timeout never charges and never refunds: `PaymentPort` can only cancel.
+- **One lock order** for everything that changes the inventory of a trip (`BookingLocks`): the row of the trip, then the row of the booking, then the seat and standing rows, then the version counter. Holds, releases, confirmations and the snapshot receiver follow it, so they can wait for each other but never in a circle (no `ORA-00060`; if one happens anyway it is a conflict).
+- **The cancel-first rule is guarded in code:** `ExpiryService.expire` refuses to run inside a transaction, and `HoldReleaseService` is documented as callable only after the payment was cancelled. A booking that cannot be released (it keeps failing) is retried with a growing delay and logged as an error from the 5th attempt; a payment that succeeded for a hold that is already gone is logged as an error and refunded by Payment.
+- **A booking stays readable as history:** its lines keep the seat number, coach and class that the passenger was shown (`booking_item`, migration V3), a trip that has any confirmed or cancelled booking keeps its stops, times and fares frozen, and a stop that no longer exists shows as unknown instead of failing the page. The token must carry an e-mail address (the ticket is sent by e-mail), otherwise the hold is refused with 400; a very long name is cut to 200 characters.
+- **The version of the availability answer is read before its data**, so a client that drops events up to that version never misses a change.
+- **Not done yet, on purpose:** one active hold per user and trip, and releasing a hold by hand (FR-H6, FR-H7, "Should" items, built after all the "Must" items); a hold has no limit per user until then (a request holds at most 20 seats and 10 standing entries of 20 places).
+- **Events** (`SeatEvent`, `UserEvent`, version counter per trip) are published inside the transaction and meant to be delivered after the commit; every event takes the next number of `trip_version`.
+- Every state change of a booking is written to `audit_log` with its actor (the user, or `system` for the sweeper).
 
 ### The snapshot
 
@@ -58,7 +76,8 @@ Flyway migrations in `src/main/resources/db/migration`, run at startup as the `b
   (`ORA-00001` means "seat taken"), `standing_usage` with `CHECK (used <= capacity)`, and `audit_log`.
   The standing capacity of a coach is stored only in `standing_usage.capacity` (one row per coach with standing places and
   per segment).
-  TODO(slice 7): `seat_reservation.booking_id` gets its foreign key when the `booking` table is created.
+- `V3`: `booking_item` gets `seat_number`, `coach_code` and `coach_class` (the line carries what the passenger was shown).
+- `V2`: `booking` (status, `refund_status`, amount, `expires_at`, the actor columns of a cancellation, `next_attempt_at`), `booking_item`, `standing_hold`, `trip_version` and the foreign key from `seat_reservation.booking_id` to `booking`. A trip with any booking cannot be deleted.
 
 ## Environment variables
 
@@ -72,6 +91,7 @@ Set in `services/booking-seat/.env` (git-ignored; copy `.env.example`), or in th
 | `BOOKING_SEAT_DB_URL` | `jdbc:oracle:thin:@//localhost:1521/FREEPDB1` | JDBC URL |
 | `BOOKING_SEAT_DB_USER` | `booking_seat` | Oracle user |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the keys are fetched from it |
+| `TRAINBOOKING_SWEEPER_FIXED_DELAY_MS` | `1000` | Delay between two sweeps of expired holds (`fixedDelay`) |
 
 The service listens on port **8082**.
 

@@ -26,8 +26,11 @@ public class AvailabilityService {
     public TripAvailability availability(long tripId, int fromStop, int toStop) {
         TripHeader trip = repository.findTrip(tripId).orElseThrow(() -> new TripNotFoundException(tripId));
         Journey journey = Journey.of(fromStop, toStop, trip.stopCount());
+        // The version is read BEFORE the data: whatever happens in between, the data is at least as new as the version, so a client
+        // that drops events up to this version never misses a change (a change that is in the data twice is harmless).
+        long version = repository.findVersion(tripId);
         var result = SegmentAvailability.compute(journey, repository.findSeats(tripId),
                 repository.findReservations(tripId, journey), repository.findStanding(tripId));
-        return new TripAvailability(tripId, trip.status(), result, JourneyFares.perClass(journey, repository.findFares(tripId)));
+        return new TripAvailability(tripId, trip.status(), result, JourneyFares.perClass(journey, repository.findFares(tripId)), version);
     }
 }

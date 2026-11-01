@@ -1,5 +1,8 @@
 package com.trainbooking.bookingseat.common;
 
+import com.trainbooking.bookingseat.booking.model.BookingNotFoundException;
+import com.trainbooking.bookingseat.booking.model.HoldConflictException;
+import com.trainbooking.bookingseat.booking.model.TripClosedException;
 import com.trainbooking.bookingseat.snapshot.model.SnapshotConflictException;
 import java.util.List;
 import org.slf4j.Logger;
@@ -56,12 +59,30 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("trip_not_found", e.getMessage()));
     }
 
+    @ExceptionHandler(BookingNotFoundException.class)
+    ResponseEntity<ApiError> bookingNotFound(BookingNotFoundException e) {
+        return respond(HttpStatus.NOT_FOUND, ApiError.of("booking_not_found", e.getMessage()));
+    }
+
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> noRoute() {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("not_found", "No such route."));
     }
 
     // ---- 409: the request clashes with existing data ----------------------------------------------------------
+
+    /** FR-H2: nothing was held, and the answer lists the items that were lost. */
+    @ExceptionHandler(HoldConflictException.class)
+    ResponseEntity<ApiError> holdConflict(HoldConflictException e) {
+        List<ApiError.Detail> details = e.lost().stream()
+                .map(lost -> new ApiError.Detail(lost.type().toLowerCase() + ":" + lost.id(), lost.label() + " is no longer available")).toList();
+        return respond(HttpStatus.CONFLICT, ApiError.of("seats_unavailable", e.getMessage(), details));
+    }
+
+    @ExceptionHandler(TripClosedException.class)
+    ResponseEntity<ApiError> tripClosed(TripClosedException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of(e.code(), e.getMessage()));
+    }
 
     @ExceptionHandler(SnapshotConflictException.class)
     ResponseEntity<ApiError> snapshotConflict(SnapshotConflictException e) {

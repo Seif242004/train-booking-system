@@ -42,7 +42,7 @@ class AvailabilityControllerTest {
             List.of(new CoachStandingLeft(20, CoachClass.SECOND, 10, 4)),
             Map.of(CoachClass.FIRST, 1, CoachClass.SECOND, 0),
             Map.of(CoachClass.SECOND, 4)),
-            Map.of(CoachClass.FIRST, new java.math.BigDecimal("150.00"), CoachClass.SECOND, new java.math.BigDecimal("100.00")));
+            Map.of(CoachClass.FIRST, new java.math.BigDecimal("150.00"), CoachClass.SECOND, new java.math.BigDecimal("100.00")), 7L);
 
     @Autowired
     MockMvc mvc;
@@ -82,7 +82,8 @@ class AvailabilityControllerTest {
                 .andExpect(jsonPath("$.summary.seatsLeft.SECOND").value(0))
                 .andExpect(jsonPath("$.summary.standingLeft.SECOND").value(4))
                 .andExpect(jsonPath("$.fares.FIRST").value(150.00))
-                .andExpect(jsonPath("$.fares.SECOND").value(100.00));
+                .andExpect(jsonPath("$.fares.SECOND").value(100.00))
+                .andExpect(jsonPath("$.version").value(7));
     }
 
     @Test

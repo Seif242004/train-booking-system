@@ -19,6 +19,7 @@ public record AvailabilityResponse(
         int toStop,
         Summary summary,
         Map<CoachClass, BigDecimal> fares,
+        Long version,
         List<Seat> seats,
         List<CoachStandingLeft> standing) {
 
@@ -33,9 +34,9 @@ public record AvailabilityResponse(
         JourneyAvailability a = trip.availability();
         Summary summary = new Summary(a.seatsLeft(), a.standingLeft());
         if (summaryOnly) {
-            return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, null, null, null);
+            return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, null, null, null, null);
         }
         List<Seat> seats = a.seats().stream().map(s -> new Seat(s.seatId(), s.coachId(), s.state())).toList();
-        return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, trip.fares(), seats, a.standing());
+        return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, trip.fares(), trip.version(), seats, a.standing());
     }
 }

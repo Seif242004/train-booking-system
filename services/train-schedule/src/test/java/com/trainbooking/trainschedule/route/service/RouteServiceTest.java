@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.common.ApiError;
 import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.fare.repository.FareRepository;
@@ -40,8 +41,9 @@ class RouteServiceTest {
     private final TripRepository trips = mock(TripRepository.class);
     private final StationService stations = mock(StationService.class);
     private final AuditLogRepository auditLog = mock(AuditLogRepository.class);
+    private final SnapshotChanges changes = mock(SnapshotChanges.class);
     private final RouteService service =
-            new RouteService(routes, fares, trips, stations, new AuditTrail(auditLog, JsonMapper.builder().build()));
+            new RouteService(routes, fares, trips, stations, new AuditTrail(auditLog, JsonMapper.builder().build()), changes);
 
     private static Route route(long id, String name, long... stationIds) {
         RouteStop[] stops = new RouteStop[stationIds.length];
@@ -99,6 +101,7 @@ class RouteServiceTest {
         verify(routes, never()).deleteStops(anyLong());
         verify(fares, never()).deleteByRoute(anyLong());
         verify(fares, never()).countByRoute(anyLong());
+        org.mockito.Mockito.verify(changes).routeChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -112,6 +115,7 @@ class RouteServiceTest {
         verify(routes, never()).deleteStops(anyLong());
         verify(fares, never()).deleteByRoute(anyLong());
         verify(auditLog, never()).record(any(), any(), anyLong(), any(), any());
+        org.mockito.Mockito.verifyNoInteractions(changes); // a refused or failed edit pushes nothing
     }
 
     @Test

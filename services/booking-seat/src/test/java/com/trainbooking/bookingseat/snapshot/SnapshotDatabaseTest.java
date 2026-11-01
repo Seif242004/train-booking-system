@@ -206,6 +206,42 @@ class SnapshotDatabaseTest extends DatabaseTest {
     }
 
     @Test
+    void theClassOfASeatThatHasReservations_cannotChange_otherwiseTheBookedPriceAndTheCountsPerClassDisagree() throws Exception {
+        push(TRIP, valid()).andExpect(status().isOk());
+        book(TRIP, 2, 0); // seat 2 is SECOND class in coach 20
+        TripSnapshot upgraded = withCoaches(valid(), replace(valid().coaches(), 1, c -> new TripSnapshot.Coach(20L, "B", CoachClass.FIRST, 2, 10)));
+        upgraded = withSeats(upgraded, replace(replace(valid().seats(), 1, s -> new TripSnapshot.Seat(2L, 20L, "B1", 1, "A", CoachClass.FIRST)),
+                2, s -> new TripSnapshot.Seat(3L, 20L, "B2", 1, "B", CoachClass.FIRST)));
+
+        push(TRIP, upgraded).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("capacity_conflict"))
+                .andExpect(jsonPath("$.error.details[0].message").value(org.hamcrest.Matchers.containsString("class")));
+
+        assertThat(jdbc.sql("SELECT class FROM trip_seat WHERE trip_id = :t AND seat_id = 2").param("t", TRIP).query(String.class).single()).isEqualTo("SECOND");
+    }
+
+    @Test
+    void theClassOfACoachWhoseStandingPlacesAreInUse_cannotChange() throws Exception {
+        push(TRIP, valid()).andExpect(status().isOk());
+        useStanding(TRIP, 30, 0, 1);
+        TripSnapshot changed = withSeats(withCoaches(valid(), replace(valid().coaches(), 2, c -> new TripSnapshot.Coach(30L, "C", CoachClass.SECOND, 3, 5))),
+                replace(valid().seats(), 3, s -> new TripSnapshot.Seat(4L, 30L, "C1", 1, "A", CoachClass.SECOND)));
+
+        push(TRIP, changed).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("capacity_conflict"));
+    }
+
+    @Test
+    void theClassOfACoachWithoutReservations_canChange() throws Exception {
+        push(TRIP, valid()).andExpect(status().isOk());
+        TripSnapshot upgraded = withCoaches(valid(), replace(valid().coaches(), 1, c -> new TripSnapshot.Coach(20L, "B", CoachClass.FIRST, 2, 10)));
+        upgraded = withSeats(upgraded, replace(replace(valid().seats(), 1, s -> new TripSnapshot.Seat(2L, 20L, "B1", 1, "A", CoachClass.FIRST)),
+                2, s -> new TripSnapshot.Seat(3L, 20L, "B2", 1, "B", CoachClass.FIRST)));
+
+        push(TRIP, upgraded).andExpect(status().isOk());
+
+        assertThat(jdbc.sql("SELECT class FROM trip_seat WHERE trip_id = :t AND seat_id = 2").param("t", TRIP).query(String.class).single()).isEqualTo("FIRST");
+    }
+
+    @Test
     void aTripWithReservations_keepsItsStopsTimesTrainDateAndFares() throws Exception {
         push(TRIP, valid()).andExpect(status().isOk());
         book(TRIP, 1, 0);

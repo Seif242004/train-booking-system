@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.coach.model.CoachClass;
 import com.trainbooking.trainschedule.common.ApiError;
 import com.trainbooking.trainschedule.common.RequestValidationException;
@@ -36,8 +37,9 @@ class FareServiceTest {
     private final FareRepository fares = mock(FareRepository.class);
     private final RouteService routes = mock(RouteService.class);
     private final AuditLogRepository auditLog = mock(AuditLogRepository.class);
+    private final SnapshotChanges changes = mock(SnapshotChanges.class);
     private final FareService service = new FareService(fares, routes,
-            Validation.buildDefaultValidatorFactory().getValidator(), new AuditTrail(auditLog, JsonMapper.builder().build()));
+            Validation.buildDefaultValidatorFactory().getValidator(), new AuditTrail(auditLog, JsonMapper.builder().build()), changes);
 
     /** A route with three stops, so two segments: 0 and 1. */
     private static final Route THREE_STOPS = new Route(4, "R", List.of(
@@ -66,6 +68,7 @@ class FareServiceTest {
         assertThat(inserted.getValue()).extracting(Fare::currency).containsOnly("EGP");
         assertThat(inserted.getValue()).extracting(f -> f.amount().toPlainString()).containsExactly("100.50", "40.00");
         verify(auditLog).record(eq("admin-1"), eq("route"), eq(4L), eq("SET_FARES"), org.mockito.ArgumentMatchers.anyString());
+        org.mockito.Mockito.verify(changes).routeChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -76,6 +79,7 @@ class FareServiceTest {
                 .isInstanceOf(RequestValidationException.class)
                 .satisfies(e -> assertThat(detailsOf(e)).extracting(ApiError.Detail::field).containsExactly("[1].segmentIndex"));
         verify(fares, never()).deleteByRoute(anyLong());
+        org.mockito.Mockito.verifyNoInteractions(changes); // a refused or failed edit pushes nothing
     }
 
     @Test

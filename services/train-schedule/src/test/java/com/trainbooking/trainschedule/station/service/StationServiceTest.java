@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.station.model.Station;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
 import com.trainbooking.trainschedule.station.model.StationNotFoundException;
@@ -26,7 +27,8 @@ class StationServiceTest {
 
     private final StationRepository stations = mock(StationRepository.class);
     private final AuditLogRepository audit = mock(AuditLogRepository.class);
-    private final StationService service = new StationService(stations, new AuditTrail(audit, JsonMapper.builder().build()));
+    private final SnapshotChanges changes = mock(SnapshotChanges.class);
+    private final StationService service = new StationService(stations, new AuditTrail(audit, JsonMapper.builder().build()), changes);
 
     @Test
     void create_normalizesInput_andWritesAnAuditRowForTheAdmin() {
@@ -57,6 +59,7 @@ class StationServiceTest {
         assertThat(updated.name()).isEqualTo("Cairo Central");
         verify(audit).record(eq("admin-1"), eq("station"), eq(5L), eq("UPDATE"),
                 org.mockito.ArgumentMatchers.contains("Cairo Ramses"));
+        org.mockito.Mockito.verify(changes).stationChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -65,6 +68,7 @@ class StationServiceTest {
 
         assertThatThrownBy(() -> service.update(9, new StationRequest("CAI", "Cairo", "Cairo"), "admin-1"))
                 .isInstanceOf(StationNotFoundException.class);
+        org.mockito.Mockito.verifyNoInteractions(changes); // a refused or failed edit pushes nothing
     }
 
     @Test

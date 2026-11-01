@@ -42,8 +42,12 @@ public class SnapshotRepository {
     public record StopFact(long stationId, Instant arrival, Instant departure) {
     }
 
-    /** A seat as stored: the coach it is in and its number (for messages). */
-    public record StoredSeat(long coachId, String seatNumber) {
+    /** A seat as stored: the coach it is in, its number (for messages) and its class. */
+    public record StoredSeat(long coachId, String seatNumber, CoachClass coachClass) {
+    }
+
+    /** A coach as stored: its code (for messages) and its class. */
+    public record StoredCoach(String code, CoachClass coachClass) {
     }
 
     private final JdbcClient jdbc;
@@ -98,16 +102,17 @@ public class SnapshotRepository {
 
     public Map<Long, StoredSeat> findSeats(long tripId) {
         Map<Long, StoredSeat> seats = new HashMap<>();
-        jdbc.sql("SELECT seat_id, coach_id, seat_number FROM trip_seat WHERE trip_id = :t").param("t", tripId)
-                .query((rs, row) -> seats.put(rs.getLong("seat_id"), new StoredSeat(rs.getLong("coach_id"), rs.getString("seat_number"))))
+        jdbc.sql("SELECT seat_id, coach_id, seat_number, class FROM trip_seat WHERE trip_id = :t").param("t", tripId)
+                .query((rs, row) -> seats.put(rs.getLong("seat_id"), new StoredSeat(rs.getLong("coach_id"), rs.getString("seat_number"),
+                        CoachClass.valueOf(rs.getString("class")))))
                 .list();
         return seats;
     }
 
-    public Map<Long, String> findCoachCodes(long tripId) {
-        Map<Long, String> coaches = new HashMap<>();
-        jdbc.sql("SELECT coach_id, code FROM trip_coach WHERE trip_id = :t").param("t", tripId)
-                .query((rs, row) -> coaches.put(rs.getLong("coach_id"), rs.getString("code"))).list();
+    public Map<Long, StoredCoach> findCoaches(long tripId) {
+        Map<Long, StoredCoach> coaches = new HashMap<>();
+        jdbc.sql("SELECT coach_id, code, class FROM trip_coach WHERE trip_id = :t").param("t", tripId)
+                .query((rs, row) -> coaches.put(rs.getLong("coach_id"), new StoredCoach(rs.getString("code"), CoachClass.valueOf(rs.getString("class"))))).list();
         return coaches;
     }
 

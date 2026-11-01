@@ -176,17 +176,22 @@ public class SnapshotService {
                 conflicts.add(new ApiError.Detail("seats", "seat " + number + " has holds or bookings and cannot be removed"));
             } else if (seat.coachId() != stored.get(seatId).coachId()) {
                 conflicts.add(new ApiError.Detail("seats", "seat " + number + " has holds or bookings and cannot move to another coach"));
+            } else if (seat.coachClass() != stored.get(seatId).coachClass()) {
+                // The price of a booking and the counts per class were worked out for the old class.
+                conflicts.add(new ApiError.Detail("seats", "seat " + number + " has holds or bookings and its class cannot change"));
             }
         }
 
-        Map<Long, String> codes = repository.findCoachCodes(tripId);
+        Map<Long, SnapshotRepository.StoredCoach> storedCoaches = repository.findCoaches(tripId);
         Map<Long, TripSnapshot.Coach> coaches = new HashMap<>();
         snapshot.coaches().forEach(coach -> coaches.put(coach.id(), coach));
         for (Map.Entry<Long, Integer> inUse : repository.findMaxStandingUsed(tripId).entrySet()) {
             TripSnapshot.Coach coach = coaches.get(inUse.getKey());
-            String code = codes.get(inUse.getKey());
+            String code = storedCoaches.get(inUse.getKey()).code();
             if (coach == null) {
                 conflicts.add(new ApiError.Detail("coaches", "coach " + code + " has " + inUse.getValue() + " standing places in use and cannot be removed"));
+            } else if (coach.coachClass() != storedCoaches.get(inUse.getKey()).coachClass()) {
+                conflicts.add(new ApiError.Detail("coaches", "coach " + code + " has standing places in use and its class cannot change"));
             } else if (coach.standingCapacity() < inUse.getValue()) {
                 conflicts.add(new ApiError.Detail("coaches", "coach " + code + " standing capacity cannot go below the " + inUse.getValue() + " places in use"));
             }

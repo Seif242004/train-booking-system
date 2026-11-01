@@ -119,6 +119,27 @@ public class TripRepository {
         return jdbc.sql("DELETE FROM trip WHERE id = :id").param("id", id).update() == 1;
     }
 
+    // ---- the trips whose snapshot must be pushed again when something inside it was edited ----------------------------
+
+    private static final String FUTURE_ACTIVE = "SELECT t.id FROM trip t JOIN trip_stop first_stop ON first_stop.trip_id = t.id AND first_stop.stop_index = 0 "
+            + "WHERE t.status = 'ACTIVE' AND first_stop.departure_time > :now ";
+
+    /** Active trips of a train that have not left their first stop yet. */
+    public List<Long> findFutureActiveIdsByTrain(long trainId, OffsetDateTime now) {
+        return jdbc.sql(FUTURE_ACTIVE + "AND t.train_id = :id ORDER BY t.id").param("now", now).param("id", trainId).query(Long.class).list();
+    }
+
+    /** Active trips on a route that have not left their first stop yet. */
+    public List<Long> findFutureActiveIdsByRoute(long routeId, OffsetDateTime now) {
+        return jdbc.sql(FUTURE_ACTIVE + "AND t.route_id = :id ORDER BY t.id").param("now", now).param("id", routeId).query(Long.class).list();
+    }
+
+    /** Active trips that stop at a station and have not left their first stop yet. */
+    public List<Long> findFutureActiveIdsByStation(long stationId, OffsetDateTime now) {
+        return jdbc.sql(FUTURE_ACTIVE + "AND EXISTS (SELECT 1 FROM trip_stop s WHERE s.trip_id = t.id AND s.station_id = :id) ORDER BY t.id")
+                .param("now", now).param("id", stationId).query(Long.class).list();
+    }
+
     public int countByRoute(long routeId) {
         return jdbc.sql("SELECT COUNT(*) FROM trip WHERE route_id = :routeId").param("routeId", routeId).query(Integer.class).single();
     }

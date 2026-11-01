@@ -1,6 +1,7 @@
 package com.trainbooking.trainschedule.station.service;
 
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.station.model.Station;
 import com.trainbooking.trainschedule.station.model.StationCodeTakenException;
 import com.trainbooking.trainschedule.station.model.StationInUseException;
@@ -24,10 +25,12 @@ public class StationService {
 
     private final StationRepository stations;
     private final AuditTrail audit;
+    private final SnapshotChanges changes;
 
-    public StationService(StationRepository stations, AuditTrail audit) {
+    public StationService(StationRepository stations, AuditTrail audit, SnapshotChanges changes) {
         this.stations = stations;
         this.audit = audit;
+        this.changes = changes;
     }
 
     @Transactional(readOnly = true)
@@ -66,6 +69,7 @@ public class StationService {
             throw new StationCodeTakenException(after.code());
         }
         audit.change(adminId, ENTITY, id, "UPDATE", before, after);
+        changes.stationChanged(id, adminId);
         return after;
     }
 

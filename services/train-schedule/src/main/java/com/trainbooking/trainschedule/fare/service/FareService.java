@@ -1,6 +1,7 @@
 package com.trainbooking.trainschedule.fare.service;
 
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.coach.model.CoachClass;
 import com.trainbooking.trainschedule.common.ApiError;
 import com.trainbooking.trainschedule.common.ListValidation;
@@ -31,12 +32,14 @@ public class FareService {
     private final RouteService routes;
     private final Validator validator;
     private final AuditTrail audit;
+    private final SnapshotChanges changes;
 
-    public FareService(FareRepository fares, RouteService routes, Validator validator, AuditTrail audit) {
+    public FareService(FareRepository fares, RouteService routes, Validator validator, AuditTrail audit, SnapshotChanges changes) {
         this.fares = fares;
         this.routes = routes;
         this.validator = validator;
         this.audit = audit;
+        this.changes = changes;
     }
 
     /** The fares of a route, by segment then class. 404 if the route does not exist. */
@@ -69,6 +72,9 @@ public class FareService {
         diff.put("before", before);
         diff.put("after", after);
         audit.record(adminId, "route", routeId, "SET_FARES", diff);
+        // Fares are frozen once a trip has reservations: the push of the changed fares to every future trip on the route
+        // is refused (409) by Booking and Seat if any of them has holds or bookings, and then nothing is saved.
+        changes.routeChanged(routeId, adminId);
         return after;
     }
 

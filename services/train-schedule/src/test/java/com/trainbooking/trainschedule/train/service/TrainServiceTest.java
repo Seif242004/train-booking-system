@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.train.model.Train;
 import com.trainbooking.trainschedule.train.model.TrainNotFoundException;
@@ -30,7 +31,8 @@ class TrainServiceTest {
 
     private final TrainRepository trains = mock(TrainRepository.class);
     private final AuditLogRepository auditLog = mock(AuditLogRepository.class);
-    private final TrainService service = new TrainService(trains, new AuditTrail(auditLog, JsonMapper.builder().build()));
+    private final SnapshotChanges changes = mock(SnapshotChanges.class);
+    private final TrainService service = new TrainService(trains, new AuditTrail(auditLog, JsonMapper.builder().build()), changes);
 
     private static final Train EXISTING = new Train(5, "E901", "Cairo Express", "Express", TrainStatus.ACTIVE);
 
@@ -62,6 +64,7 @@ class TrainServiceTest {
 
         assertThat(updated.status()).isEqualTo(TrainStatus.INACTIVE);
         verify(auditLog).record(eq("admin-1"), eq("train"), eq(5L), eq("UPDATE"), contains("INACTIVE"));
+        org.mockito.Mockito.verify(changes).trainChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -70,6 +73,7 @@ class TrainServiceTest {
 
         assertThatThrownBy(() -> service.update(9, new TrainRequest("E1", "X", "Express", "ACTIVE"), "admin-1"))
                 .isInstanceOf(TrainNotFoundException.class);
+        org.mockito.Mockito.verifyNoInteractions(changes); // a refused or failed edit pushes nothing
     }
 
     @Test

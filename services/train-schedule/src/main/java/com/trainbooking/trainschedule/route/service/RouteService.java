@@ -1,6 +1,7 @@
 package com.trainbooking.trainschedule.route.service;
 
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.common.ApiError;
 import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.fare.repository.FareRepository;
@@ -35,14 +36,16 @@ public class RouteService {
     private final TripRepository trips;
     private final StationService stations;
     private final AuditTrail audit;
+    private final SnapshotChanges changes;
 
     public RouteService(RouteRepository routes, FareRepository fares, TripRepository trips, StationService stations,
-                        AuditTrail audit) {
+                        AuditTrail audit, SnapshotChanges changes) {
         this.routes = routes;
         this.fares = fares;
         this.trips = trips;
         this.stations = stations;
         this.audit = audit;
+        this.changes = changes;
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +106,7 @@ public class RouteService {
             diff.put("faresCleared", faresCleared);
         }
         audit.record(adminId, ENTITY, id, "UPDATE", diff);
+        changes.routeChanged(id, adminId);
         return after;
     }
 

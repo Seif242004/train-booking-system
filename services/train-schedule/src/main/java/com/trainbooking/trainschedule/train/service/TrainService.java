@@ -1,6 +1,7 @@
 package com.trainbooking.trainschedule.train.service;
 
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.common.ApiError;
 import com.trainbooking.trainschedule.common.RequestValidationException;
 import com.trainbooking.trainschedule.train.model.Train;
@@ -27,10 +28,12 @@ public class TrainService {
 
     private final TrainRepository trains;
     private final AuditTrail audit;
+    private final SnapshotChanges changes;
 
-    public TrainService(TrainRepository trains, AuditTrail audit) {
+    public TrainService(TrainRepository trains, AuditTrail audit, SnapshotChanges changes) {
         this.trains = trains;
         this.audit = audit;
+        this.changes = changes;
     }
 
     /** @param status optional filter, ACTIVE or INACTIVE; anything else is a 400 */
@@ -71,14 +74,17 @@ public class TrainService {
             throw new TrainNumberTakenException(after.number());
         }
         audit.change(adminId, ENTITY, id, "UPDATE", before, after);
+        changes.trainChanged(id, adminId);
         return after;
     }
 
     /**
      * Deletes a train together with its coaches and seats (database cascade). A train that has any trips cannot be
      * deleted (409 train_in_use): the foreign key from trip to train is the guard. It can be set to INACTIVE instead.
-     * TODO(FR-A4, slice 5): once bookings exist, relax this to FR-A4 exactly: refuse only when future trips have confirmed
-     * bookings, and let the admin delete or deactivate otherwise.
+     * This is deliberately stricter than FR-A4, which only blocks the delete when future trips have confirmed bookings: a
+     * train with any trip, even one without bookings, is kept, so a trip never loses its train and Booking and Seat never
+     * keeps a copy of a trip whose train is gone. To remove such a train the admin deletes or cancels its trips first (a
+     * trip with holds or bookings is cancelled, Flow 8) or sets the train to INACTIVE.
      */
     @Transactional
     public void delete(long id, String adminId) {

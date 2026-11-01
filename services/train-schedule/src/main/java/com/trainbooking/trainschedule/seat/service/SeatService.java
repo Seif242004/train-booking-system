@@ -1,6 +1,7 @@
 package com.trainbooking.trainschedule.seat.service;
 
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.coach.model.Coach;
 import com.trainbooking.trainschedule.coach.service.CoachService;
 import com.trainbooking.trainschedule.common.ApiError;
@@ -36,12 +37,14 @@ public class SeatService {
     private final CoachService coaches;
     private final Validator validator;
     private final AuditTrail audit;
+    private final SnapshotChanges changes;
 
-    public SeatService(SeatRepository seats, CoachService coaches, Validator validator, AuditTrail audit) {
+    public SeatService(SeatRepository seats, CoachService coaches, Validator validator, AuditTrail audit, SnapshotChanges changes) {
         this.seats = seats;
         this.coaches = coaches;
         this.validator = validator;
         this.audit = audit;
+        this.changes = changes;
     }
 
     /** The seats of a coach in seat-map order. 404 if the coach does not exist. */
@@ -88,6 +91,7 @@ public class SeatService {
         diff.put("count", created.size());
         diff.put("seatNumbers", created.stream().map(Seat::seatNumber).toList());
         audit.record(adminId, "coach", coachId, "ADD_SEATS", diff);
+        changes.trainChanged(coach.trainId(), adminId);
         return created;
     }
 
@@ -111,6 +115,7 @@ public class SeatService {
         }
         Seat after = new Seat(id, before.coachId(), clean.seatNumber(), clean.row(), clean.column(), before.coachClass());
         audit.change(adminId, ENTITY, id, "UPDATE", before, after);
+        changes.trainChanged(coaches.get(before.coachId()).trainId(), adminId);
         return after;
     }
 
@@ -123,6 +128,7 @@ public class SeatService {
             throw new SeatNotFoundException(id);
         }
         audit.change(adminId, ENTITY, id, "DELETE", before, null);
+        changes.trainChanged(coaches.get(before.coachId()).trainId(), adminId);
     }
 
     /** A seat number, or a row and column position, may appear only once in the list. */

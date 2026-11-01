@@ -45,7 +45,7 @@ it is created and is never changed by a snapshot. Refusals are **409**, and noth
 |---|---|
 | `trip_not_open` | the trip is `CANCELLING` or `CANCELLED` |
 | `trip_has_reservations` | the trip has holds or bookings (any seat reserved or any standing place in use) and the snapshot changes its date, train, stops, times or fares; or the trip is being deleted |
-| `capacity_conflict` | a seat with reservations would be removed or moved to another coach, or the standing capacity of a coach would drop below the places in use, or a coach with standing places in use would be removed (FR-A9). The foreign key from `seat_reservation` to the seat and the `CHECK (used <= capacity)` are the last line of defence |
+| `capacity_conflict` | a seat with reservations would be removed, moved to another coach or given another class, or the standing capacity of a coach would drop below the places in use, or a coach with standing places in use would be removed or given another class (FR-A9). The foreign key from `seat_reservation` to the seat and the `CHECK (used <= capacity)` are the last line of defence |
 
 Changes that only add capacity, or that repeat the same snapshot, are always accepted.
 

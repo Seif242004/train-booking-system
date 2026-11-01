@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.coach.model.Coach;
 import com.trainbooking.trainschedule.coach.model.CoachClass;
 import com.trainbooking.trainschedule.coach.service.CoachService;
@@ -38,8 +39,9 @@ class SeatServiceTest {
     private final SeatRepository seats = mock(SeatRepository.class);
     private final CoachService coaches = mock(CoachService.class);
     private final AuditLogRepository auditLog = mock(AuditLogRepository.class);
+    private final SnapshotChanges changes = mock(SnapshotChanges.class);
     private final SeatService service = new SeatService(seats, coaches,
-            Validation.buildDefaultValidatorFactory().getValidator(), new AuditTrail(auditLog, JsonMapper.builder().build()));
+            Validation.buildDefaultValidatorFactory().getValidator(), new AuditTrail(auditLog, JsonMapper.builder().build()), changes);
 
     private static final Coach SECOND_CLASS = new Coach(5, 1, "B2", CoachClass.SECOND, 2, 0);
 
@@ -70,6 +72,7 @@ class SeatServiceTest {
         assertThat(inserted.getValue()).extracting(Seat::coachClass).containsOnly(CoachClass.SECOND);
         assertThat(inserted.getValue()).extracting(Seat::column).containsExactly("A", "B");
         verify(auditLog).record(eq("admin-1"), eq("coach"), eq(5L), eq("ADD_SEATS"), contains("\"count\":2"));
+        org.mockito.Mockito.verify(changes).trainChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -81,6 +84,7 @@ class SeatServiceTest {
                 .satisfies(e -> assertThat(detailsOf(e)).extracting(ApiError.Detail::field).containsExactly("[1].seatNumber"));
         verify(seats, never()).insertAll(anyLong(), any(), any());
         verify(auditLog, never()).record(any(), any(), anyLong(), any(), any());
+        org.mockito.Mockito.verifyNoInteractions(changes); // a refused or failed edit pushes nothing
     }
 
     @Test
@@ -166,6 +170,7 @@ class SeatServiceTest {
     @Test
     void update_keepsTheCoachClassOfTheSeat() {
         Seat before = new Seat(3, 5, "1A", 1, "A", CoachClass.SECOND);
+        coachExists();
         given(seats.findById(3)).willReturn(Optional.of(before));
         given(seats.update(3, "2A", 2, "A")).willReturn(true);
 
@@ -173,5 +178,6 @@ class SeatServiceTest {
 
         assertThat(after.coachClass()).isEqualTo(CoachClass.SECOND);
         assertThat(after.seatNumber()).isEqualTo("2A");
+        org.mockito.Mockito.verify(changes).trainChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 }

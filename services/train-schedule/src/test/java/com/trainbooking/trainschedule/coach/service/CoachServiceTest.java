@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 
 import com.trainbooking.trainschedule.audit.AuditLogRepository;
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.coach.model.Coach;
 import com.trainbooking.trainschedule.coach.model.CoachClass;
 import com.trainbooking.trainschedule.coach.model.CoachCodeTakenException;
@@ -35,8 +36,9 @@ class CoachServiceTest {
     private final SeatRepository seats = mock(SeatRepository.class);
     private final TrainService trains = mock(TrainService.class);
     private final AuditLogRepository auditLog = mock(AuditLogRepository.class);
+    private final SnapshotChanges changes = mock(SnapshotChanges.class);
     private final CoachService service =
-            new CoachService(coaches, seats, trains, new AuditTrail(auditLog, JsonMapper.builder().build()));
+            new CoachService(coaches, seats, trains, new AuditTrail(auditLog, JsonMapper.builder().build()), changes);
 
     private static final Coach FIRST_CLASS = new Coach(9, 4, "A1", CoachClass.FIRST, 1, 20);
 
@@ -49,6 +51,7 @@ class CoachServiceTest {
         assertThat(created.code()).isEqualTo("A1");
         verify(trains).get(4);
         verify(auditLog).record(eq("admin-1"), eq("coach"), eq(9L), eq("CREATE"), anyString());
+        org.mockito.Mockito.verify(changes).trainChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -58,6 +61,7 @@ class CoachServiceTest {
         assertThatThrownBy(() -> service.create(99, new CoachRequest("A1", "FIRST", 1, 0), "admin-1"))
                 .isInstanceOf(TrainNotFoundException.class);
         verify(coaches, never()).insert(anyLong(), anyString(), any(), anyInt(), anyInt());
+        org.mockito.Mockito.verifyNoInteractions(changes); // a refused or failed edit pushes nothing
     }
 
     @Test
@@ -83,6 +87,7 @@ class CoachServiceTest {
         assertThat(updated.coachClass()).isEqualTo(CoachClass.SECOND);
         verify(seats).updateClassByCoach(9, CoachClass.SECOND);
         verify(auditLog).record(eq("admin-1"), eq("coach"), eq(9L), eq("UPDATE"), contains("\"seatsReclassified\":40"));
+        org.mockito.Mockito.verify(changes).trainChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -104,5 +109,6 @@ class CoachServiceTest {
         service.delete(9, "admin-1");
 
         verify(auditLog).record(eq("admin-1"), eq("coach"), eq(9L), eq("DELETE"), contains("\"cascadedSeats\":40"));
+        org.mockito.Mockito.verify(changes).trainChanged(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyString());
     }
 }

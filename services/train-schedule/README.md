@@ -104,13 +104,16 @@ Rules worth knowing:
 - **Errors** have one JSON shape: `{ "error": { "code", "message", "details": [ { "field", "message" } ] } }`
   (`details` for validation and seat conflicts). A missing value reports only "is required". Security failures use the
   same shape: `401 unauthenticated` or `invalid_token`, `403 forbidden`.
-- **TODO, a separate slice before the hold logic:** the snapshot is pushed only when a trip is created, changed or deleted.
-  Things that are inside a snapshot but are edited elsewhere (coaches, seats, standing capacity, fares, station names) are
-  not pushed yet, so Booking's copy goes stale if they are edited after a trip exists. The planned rule: a fare edit
-  re-publishes the snapshots of all trips on the route and is refused with 409 if any of those trips has reservations;
-  the same for coach, seat and standing edits (Booking already refuses capacity changes that conflict with holds or
-  bookings, FR-A9). Also still open: relax the train delete to FR-A4 exactly (refuse deleting a train that has future
-  trips with confirmed bookings, Flow 7).
+- **Edits that change snapshots:** besides a trip itself, the things inside a snapshot are edited here: a train (number, name,
+  type), its coaches, seats and standing capacity, the fares and name of a route, and the name of a station. After such an
+  edit `TripSnapshotRefresher` pushes the snapshot again of every **future, active** trip that it touches (by train, route or
+  station), once per trip, as the **last step before the commit** (a trip that already left keeps its copy). If Booking & Seat
+  refuses (409 `booking_conflict`, nothing is saved), the edit is rolled back: a **fare** edit is refused if any of those
+  trips has reservations (fares are frozen), and a **capacity** edit (FR-A9) only when it conflicts with them, that is when
+  it removes or reclassifies a seat with holds or bookings or lowers the standing capacity of a coach below the places in
+  use; adding capacity is always accepted. An edit is also refused (503) while Booking & Seat is down.
+- **Train delete is stricter than FR-A4 on purpose:** a train with any trip cannot be deleted (409 `train_in_use`), not only a
+  train with future confirmed bookings; delete or cancel its trips first, or set the train to INACTIVE.
 
 ## Database
 

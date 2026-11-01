@@ -1,6 +1,7 @@
 package com.trainbooking.trainschedule.coach.service;
 
 import com.trainbooking.trainschedule.audit.AuditTrail;
+import com.trainbooking.trainschedule.common.SnapshotChanges;
 import com.trainbooking.trainschedule.coach.model.Coach;
 import com.trainbooking.trainschedule.coach.model.CoachClass;
 import com.trainbooking.trainschedule.coach.model.CoachCodeTakenException;
@@ -28,12 +29,14 @@ public class CoachService {
     private final SeatRepository seats;
     private final TrainService trains;
     private final AuditTrail audit;
+    private final SnapshotChanges changes;
 
-    public CoachService(CoachRepository coaches, SeatRepository seats, TrainService trains, AuditTrail audit) {
+    public CoachService(CoachRepository coaches, SeatRepository seats, TrainService trains, AuditTrail audit, SnapshotChanges changes) {
         this.coaches = coaches;
         this.seats = seats;
         this.trains = trains;
         this.audit = audit;
+        this.changes = changes;
     }
 
     /** The coaches of a train in their order in the train. 404 if the train does not exist. */
@@ -60,14 +63,15 @@ public class CoachService {
             throw taken(e, code, request.position());
         }
         audit.change(adminId, ENTITY, created.id(), "CREATE", null, created);
+        changes.trainChanged(trainId, adminId);
         return created;
     }
 
     /**
      * Updates a coach. If its class changes, the class of all its seats is updated in the same transaction, because a
      * seat always has the class of its coach (the server derives it; a client never sets it).
-     * TODO(FR-A9): once trips and bookings exist, reject lowering the standing capacity when active holds or confirmed
-     * bookings on future trips use it. There are no trips yet, so any value is accepted for now.
+     * The snapshots of the future trips of the train are pushed again; Booking and Seat refuses the change (409) if it
+     * conflicts with holds or bookings, for example a standing capacity below the places in use (FR-A9).
      */
     @Transactional
     public Coach update(long id, CoachRequest request, String adminId) {
@@ -89,13 +93,14 @@ public class CoachService {
             diff.put("seatsReclassified", seats.updateClassByCoach(id, after.coachClass()));
         }
         audit.record(adminId, ENTITY, id, "UPDATE", diff);
+        changes.trainChanged(after.trainId(), adminId);
         return after;
     }
 
     /**
      * Deletes a coach together with its seats (database cascade).
-     * TODO(FR-A9): once trips and bookings exist, reject the delete when future trips have holds or confirmed bookings
-     * on its seats or standing places.
+     * The snapshots of the future trips of the train are pushed again; Booking and Seat refuses the delete (409) if seats
+     * or standing places of the coach have holds or bookings (FR-A9).
      */
     @Transactional
     public void delete(long id, String adminId) {
@@ -109,6 +114,7 @@ public class CoachService {
         diff.put("after", null);
         diff.put("cascadedSeats", seatCount);
         audit.record(adminId, ENTITY, id, "DELETE", diff);
+        changes.trainChanged(before.trainId(), adminId);
     }
 
     private static String normalizeCode(String code) {

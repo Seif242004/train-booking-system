@@ -60,6 +60,10 @@ export function createApp() {
   // (Booking & Seat). /trips/{id}/layout and /trips/{id}/availability themselves have no public route.
   app.get('/trips/:id/seat-map', requireAuth, seatMap());
 
+  // The bookings of the passenger (SRS 9.1): holds, the booking, payment, cancellation. Booking & Seat checks that a booking belongs
+  // to the caller (the token is forwarded), and answers 404 for anyone else's.
+  app.use('/bookings', requireAuth, passThroughBody, forwardTo(config.bookingSeatUrl, '/bookings'));
+
   app.use((req, res) => {
     sendError(res, 404, 'not_found', `No route for ${req.method} ${req.path}.`);
   });

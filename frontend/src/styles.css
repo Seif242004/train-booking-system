@@ -628,6 +628,21 @@ h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* What is left in a class, written out ("12 seats left", "Full"): the words carry the meaning, the style only supports it. */
+.fare-chips .left {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.fare-chips .left-full {
+  font-weight: 600;
+  color: var(--fail);
+}
+
+.availability-missing {
+  margin-top: 0;
+}
+
 /* Admin trips: the time at every stop, and the one-line summary in the list. */
 .stop-times th[scope='row'] {
   font-weight: 400;

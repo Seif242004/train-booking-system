@@ -27,7 +27,8 @@ registration or account screens: Login and Register send the browser to Keycloak
   arrival, the last no departure); errors show on the cell. If the route's fares are not complete for the train, the page
   lists the missing fares and links to the route's fares page.
 - **Search trips** (`/search`, any signed-in user): choose From, To and a date and see the trips with the times, the
-  duration, the train, the journey fare per class in EGP and a line with every stop of the trip and its time (for example
+  duration, the train, the journey fare per class in EGP with what is left in that class for the journey (for example
+  "12 seats left · 5 standing", or "Full"; "Seats left: not available right now" if Booking & Seat could not be asked) and a line with every stop of the trip and its time (for example
   "08:00 Cairo → 08:40 Giza → 10:45 Alexandria"); the stops of the passenger's journey are bold and the others dimmed. A stop
   shows its departure time at the first stop and at the boarding stop and its arrival time elsewhere; +1 means after
   midnight, counted from the trip's first departure. **Today** and **Tomorrow** buttons next to the date box set the date;

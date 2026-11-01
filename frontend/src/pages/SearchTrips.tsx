@@ -1,7 +1,22 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CLASS_LABEL, type Station, type TripSearchResponse, type TripSearchResult, type TripStop } from '../adminTypes';
+import { CLASS_LABEL, type CoachClass, type JourneyAvailability, type Station, type TripSearchResponse, type TripSearchResult, type TripStop } from '../adminTypes';
 import { gatewayRequest, readError } from '../api';
 import { addDays, clock, daysLater, duration, todayLocal } from '../time';
+
+/**
+ * What is left in one class for the journey, in words: "12 seats left · 5 standing", or "Full" when there is nothing
+ * left of either. It is text, never only a colour. Returns null when the trip has neither seats nor standing of the class.
+ */
+function leftInClass(availability: JourneyAvailability, coachClass: CoachClass): string | null {
+  const seats = availability.seatsLeft[coachClass];
+  const standing = availability.standingLeft[coachClass];
+  if (seats === undefined && standing === undefined) return null;
+  if ((seats ?? 0) === 0 && (standing ?? 0) === 0) return 'Full';
+  const parts: string[] = [];
+  if (seats !== undefined) parts.push(seats === 0 ? 'no seats left' : `${seats} ${seats === 1 ? 'seat' : 'seats'} left`);
+  if (standing !== undefined) parts.push(standing === 0 ? 'no standing' : `${standing} standing`);
+  return parts.join(' · ');
+}
 
 /**
  * The one time shown for a stop in the stop line: when the train leaves the first stop and the passenger's boarding stop,
@@ -32,6 +47,12 @@ function StopLine({ trip }: { trip: TripSearchResult }) {
       })}
     </ol>
   );
+}
+
+function AvailabilityText({ availability, coachClass }: { availability: JourneyAvailability; coachClass: CoachClass }) {
+  const text = leftInClass(availability, coachClass);
+  if (text === null) return null;
+  return <span className={text === 'Full' ? 'left left-full' : 'left'}> · {text}</span>;
 }
 
 /** Passenger page: search the trips from one station to another on a date (FR-S1, Flow 2). */
@@ -200,18 +221,20 @@ export function SearchTrips() {
                         {trip.fares.map((fare) => (
                           <li key={fare.class}>
                             {CLASS_LABEL[fare.class]} <strong>{fare.amount.toFixed(2)}</strong> {fare.currency}
+                            {trip.availability && <AvailabilityText availability={trip.availability} coachClass={fare.class} />}
                           </li>
                         ))}
                       </ul>
                     ) : (
                       <p className="muted">No fares are set for this journey yet.</p>
                     )}
+                    {trip.availability === null && <p className="muted availability-missing">Seats left: not available right now.</p>}
                   </li>
                 );
               })}
             </ul>
           )}
-          <p className="muted">Seats and standing places left, and booking, come in a later step.</p>
+          <p className="muted">Booking comes in a later step.</p>
         </div>
       )}
     </section>

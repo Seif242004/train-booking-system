@@ -87,6 +87,15 @@ export interface JourneyFare {
   currency: 'EGP';
 }
 
+/**
+ * What is left for one journey, per class of coach, as counted by Booking & Seat. A class is listed only if the trip has
+ * seats (or standing places) of it. Seats that are held or booked are not counted.
+ */
+export interface JourneyAvailability {
+  seatsLeft: Partial<Record<CoachClass, number>>;
+  standingLeft: Partial<Record<CoachClass, number>>;
+}
+
 /** One trip returned by the passenger search. */
 export interface TripSearchResult {
   tripId: number;
@@ -102,6 +111,8 @@ export interface TripSearchResult {
   arrivalTime: string;
   stops: TripStop[];
   fares: JourneyFare[];
+  /** Null when Booking & Seat could not be asked: the timetable and fares are still correct. */
+  availability: JourneyAvailability | null;
 }
 
 /** The answer of GET /trips: the date is present only when there are no trips and a later trip exists. */

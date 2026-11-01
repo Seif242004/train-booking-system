@@ -16,7 +16,8 @@ the Stripe webhook forwarding come with their steps.
 | GET | `/admin/ping` | role `ADMIN` | `{ "message": "pong", "admin": "<sub>" }` (example admin-only route) |
 | any | `/admin/stations/**`, `/admin/trains/**` (including `/admin/trains/{id}/coaches`), `/admin/coaches/**` (including `/admin/coaches/{id}/seats`), `/admin/seats/**`, `/admin/routes/**` (including `/admin/routes/{id}/fares`), `/admin/trips/**` | role `ADMIN` | forwarded to Train & Schedule (`TRAIN_SCHEDULE_URL`), answer relayed unchanged |
 | GET | `/trips?from=&to=&date=` | any valid token | **composed** (see "Trip search"): the trips of Train & Schedule, each with the seats and standing places left for the journey from Booking & Seat |
-| GET | `/stations` | any valid token | forwarded to Train & Schedule: the station list for the search page (exact path only; `/trips/{id}/...` is routed later, to its own service) |
+| GET | `/stations` | any valid token | forwarded to Train & Schedule: the station list for the search page (exact path only) |
+| GET | `/trips/{id}/seat-map?from=&to=` | any valid token | **composed** (`src/seatmap.js`): the layout of Train & Schedule (`/trips/{id}/layout`: coaches, seats, standing capacity, stops) with the availability of Booking & Seat (`/trips/{id}/availability`: the state of every seat, the standing places left, the journey fares). `from` and `to` are stop indexes. Both lookups run at the same time; an unknown trip (404) or a journey that does not fit (400) is relayed as it is, a failing service is a 502 and a slow one a 504. A seat that Booking does not know is shown as booked, never as free. `/trips/{id}/layout` and `/trips/{id}/availability` have no public route |
 
 ## Trip search
 

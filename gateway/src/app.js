@@ -5,6 +5,7 @@ import { config } from './config.js';
 import { HttpError, sendError } from './errors.js';
 import { forwardTo } from './proxy.js';
 import { tripSearch } from './search.js';
+import { seatMap } from './seatmap.js';
 
 export function createApp() {
   const app = express();
@@ -55,6 +56,9 @@ export function createApp() {
   // each journey from Booking & Seat. /trips/{id}/availability is called by the Gateway itself and has no public route.
   app.get('/trips', requireAuth, tripSearch());
   app.get('/stations', requireAuth, forwardTo(config.trainScheduleUrl, '/stations'));
+  // The one seat-map call of the browser (Flow 2), composed here from the layout (Train & Schedule) and the availability
+  // (Booking & Seat). /trips/{id}/layout and /trips/{id}/availability themselves have no public route.
+  app.get('/trips/:id/seat-map', requireAuth, seatMap());
 
   app.use((req, res) => {
     sendError(res, 404, 'not_found', `No route for ${req.method} ${req.path}.`);

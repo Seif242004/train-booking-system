@@ -15,4 +15,9 @@ class NoPaymentAdapter implements PaymentPort {
     public CancelOutcome cancelPending(long bookingId) {
         return CancelOutcome.NONE;
     }
+
+    @Override
+    public CancelOutcome invalidate(long bookingId) {
+        return CancelOutcome.NONE;
+    }
 }

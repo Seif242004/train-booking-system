@@ -34,7 +34,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser BOB = new AuthenticatedUser("bob-sub", "bob@example.com", "Bob");
 
     @Autowired
-    HoldService holds;
+    com.trainbooking.bookingseat.testsupport.Holds holds;
 
     @Autowired
     ExpiryService expiry;
@@ -73,7 +73,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
         assertThat(rows("seat_reservation")).isZero();
         assertThat(rows("standing_hold")).isZero();
         assertThat(usedStanding(0) + usedStanding(1) + usedStanding(2)).isZero();
-        assertThat(jdbc.sql("SELECT action FROM audit_log WHERE entity = 'booking' ORDER BY id").query(String.class).list()).containsExactly("HOLD", "EXPIRE");
+        assertThat(jdbc.sql("SELECT action FROM audit_log WHERE entity = 'booking' ORDER BY id").query(String.class).list()).containsExactly("HOLD", "PICK", "EXPIRE");
     }
 
     @Test
@@ -291,7 +291,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
     @Test
     void aTimedOutHoldIsNeverCharged_theSweeperAsksOnlyToCancel_neverToRefund() {
         // The port has no refund operation at all: expiry can only cancel a pending payment, so a timeout cannot refund (FR-P4).
-        assertThat(com.trainbooking.bookingseat.payment.PaymentPort.class.getDeclaredMethods()).extracting(java.lang.reflect.Method::getName).containsExactly("cancelPending");
+        assertThat(com.trainbooking.bookingseat.payment.PaymentPort.class.getDeclaredMethods()).extracting(java.lang.reflect.Method::getName).containsExactlyInAnyOrder("cancelPending", "invalidate");
     }
 
     @Test

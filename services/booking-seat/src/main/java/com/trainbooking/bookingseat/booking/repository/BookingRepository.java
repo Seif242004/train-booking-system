@@ -29,7 +29,8 @@ import org.springframework.stereotype.Repository;
 public class BookingRepository {
 
     private static final String COLUMNS = "id, reference, user_id, user_email, user_name, trip_id, from_stop, to_stop, status, refund_status, amount, "
-            + "currency, expires_at, created_at, confirmed_at, cancelled_at, cancelled_by, cancelled_by_role, cancel_reason, next_attempt_at, attempts";
+            + "currency, expires_at, created_at, confirmed_at, cancelled_at, cancelled_by, cancelled_by_role, cancel_reason, next_attempt_at, attempts, "
+            + "payment_started";
 
     private final JdbcClient jdbc;
     private final NamedParameterJdbcTemplate batch;
@@ -51,22 +52,76 @@ public class BookingRepository {
         return keys.getKey().longValue();
     }
 
-    public void insertItems(long bookingId, List<BookingPricing.Line> lines, Map<Long, InventoryRepository.SeatRef> seats, Map<Long, InventoryRepository.CoachRef> coaches) {
-        List<SqlParameterSource> rows = new ArrayList<>();
-        for (BookingPricing.Line line : lines) {
-            InventoryRepository.SeatRef seat = line.seatId() == null ? null : seats.get(line.seatId());
-            rows.add(new MapSqlParameterSource().addValue("b", bookingId).addValue("type", line.type())
-                    .addValue("seat", line.seatId(), java.sql.Types.NUMERIC)
-                    .addValue("coach", "STANDING".equals(line.type()) ? line.coachId() : null, java.sql.Types.NUMERIC)
-                    .addValue("qty", line.qty()).addValue("price", line.price())
-                    // What the passenger was shown, kept with the line: the booking stays readable whatever a later snapshot changes.
-                    .addValue("seatNumber", seat == null ? null : seat.seatNumber())
-                    .addValue("coachCode", seat != null ? seat.coachCode() : coaches.get(line.coachId()).code())
-                    .addValue("coachClass", (seat != null ? seat.coachClass() : coaches.get(line.coachId()).coachClass()).name()));
+    /**
+     * Adds one line: a seat, or the standing places of one coach. The line keeps what the passenger was shown (the seat number, the
+     * coach and its class), so the booking stays readable whatever a later snapshot changes.
+     */
+    public void insertItem(long bookingId, BookingPricing.Line line, InventoryRepository.SeatRef seat, InventoryRepository.CoachRef coach) {
+        if (seat != null) {
+            jdbc.sql("INSERT INTO booking_item (booking_id, item_type, seat_id, qty, price, seat_number, coach_code, coach_class) "
+                            + "VALUES (:b, 'SEAT', :seat, 1, :price, :number, :coachCode, :coachClass)")
+                    .param("b", bookingId).param("seat", seat.seatId()).param("price", line.price()).param("number", seat.seatNumber())
+                    .param("coachCode", seat.coachCode()).param("coachClass", seat.coachClass().name()).update();
+        } else {
+            jdbc.sql("INSERT INTO booking_item (booking_id, item_type, coach_id, qty, price, coach_code, coach_class) "
+                            + "VALUES (:b, 'STANDING', :coach, :qty, :price, :coachCode, :coachClass)")
+                    .param("b", bookingId).param("coach", coach.coachId()).param("qty", line.qty()).param("price", line.price())
+                    .param("coachCode", coach.code()).param("coachClass", coach.coachClass().name()).update();
         }
-        batch.batchUpdate("INSERT INTO booking_item (booking_id, item_type, seat_id, coach_id, qty, price, seat_number, coach_code, coach_class) "
-                        + "VALUES (:b, :type, :seat, :coach, :qty, :price, :seatNumber, :coachCode, :coachClass)",
-                rows.toArray(SqlParameterSource[]::new));
+    }
+
+    /** The standing places of a coach in a booking: how many, or empty if none. */
+    public Optional<Integer> findStandingQty(long bookingId, long coachId) {
+        return jdbc.sql("SELECT qty FROM booking_item WHERE booking_id = :b AND item_type = 'STANDING' AND coach_id = :c").param("b", bookingId).param("c", coachId)
+                .query(Integer.class).optional();
+    }
+
+    public void updateStandingItem(long bookingId, long coachId, int qty, BigDecimal price) {
+        jdbc.sql("UPDATE booking_item SET qty = :qty, price = :price WHERE booking_id = :b AND item_type = 'STANDING' AND coach_id = :c")
+                .param("qty", qty).param("price", price).param("b", bookingId).param("c", coachId).update();
+    }
+
+    public boolean seatItemExists(long bookingId, long seatId) {
+        return jdbc.sql("SELECT COUNT(*) FROM booking_item WHERE booking_id = :b AND item_type = 'SEAT' AND seat_id = :s").param("b", bookingId).param("s", seatId)
+                .query(Integer.class).single() > 0;
+    }
+
+    public int deleteSeatItem(long bookingId, long seatId) {
+        return jdbc.sql("DELETE FROM booking_item WHERE booking_id = :b AND item_type = 'SEAT' AND seat_id = :s").param("b", bookingId).param("s", seatId).update();
+    }
+
+    public int deleteStandingItem(long bookingId, long coachId) {
+        return jdbc.sql("DELETE FROM booking_item WHERE booking_id = :b AND item_type = 'STANDING' AND coach_id = :c").param("b", bookingId).param("c", coachId).update();
+    }
+
+    public int countSeatItems(long bookingId) {
+        return jdbc.sql("SELECT COUNT(*) FROM booking_item WHERE booking_id = :b AND item_type = 'SEAT'").param("b", bookingId).query(Integer.class).single();
+    }
+
+    public int countItems(long bookingId) {
+        return jdbc.sql("SELECT COUNT(*) FROM booking_item WHERE booking_id = :b").param("b", bookingId).query(Integer.class).single();
+    }
+
+    /** Sets the amount of the booking to the sum of its lines: the amount is always worked out on the server from the lines. */
+    public BigDecimal recomputeAmount(long bookingId) {
+        BigDecimal total = jdbc.sql("SELECT NVL(SUM(price), 0) FROM booking_item WHERE booking_id = :b").param("b", bookingId).query(BigDecimal.class).single().setScale(2);
+        jdbc.sql("UPDATE booking SET amount = :amount WHERE id = :b").param("amount", total).param("b", bookingId).update();
+        return total;
+    }
+
+    public void setPaymentStarted(long bookingId, boolean started) {
+        jdbc.sql("UPDATE booking SET payment_started = :v WHERE id = :b").param("v", started ? 1 : 0).param("b", bookingId).update();
+    }
+
+    /** The active hold (PENDING_PAYMENT) of a user on a trip, if there is one. At most one exists: a unique index guarantees it. */
+    public Optional<Booking> findActiveHold(String userId, long tripId) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND trip_id = :t AND status = 'PENDING_PAYMENT'").param("u", userId).param("t", tripId)
+                .query((rs, row) -> map(rs)).optional();
+    }
+
+    public Optional<Booking> findActiveHoldForUpdate(String userId, long tripId) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND trip_id = :t AND status = 'PENDING_PAYMENT' FOR UPDATE").param("u", userId).param("t", tripId)
+                .query((rs, row) -> map(rs)).optional();
     }
 
     public Optional<Booking> find(long id) {
@@ -144,6 +199,6 @@ public class BookingRepository {
                 rs.getObject("expires_at", OffsetDateTime.class), rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("confirmed_at", OffsetDateTime.class), rs.getObject("cancelled_at", OffsetDateTime.class),
                 rs.getString("cancelled_by"), rs.getString("cancelled_by_role"), rs.getString("cancel_reason"),
-                rs.getObject("next_attempt_at", OffsetDateTime.class), rs.getInt("attempts"));
+                rs.getObject("next_attempt_at", OffsetDateTime.class), rs.getInt("attempts"), rs.getInt("payment_started") == 1);
     }
 }

@@ -75,7 +75,7 @@ class WebSocketDatabaseTest extends DatabaseTest {
     JwtDecoder decoder;
 
     @Autowired
-    HoldService holds;
+    com.trainbooking.bookingseat.testsupport.Holds holds;
 
     @Autowired
     ExpiryService expiry;
@@ -183,9 +183,9 @@ class WebSocketDatabaseTest extends DatabaseTest {
         BlockingQueue<JsonNode> alice = subscribe(connect("alice-token"), "/topic/trips/" + TRIP);
         Thread.sleep(300);
 
-        assertThatThrownBy(() -> holds.hold(ALICE, seats(2L, 1L))).isInstanceOf(HoldConflictException.class);
+        assertThatThrownBy(() -> holds.hold(ALICE, seats(1L))).isInstanceOf(HoldConflictException.class); // seat 1 is taken
 
-        assertThat(alice.poll(1500, TimeUnit.MILLISECONDS)).isNull(); // seat 2 was not held, so nothing happened
+        assertThat(alice.poll(1500, TimeUnit.MILLISECONDS)).isNull(); // the pick failed alone and changed nothing: nothing is announced
         assertThat(rows("trip_version WHERE version = 1")).isEqualTo(1); // and the counter did not move
     }
 

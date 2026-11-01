@@ -119,6 +119,14 @@ public class InventoryRepository {
         return jdbc.sql("SELECT DISTINCT segment_index FROM seat_reservation WHERE booking_id = :b ORDER BY segment_index").param("b", bookingId).query(Integer.class).list();
     }
 
+    /** Gives back one seat of a booking on every segment it was reserved on, and returns those segments. */
+    public List<Integer> deleteSeatReservations(long bookingId, long seatId) {
+        List<Integer> segments = jdbc.sql("SELECT segment_index FROM seat_reservation WHERE booking_id = :b AND seat_id = :s ORDER BY segment_index")
+                .param("b", bookingId).param("s", seatId).query(Integer.class).list();
+        jdbc.sql("DELETE FROM seat_reservation WHERE booking_id = :b AND seat_id = :s").param("b", bookingId).param("s", seatId).update();
+        return segments;
+    }
+
     public int deleteReservations(long bookingId) {
         return jdbc.sql("DELETE FROM seat_reservation WHERE booking_id = :b").param("b", bookingId).update();
     }
@@ -151,6 +159,19 @@ public class InventoryRepository {
     public void insertStandingHold(long bookingId, long tripId, long coachId, int fromSegment, int toSegment, int qty) {
         jdbc.sql("INSERT INTO standing_hold (booking_id, trip_id, coach_id, from_segment, to_segment, qty) VALUES (:b, :t, :c, :f, :to, :q)")
                 .param("b", bookingId).param("t", tripId).param("c", coachId).param("f", fromSegment).param("to", toSegment).param("q", qty).update();
+    }
+
+    public Optional<StandingHoldRow> findStandingHold(long bookingId, long coachId) {
+        return jdbc.sql("SELECT coach_id, from_segment, to_segment, qty FROM standing_hold WHERE booking_id = :b AND coach_id = :c").param("b", bookingId).param("c", coachId)
+                .query((rs, row) -> new StandingHoldRow(rs.getLong("coach_id"), rs.getInt("from_segment"), rs.getInt("to_segment"), rs.getInt("qty"))).optional();
+    }
+
+    public void setStandingHoldQty(long bookingId, long coachId, int qty) {
+        jdbc.sql("UPDATE standing_hold SET qty = :q WHERE booking_id = :b AND coach_id = :c").param("q", qty).param("b", bookingId).param("c", coachId).update();
+    }
+
+    public void deleteStandingHold(long bookingId, long coachId) {
+        jdbc.sql("DELETE FROM standing_hold WHERE booking_id = :b AND coach_id = :c").param("b", bookingId).param("c", coachId).update();
     }
 
     public List<StandingHoldRow> findStandingHolds(long bookingId) {

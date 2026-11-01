@@ -2,7 +2,7 @@
 
 Spring Boot service (Java 21, Gradle, Spring MVC: controller → service → repository) that will own segment availability,
 the 5-minute holds, bookings, cancellation and the live seat updates (`CLAUDE.md`, "Services"). So far it has the **copy of
-the trips** that Train & Schedule pushes, the **inventory tables** (still empty: there is no hold logic yet) and the
+the trips** that Train & Schedule pushes, the **inventory tables** and the
 **segment availability** of a journey.
 
 ## Responsibility
@@ -28,7 +28,9 @@ the trips** that Train & Schedule pushes, the **inventory tables** (still empty:
 | PUT | `/internal/trips/{id}/snapshot` | Train & Schedule (API key) | Stores or updates the copy of a trip, all or nothing. Idempotent. Header `X-Acting-User` (optional): the admin whose action caused it, written to the audit log |
 | DELETE | `/internal/trips/{id}` | Train & Schedule (API key) | Removes the copy of a deleted trip (204; also 204 if there is none); 409 if the trip has holds, bookings or any booking history |
 | WebSocket | `/ws` (STOMP) | any valid token, offered as the subprotocol `access_token.<jwt>` | The live seat updates, reached through the Gateway. See "Live updates" |
-| POST | `/bookings` | any signed-in user | **Holds** seats and standing places: `{ tripId, fromStop, toStop, seatIds[], standing[{ coachId, qty }] }`. 201 with the booking (`PENDING_PAYMENT`, `reference`, `amount`, `expiresAt`, `serverTime`, `items`). 409 `seats_unavailable` (nothing held; `details` list the lost items as `seat:<id>` / `standing:<coachId>`), 409 `trip_closed` / `trip_departed`, 400 for a selection that is not valid for the trip, 404 for an unknown trip |
+| POST | `/bookings/pick` | any signed-in user | **Picks** one seat `{ tripId, fromStop, toStop, seatId }` or standing places `{ tripId, fromStop, toStop, coachId, qty }`. The first pick starts the hold: 201 with the booking (`PENDING_PAYMENT`, `reference`, `amount`, `expiresAt` = now + 5 min, `serverTime`, `items`). A later pick joins the hold: 200, same `expiresAt`. 409 `seats_unavailable` (this pick only; the held items stay held; `details` name the item as `seat:<id>` / `standing:<coachId>`), 409 `hold_for_another_journey`, 409 `trip_closed` / `trip_departed`, 410 `hold_expired`, 400 for a pick that is not valid for the trip, 404 for an unknown trip |
+| POST | `/bookings/{id}/release` | the owner | Releases one seat `{ seatId }` or standing places `{ coachId, qty }` of the hold at once. Releasing the last item ends the hold (`ABANDONED`). 409 `not_picked` (the item is not in the hold), 409 `not_a_hold` (the booking is not an active hold), 409 `payment_in_progress`, 404 for another user's booking |
+| DELETE | `/bookings/{id}/hold` | the owner | Releases everything and ends the hold (`ABANDONED`) |
 | GET | `/bookings/{id}` | the owner | The booking; another user's booking is 404 `booking_not_found` |
 
 ### Live updates (Flow 2, SRS section 6)
@@ -39,7 +41,8 @@ The events are published inside the transaction of the change (each one takes th
 
 ### Holds (Flow 3) and the sweeper (Flow 5)
 
-- **A hold is one database transaction, all or nothing:** the row of the trip is locked first (so a hold waits for a trip that is being closed or changed), then the booking and its items, one `seat_reservation` row per seat and per segment of the journey (inserted in sorted seat and segment order), and for standing places a conditional `UPDATE standing_usage ... WHERE used + :qty <= capacity` per segment (coaches and segments in ascending order; a statement that changes no row rolls everything back). The primary key rejects a seat that is taken on any segment (`ORA-00001`); deadlocks and lock timeouts are treated as a conflict too. The user is then told which items were lost.
+- **The hold starts at the first pick (Flow 3):** there is no confirm step. The first pick creates the booking (`expires_at` = now + 5 min); every further pick is joined to it with the hold's own `expires_at`, so the timer is never extended. A user has one active hold per trip (unique index `uk_booking_active_hold`, migration V4). Releasing an item is immediate and the last release ends the hold as `ABANDONED`. Before an item changes, Payment is asked to invalidate any payment created for the earlier amount (`PaymentPort.invalidate`); when the hold ends it is asked to cancel it (`cancelPending`), always before the seats are released.
+- **A pick is one database transaction, all or nothing:** the row of the trip is locked first (so a hold waits for a trip that is being closed or changed), then the booking and its items, one `seat_reservation` row per seat and per segment of the journey (inserted in sorted seat and segment order), and for standing places a conditional `UPDATE standing_usage ... WHERE used + :qty <= capacity` per segment (coaches and segments in ascending order; a statement that changes no row rolls everything back). The primary key rejects a seat that is taken on any segment (`ORA-00001`); deadlocks and lock timeouts are treated as a conflict too. The user is then told which items were lost.
 - **The amount is worked out on the server** (`BookingPricing`): a seat costs the journey fare of its class, a standing place the journey fare of the class of its coach. The request has no amount field.
 - **5 minutes exactly:** `expires_at` = the server's now + 5 min (`HoldService.HOLD_DURATION`), never extended. The answer carries `serverTime` so the browser corrects its countdown for a wrong clock.
 - **The trip must be open** (`OPEN`, not `CANCELLING` or `CANCELLED`) and the train must not have left the boarding stop (the same cutoff as the cancellation).
@@ -49,7 +52,7 @@ The events are published inside the transaction of the change (each one takes th
 - **The cancel-first rule is guarded in code:** `ExpiryService.expire` refuses to run inside a transaction, and `HoldReleaseService` is documented as callable only after the payment was cancelled. A booking that cannot be released (it keeps failing) is retried with a growing delay and logged as an error from the 5th attempt; a payment that succeeded for a hold that is already gone is logged as an error and refunded by Payment.
 - **A booking stays readable as history:** its lines keep the seat number, coach and class that the passenger was shown (`booking_item`, migration V3), a trip that has any confirmed or cancelled booking keeps its stops, times and fares frozen, and a stop that no longer exists shows as unknown instead of failing the page. The token must carry an e-mail address (the ticket is sent by e-mail), otherwise the hold is refused with 400; a very long name is cut to 200 characters.
 - **The version of the availability answer is read before its data**, so a client that drops events up to that version never misses a change.
-- **Not done yet, on purpose:** one active hold per user and trip, and releasing a hold by hand (FR-H6, FR-H7, "Should" items, built after all the "Must" items); a hold has no limit per user until then (a request holds at most 20 seats and 10 standing entries of 20 places).
+- **Limits:** a hold has at most 20 seats and, per coach, at most 20 standing places.
 - **Events** (`SeatEvent`, `UserEvent`, version counter per trip) are published inside the transaction and meant to be delivered after the commit; every event takes the next number of `trip_version`.
 - Every state change of a booking is written to `audit_log` with its actor (the user, or `system` for the sweeper).
 

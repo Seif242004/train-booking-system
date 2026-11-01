@@ -26,4 +26,12 @@ public interface PaymentPort {
      *                                     held and tries again later
      */
     CancelOutcome cancelPending(long bookingId);
+
+    /**
+     * Cancels the open payment of a booking because the booking changes (a seat was picked or released after the user had gone to the
+     * payment page), so that the amount of the payment never differs from the amount of the booking. Unlike {@link #cancelPending}, a new
+     * payment may be created afterwards. The outcomes are the same: NONE or CANCELLED when it is done, SUCCEEDED or PROCESSING when the
+     * booking must not change any more. Like cancelPending, never inside a database transaction.
+     */
+    CancelOutcome invalidate(long bookingId);
 }

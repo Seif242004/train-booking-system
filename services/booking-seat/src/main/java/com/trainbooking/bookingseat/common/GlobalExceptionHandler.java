@@ -1,6 +1,9 @@
 package com.trainbooking.bookingseat.common;
 
+import com.trainbooking.bookingseat.booking.model.BookingConflictException;
 import com.trainbooking.bookingseat.booking.model.BookingNotFoundException;
+import com.trainbooking.bookingseat.booking.model.HoldExpiredException;
+import com.trainbooking.bookingseat.payment.PaymentUnavailableException;
 import com.trainbooking.bookingseat.booking.model.HoldConflictException;
 import com.trainbooking.bookingseat.booking.model.TripClosedException;
 import com.trainbooking.bookingseat.snapshot.model.SnapshotConflictException;
@@ -77,6 +80,23 @@ public class GlobalExceptionHandler {
         List<ApiError.Detail> details = e.lost().stream()
                 .map(lost -> new ApiError.Detail(lost.type().toLowerCase() + ":" + lost.id(), lost.label() + " is no longer available")).toList();
         return respond(HttpStatus.CONFLICT, ApiError.of("seats_unavailable", e.getMessage(), details));
+    }
+
+    @ExceptionHandler(BookingConflictException.class)
+    ResponseEntity<ApiError> bookingConflict(BookingConflictException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of(e.code(), e.getMessage()));
+    }
+
+    /** SRS error contract: 410 Gone when acting on an expired hold. */
+    @ExceptionHandler(HoldExpiredException.class)
+    ResponseEntity<ApiError> holdExpired(HoldExpiredException e) {
+        return respond(HttpStatus.GONE, ApiError.of("hold_expired", e.getMessage()));
+    }
+
+    @ExceptionHandler(PaymentUnavailableException.class)
+    ResponseEntity<ApiError> paymentUnavailable(PaymentUnavailableException e) {
+        log.warn("Payment unavailable: {}", e.getMessage());
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ApiError.of("payment_unavailable", "The payment service is not available right now. Try again in a moment."));
     }
 
     @ExceptionHandler(TripClosedException.class)

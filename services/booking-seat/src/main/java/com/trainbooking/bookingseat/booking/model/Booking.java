@@ -25,5 +25,6 @@ public record Booking(
         String cancelledByRole,
         String cancelReason,
         OffsetDateTime nextAttemptAt,
-        int attempts) {
+        int attempts,
+        boolean paymentStarted) {
 }

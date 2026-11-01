@@ -51,6 +51,9 @@ class AvailabilityControllerTest {
     AvailabilityService service;
 
     @MockitoBean
+    com.trainbooking.bookingseat.booking.service.BookingQueryService bookings;
+
+    @MockitoBean
     JwtDecoder jwtDecoder;
 
     @Test
@@ -84,6 +87,22 @@ class AvailabilityControllerTest {
                 .andExpect(jsonPath("$.fares.FIRST").value(150.00))
                 .andExpect(jsonPath("$.fares.SECOND").value(100.00))
                 .andExpect(jsonPath("$.version").value(7));
+    }
+
+    @Test
+    void theFullView_alsoSaysWhatTheCallerHoldsOnTheTrip_soTheMapShowsItAsSelected() throws Exception {
+        given(service.availability(21, 1, 3)).willReturn(AVAILABILITY);
+        var hold = new com.trainbooking.bookingseat.booking.model.BookingView(31, "TB-ABC234", com.trainbooking.bookingseat.booking.model.BookingStatus.PENDING_PAYMENT,
+                com.trainbooking.bookingseat.booking.model.RefundStatus.NONE, 21, 1, 3, new java.math.BigDecimal("150.00"), "EGP",
+                java.time.OffsetDateTime.parse("2026-11-01T10:05:00Z"), java.time.OffsetDateTime.parse("2026-11-01T10:00:00Z"), java.time.OffsetDateTime.parse("2026-11-01T10:00:00Z"), null, List.of());
+        given(bookings.activeHold("user-sub", 21)).willReturn(java.util.Optional.of(hold));
+
+        mvc.perform(get("/trips/21/availability").param("from", "1").param("to", "3").with(passenger()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.myHold.reference").value("TB-ABC234"))
+                .andExpect(jsonPath("$.myHold.expiresAt").exists());
+        mvc.perform(get("/trips/21/availability").param("from", "1").param("to", "3").param("view", "summary").with(passenger()))
+                .andExpect(jsonPath("$.myHold").doesNotHaveJsonPath()); // the search results do not ask for holds
     }
 
     @Test

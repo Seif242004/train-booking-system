@@ -29,6 +29,12 @@ public class BookingQueryService {
         return toView(booking);
     }
 
+    /** The active hold (PENDING_PAYMENT) of a user on a trip, if there is one: what the seat map shows as "selected". */
+    @Transactional(readOnly = true)
+    public java.util.Optional<BookingView> activeHold(String userId, long tripId) {
+        return bookings.findActiveHold(userId, tripId).map(this::toView);
+    }
+
     @Transactional(readOnly = true)
     public BookingView view(long id) {
         return toView(bookings.find(id).orElseThrow(() -> new BookingNotFoundException(id)));

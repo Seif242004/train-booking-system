@@ -33,7 +33,7 @@ class ConcurrencyDatabaseTest extends DatabaseTest {
     private static final long TRIP = 9301;
 
     @Autowired
-    HoldService holds;
+    com.trainbooking.bookingseat.testsupport.Holds holds;
 
     @Autowired
     ExpiryService expiry;

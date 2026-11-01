@@ -8,7 +8,8 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 /**
- * Body of {@code POST /bookings} (SRS 9.1): the trip, the journey as stop indexes, and what to hold. The client never sends an
+ * A test-only description of a whole selection (the trip, the journey as stop indexes, the seats and the standing places); the real API
+ * takes one pick at a time ({@code POST /bookings/pick}) and {@code Holds} turns this into a series of picks. The client never sends an
  * amount: it is worked out on the server. Either list may be missing but not both (checked by the service).
  */
 public record HoldRequest(

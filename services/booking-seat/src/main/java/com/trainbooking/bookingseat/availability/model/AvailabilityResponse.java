@@ -20,6 +20,7 @@ public record AvailabilityResponse(
         Summary summary,
         Map<CoachClass, BigDecimal> fares,
         Long version,
+        com.trainbooking.bookingseat.booking.model.BookingView myHold,
         List<Seat> seats,
         List<CoachStandingLeft> standing) {
 
@@ -30,13 +31,13 @@ public record AvailabilityResponse(
     public record Seat(long seatId, long coachId, SeatState state) {
     }
 
-    public static AvailabilityResponse of(TripAvailability trip, boolean summaryOnly) {
+    public static AvailabilityResponse of(TripAvailability trip, boolean summaryOnly, com.trainbooking.bookingseat.booking.model.BookingView myHold) {
         JourneyAvailability a = trip.availability();
         Summary summary = new Summary(a.seatsLeft(), a.standingLeft());
         if (summaryOnly) {
-            return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, null, null, null, null);
+            return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, null, null, null, null, null);
         }
         List<Seat> seats = a.seats().stream().map(s -> new Seat(s.seatId(), s.coachId(), s.state())).toList();
-        return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, trip.fares(), trip.version(), seats, a.standing());
+        return new AvailabilityResponse(trip.tripId(), trip.tripStatus(), a.journey().fromStop(), a.journey().toStop(), summary, trip.fares(), trip.version(), myHold, seats, a.standing());
     }
 }

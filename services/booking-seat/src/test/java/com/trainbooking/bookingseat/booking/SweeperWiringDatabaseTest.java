@@ -20,7 +20,7 @@ import org.springframework.test.context.TestPropertySource;
 class SweeperWiringDatabaseTest extends DatabaseTest {
 
     @Autowired
-    HoldService holds;
+    com.trainbooking.bookingseat.testsupport.Holds holds;
 
     @Autowired
     ApplicationContext context;

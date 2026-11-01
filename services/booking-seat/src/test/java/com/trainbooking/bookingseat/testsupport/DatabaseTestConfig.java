@@ -22,6 +22,11 @@ public class DatabaseTestConfig {
     }
 
     @Bean
+    Holds holds(com.trainbooking.bookingseat.booking.service.HoldService service) {
+        return new Holds(service);
+    }
+
+    @Bean
     CommittedEvents committedEvents() {
         return new CommittedEvents();
     }

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import { gatewayGet, readError } from '../api';
 import type { Booking } from '../bookingTypes';
+import { connectLive } from '../live/connectLive';
 import { formatRemaining, remainingMs, startCountdown, type Countdown } from '../countdown';
 import { clock } from '../time';
 
@@ -18,6 +19,8 @@ export function PaymentPage() {
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState<number | null>(null);
   const countdown = useRef<Countdown | null>(null);
+  // Why the hold ended, when the server pushed it (the poll below only knows that it ended).
+  const endedBecause = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const result = await gatewayGet(`/bookings/${id}`);
@@ -33,6 +36,23 @@ export function PaymentPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The server pushes it when the hold ends (HOLD_EXPIRED, only to this user); the page then asks at once instead of waiting for the poll.
+  const tripId = booking?.tripId;
+  useEffect(() => {
+    if (tripId === undefined) return undefined;
+    return connectLive(tripId, {
+      onUserEvent: (event) => {
+        if (event.bookingId === Number(id)) {
+          endedBecause.current = event.reason;
+          void load();
+        }
+      },
+      onConnected: (again) => {
+        if (again) void load();
+      },
+    });
+  }, [tripId, id, load]);
 
   // The server decides when the hold is over: this page asks it every two seconds while it is open, and when it reports that the
   // hold ended, goes back to the seat map with the right message. (Live pushes, when available, only make this faster.)
@@ -54,7 +74,10 @@ export function PaymentPage() {
   useEffect(() => {
     if (!booking) return;
     if (booking.status === 'EXPIRED' || booking.status === 'ABANDONED') {
-      navigate(`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`, { replace: true, state: { message: EXPIRED_MESSAGE } });
+      navigate(`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`, {
+        replace: true,
+        state: { message: endedBecause.current === 'TRIP_CANCELLED' ? TRIP_CANCELLED_MESSAGE : EXPIRED_MESSAGE },
+      });
     }
   }, [booking, navigate]);
 

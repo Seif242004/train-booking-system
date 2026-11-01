@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CLASS_LABEL, type CoachClass } from '../adminTypes';
 import { gatewayGet, gatewayRequest, readError } from '../api';
 import type { Booking } from '../bookingTypes';
+import { applySeatEvent } from '../live/applySeatEvent';
+import { connectLive } from '../live/connectLive';
 import type { SeatMap, SeatMapCoach, SeatMapSeat, SeatState } from '../seatMapTypes';
 import { clock } from '../time';
 
@@ -30,6 +32,9 @@ export function SeatMapPage() {
   const [holding, setHolding] = useState(false);
   const [holdProblem, setHoldProblem] = useState<string | null>(null);
   const [map, setMap] = useState<SeatMap | null>(null);
+  // The live events are applied to the map as it is right now, also when several arrive before the page has drawn again.
+  const mapRef = useRef<SeatMap | null>(null);
+  const [liveNotice, setLiveNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Set<number>>(new Set());
   const [standing, setStanding] = useState<Record<number, number>>({});
@@ -37,6 +42,7 @@ export function SeatMapPage() {
   const load = useCallback(async () => {
     const result = await gatewayGet(`/trips/${id}/seat-map?from=${from}&to=${to}`);
     if (result.status === 200) {
+      mapRef.current = result.body as SeatMap;
       setMap(result.body as SeatMap);
       setError(null);
     } else {
@@ -59,6 +65,41 @@ export function SeatMapPage() {
     }
     return sum;
   }, [map, selectedSeats, standing, priceOf]);
+
+  const selectedRef = useRef<Set<number>>(selectedSeats);
+  selectedRef.current = selectedSeats;
+  const tripId = map?.tripId;
+
+  // Live updates (Flow 2): while this page is open, the changes of the trip arrive by WebSocket and the map is updated without a
+  // reload. After a reconnect, or when an event was missed, the full map is loaded again (FR-R4).
+  useEffect(() => {
+    if (tripId === undefined) return undefined;
+    return connectLive(tripId, {
+      onSeatEvent: (event) => {
+        const current = mapRef.current;
+        if (!current) return;
+        const result = applySeatEvent(current, event, selectedRef.current);
+        if (result.kind === 'reload') {
+          void load();
+        } else if (result.kind === 'applied') {
+          mapRef.current = result.map;
+          setMap(result.map);
+          if (result.lostSeatIds.length > 0) {
+            // FR-R3: a seat the user had selected (but not yet held) was taken by someone else.
+            const numbers = result.map.coaches.flatMap((c) => c.seats).filter((s) => result.lostSeatIds.includes(s.id)).map((s) => s.seatNumber);
+            setSelectedSeats((currentSelection) => new Set([...currentSelection].filter((id) => !result.lostSeatIds.includes(id))));
+            setLiveNotice(`Seat ${numbers.join(', ')} was just taken by someone else and was removed from your selection.`);
+          }
+          // Standing places that were chosen but are not there any more are reduced to what is left.
+          setStanding((chosen) => Object.fromEntries(Object.entries(chosen).map(([coachId, qty]) =>
+            [coachId, Math.min(qty, result.map.coaches.find((c) => c.id === Number(coachId))?.standing.remaining ?? 0)])));
+        }
+      },
+      onConnected: (again) => {
+        if (again) void load();
+      },
+    });
+  }, [tripId, load]);
 
   const selectedCount = selectedSeats.size + Object.values(standing).reduce((a, b) => a + b, 0);
 
@@ -134,6 +175,7 @@ export function SeatMapPage() {
       </p>
       {redirectMessage && <p className="notice notice-error" role="alert">{redirectMessage}</p>}
       {holdProblem && <p className="notice notice-error" role="alert">{holdProblem}</p>}
+      {liveNotice && <p className="notice" role="status">{liveNotice}</p>}
       {closed && <p className="notice notice-error">This trip is closed: it is cancelled or being cancelled, so seats cannot be held.</p>}
 
       <ul className="seatmap-legend" aria-label="Legend">

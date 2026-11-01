@@ -20,6 +20,7 @@ const AVAILABILITY = {
   tripId: 2, tripStatus: 'OPEN', fromStop: 0, toStop: 2, version: 7,
   summary: { seatsLeft: { FIRST: 1, SECOND: 1 }, standingLeft: { FIRST: 8 } },
   fares: { FIRST: 230.0, SECOND: 150.0 },
+  myHold: { id: 31, reference: 'TB-ABC234', expiresAt: '2026-11-01T10:05:00Z', serverTime: '2026-11-01T10:00:00Z', items: [{ type: 'SEAT', seatId: 223 }] },
   seats: [{ seatId: 223, coachId: 32, state: 'HELD' }, { seatId: 224, coachId: 32, state: 'AVAILABLE' }, { seatId: 235, coachId: 33, state: 'AVAILABLE' }],
   standing: [{ coachId: 32, capacity: 10, remaining: 8 }],
 };
@@ -38,6 +39,8 @@ describe('composeSeatMap', () => {
     assert.equal(map.journey.arrivalTime, '2026-11-02T10:45:00');
     assert.deepEqual(map.fares, { FIRST: 230, SECOND: 150 });
     assert.equal(map.version, 7);
+    assert.equal(map.myHold.reference, 'TB-ABC234');
+    assert.equal(composeSeatMap(LAYOUT, { ...AVAILABILITY, myHold: undefined }).myHold, null); // nothing held
     assert.equal(map.status, 'ACTIVE');
     assert.equal(map.tripStatus, 'OPEN');
   });

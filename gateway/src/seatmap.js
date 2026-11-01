@@ -34,6 +34,8 @@ export function composeSeatMap(layout, availability) {
     fares: availability.fares ?? {},
     summary: availability.summary,
     version: availability.version ?? null,
+    // What the caller holds on this trip (the booking, with its expiry), so the page shows those seats as selected, with the countdown.
+    myHold: availability.myHold ?? null,
     coaches: (layout.coaches ?? []).map((coach) => {
       const standing = standingByCoach.get(coach.id);
       return {

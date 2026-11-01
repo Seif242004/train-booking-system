@@ -1,6 +1,7 @@
 import type { CoachClass, TripStop } from './adminTypes';
+import type { Booking } from './bookingTypes';
 
-/** The state of a seat for the journey. "Selected" is the browser's own state and never comes from the server. */
+/** The state of a seat for the journey. The caller's own held seats are the ones listed in myHold. */
 export type SeatState = 'AVAILABLE' | 'HELD' | 'BOOKED';
 
 export interface SeatMapSeat {
@@ -46,4 +47,6 @@ export interface SeatMap {
   /** Counter of the changes of the trip, to detect missed live updates. Null until Booking provides it. */
   version: number | null;
   coaches: SeatMapCoach[];
+  /** The caller's own active hold on this trip (the seats they picked and the time left), or null. */
+  myHold: Booking | null;
 }

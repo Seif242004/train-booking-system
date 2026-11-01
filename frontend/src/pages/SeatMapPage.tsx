@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { CLASS_LABEL, type CoachClass } from '../adminTypes';
-import { gatewayGet, gatewayRequest, readError } from '../api';
+import { CLASS_LABEL } from '../adminTypes';
+import { gatewayGet, gatewayRequest, readError, type GatewayResult } from '../api';
 import type { Booking } from '../bookingTypes';
+import { formatRemaining, remainingMs, startCountdown, type Countdown } from '../countdown';
 import { applySeatEvent } from '../live/applySeatEvent';
 import { connectLive } from '../live/connectLive';
 import type { SeatMap, SeatMapCoach, SeatMapSeat, SeatState } from '../seatMapTypes';
 import { clock } from '../time';
+import { EXPIRED_MESSAGE, TRIP_CANCELLED_MESSAGE } from './PaymentPage';
 
 const STATE_LABEL: Record<SeatState, string> = { AVAILABLE: 'Available', HELD: 'Held by someone', BOOKED: 'Booked' };
 // A glyph next to the seat number, so the state never depends on colour alone (NFR-9).
@@ -19,31 +21,37 @@ function rowsOf(coach: SeatMapCoach): SeatMapSeat[][] {
   return [...byRow.entries()].sort((a, b) => a[0] - b[0]).map(([, seats]) => seats.sort((a, b) => a.column.localeCompare(b.column)));
 }
 
-/** Passenger page (Flow 2): the seat map of a trip for the journey the passenger searched. */
+/**
+ * Passenger page (Flow 2 and Flow 3): the seat map of a trip for the journey the passenger searched. Picking a seat holds it at once;
+ * the first pick starts the 5 minutes, shown here as a countdown, and later picks join the same hold without extending it.
+ * Clicking a seat of your own releases it at once. "Continue to payment" opens the payment page with the time that is left.
+ */
 export function SeatMapPage() {
   const { id } = useParams();
   const [query] = useSearchParams();
   const from = query.get('from') ?? '';
   const to = query.get('to') ?? '';
-
   const navigate = useNavigate();
   // The payment page sends the user back here with a message when the hold ran out or the trip was cancelled (SRS FR-H5).
   const redirectMessage = (useLocation().state as { message?: string } | null)?.message ?? null;
-  const [holding, setHolding] = useState(false);
-  const [holdProblem, setHoldProblem] = useState<string | null>(null);
+
   const [map, setMap] = useState<SeatMap | null>(null);
   // The live events are applied to the map as it is right now, also when several arrive before the page has drawn again.
   const mapRef = useRef<SeatMap | null>(null);
-  const [liveNotice, setLiveNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSeats, setSelectedSeats] = useState<Set<number>>(new Set());
-  const [standing, setStanding] = useState<Record<number, number>>({});
+  const [problem, setProblem] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(redirectMessage);
+  // What is being sent right now (a seat id or "coach:<id>"): a second click on it waits for the answer.
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+  const [left, setLeft] = useState<number | null>(null);
+  const countdown = useRef<Countdown | null>(null);
 
   const load = useCallback(async () => {
     const result = await gatewayGet(`/trips/${id}/seat-map?from=${from}&to=${to}`);
     if (result.status === 200) {
-      mapRef.current = result.body as SeatMap;
-      setMap(result.body as SeatMap);
+      const fresh = result.body as SeatMap;
+      mapRef.current = fresh;
+      setMap(fresh);
       setError(null);
     } else {
       setError(readError(result).message);
@@ -54,46 +62,56 @@ export function SeatMapPage() {
     void load();
   }, [load]);
 
-  const priceOf = useCallback((coachClass: CoachClass) => map?.fares[coachClass] ?? 0, [map]);
-
-  const total = useMemo(() => {
-    if (!map) return 0;
-    let sum = 0;
-    for (const coach of map.coaches) {
-      for (const seat of coach.seats) if (selectedSeats.has(seat.id)) sum += priceOf(seat.class);
-      sum += (standing[coach.id] ?? 0) * priceOf(coach.class);
-    }
-    return sum;
-  }, [map, selectedSeats, standing, priceOf]);
-
-  const selectedRef = useRef<Set<number>>(selectedSeats);
-  selectedRef.current = selectedSeats;
+  const hold = map?.myHold ?? null;
   const tripId = map?.tripId;
+  const sameJourney = hold ? hold.fromStop === map?.journey.fromStop && hold.toStop === map?.journey.toStop : true;
 
-  // Live updates (Flow 2): while this page is open, the changes of the trip arrive by WebSocket and the map is updated without a
-  // reload. After a reconnect, or when an event was missed, the full map is loaded again (FR-R4).
+  // The countdown of the hold, from the server's expiry time corrected with the server's clock (FR-H4). It only shows the time;
+  // the server decides when the hold is over and tells this page (HOLD_EXPIRED) or the next reload.
+  const expiresAt = hold?.expiresAt;
+  const serverTime = hold?.serverTime;
+  useEffect(() => {
+    if (expiresAt === undefined || serverTime === undefined) {
+      countdown.current = null;
+      setLeft(null);
+      return undefined;
+    }
+    countdown.current = startCountdown(expiresAt, serverTime, Date.now());
+    let reloaded = false;
+    const tick = () => {
+      const remaining = countdown.current ? remainingMs(countdown.current, Date.now()) : null;
+      setLeft(remaining);
+      if (remaining === 0 && !reloaded) {
+        reloaded = true;
+        setTimeout(() => void load(), 1500); // the sweeper releases within seconds; then the map shows it
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 250);
+    return () => clearInterval(timer);
+  }, [expiresAt, serverTime, load]);
+
+  // Live updates (Flow 2): the changes of the trip arrive by WebSocket and the map is updated without a reload. After a reconnect,
+  // or when an event was missed, the full map is loaded again (FR-R4). The end of the user's own hold (time ran out, trip cancelled)
+  // is pushed to this user only.
   useEffect(() => {
     if (tripId === undefined) return undefined;
     return connectLive(tripId, {
       onSeatEvent: (event) => {
         const current = mapRef.current;
         if (!current) return;
-        const result = applySeatEvent(current, event, selectedRef.current);
+        const result = applySeatEvent(current, event);
         if (result.kind === 'reload') {
           void load();
         } else if (result.kind === 'applied') {
           mapRef.current = result.map;
           setMap(result.map);
-          if (result.lostSeatIds.length > 0) {
-            // FR-R3: a seat the user had selected (but not yet held) was taken by someone else.
-            const numbers = result.map.coaches.flatMap((c) => c.seats).filter((s) => result.lostSeatIds.includes(s.id)).map((s) => s.seatNumber);
-            setSelectedSeats((currentSelection) => new Set([...currentSelection].filter((id) => !result.lostSeatIds.includes(id))));
-            setLiveNotice(`Seat ${numbers.join(', ')} was just taken by someone else and was removed from your selection.`);
-          }
-          // Standing places that were chosen but are not there any more are reduced to what is left.
-          setStanding((chosen) => Object.fromEntries(Object.entries(chosen).map(([coachId, qty]) =>
-            [coachId, Math.min(qty, result.map.coaches.find((c) => c.id === Number(coachId))?.standing.remaining ?? 0)])));
         }
+      },
+      onUserEvent: (event) => {
+        if (event.reason === 'EXPIRED') setNotice(EXPIRED_MESSAGE);
+        if (event.reason === 'TRIP_CANCELLED') setNotice(TRIP_CANCELLED_MESSAGE);
+        void load();
       },
       onConnected: (again) => {
         if (again) void load();
@@ -101,55 +119,90 @@ export function SeatMapPage() {
     });
   }, [tripId, load]);
 
-  const selectedCount = selectedSeats.size + Object.values(standing).reduce((a, b) => a + b, 0);
+  // What the user holds, as the seat map needs it.
+  const mySeatIds = useMemo(() => new Set((hold?.items ?? []).filter((i) => i.type === 'SEAT').map((i) => i.seatId as number)), [hold]);
+  const myStanding = useMemo(() => new Map((hold?.items ?? []).filter((i) => i.type === 'STANDING').map((i) => [i.coachId, i.qty])), [hold]);
 
-  function toggle(seat: SeatMapSeat) {
-    if (seat.state !== 'AVAILABLE') return;
-    setSelectedSeats((current) => {
-      const next = new Set(current);
-      if (next.has(seat.id)) next.delete(seat.id);
-      else next.add(seat.id);
-      return next;
-    });
-  }
-
-  function changeStanding(coach: SeatMapCoach, delta: number) {
-    setStanding((current) => {
-      const value = Math.max(0, Math.min(coach.standing.remaining, (current[coach.id] ?? 0) + delta));
-      return { ...current, [coach.id]: value };
-    });
-  }
-
-  /** Holds the selection (Flow 3): all or nothing. On success the payment page opens; if something was lost, the map is refreshed. */
-  async function hold() {
-    if (!map) return;
-    setHolding(true);
-    setHoldProblem(null);
-    const result = await gatewayRequest('POST', '/bookings', {
-      body: {
-        tripId: map.tripId,
-        fromStop: map.journey.fromStop,
-        toStop: map.journey.toStop,
-        seatIds: [...selectedSeats],
-        standing: Object.entries(standing).filter(([, qty]) => qty > 0).map(([coachId, qty]) => ({ coachId: Number(coachId), qty })),
-      },
-    });
-    setHolding(false);
-    if (result.status === 201) {
-      navigate(`/bookings/${(result.body as Booking).id}/pay`);
-      return;
+  const withBusy = useCallback(async (key: string, action: () => Promise<void>) => {
+    setBusy((current) => new Set(current).add(key));
+    try {
+      await action();
+    } finally {
+      setBusy((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
     }
-    const problem = readError(result);
-    if (problem.code === 'seats_unavailable') {
-      // Nothing was held. Say which items were lost, drop them from the selection, and show the map as it is now.
-      setHoldProblem(`Nothing was held. ${problem.details.map((d) => d.message).join('; ')}. Please choose again.`);
-      const lostSeats = problem.details.filter((d) => d.field.startsWith('seat:')).map((d) => Number(d.field.slice(5)));
-      setSelectedSeats((current) => new Set([...current].filter((seatId) => !lostSeats.includes(seatId))));
-      setStanding({});
-      await load();
+  }, []);
+
+  /** Shows the hold as the server answered (an ended hold, for example after the last release, clears it) and the seat that changed. */
+  function showHold(booking: Booking, changedSeat: { id: number; state: SeatState }) {
+    const current = mapRef.current;
+    if (!current) return;
+    const coaches = current.coaches.map((coach) => ({
+      ...coach,
+      seats: coach.seats.map((seat) => (seat.id === changedSeat.id ? { ...seat, state: changedSeat.state } : seat)),
+    }));
+    const next = { ...current, coaches, myHold: booking.status === 'PENDING_PAYMENT' ? booking : null };
+    mapRef.current = next;
+    setMap(next);
+  }
+
+  /** Says what went wrong with a pick or a release, and reloads the map, which may be out of date. */
+  async function explain(result: GatewayResult) {
+    const failure = readError(result);
+    if (failure.code === 'seats_unavailable') {
+      // Only this pick failed; what is already held stays held.
+      setProblem(`${failure.details.map((d) => d.message).join('; ') || failure.message}. Your other picks are still held.`);
+    } else if (failure.code === 'hold_expired') {
+      setNotice(EXPIRED_MESSAGE);
     } else {
-      setHoldProblem(problem.message);
+      setProblem(failure.message);
     }
+    await load();
+  }
+
+  const journey = map ? { tripId: map.tripId, fromStop: map.journey.fromStop, toStop: map.journey.toStop } : null;
+
+  async function pickSeat(seat: SeatMapSeat) {
+    if (!journey) return;
+    setProblem(null);
+    await withBusy(String(seat.id), async () => {
+      const result = await gatewayRequest('POST', '/bookings/pick', { body: { ...journey, seatId: seat.id } });
+      if (result.status === 200 || result.status === 201) showHold(result.body as Booking, { id: seat.id, state: 'HELD' });
+      else await explain(result);
+    });
+  }
+
+  async function releaseSeat(seat: SeatMapSeat) {
+    if (!hold) return;
+    setProblem(null);
+    await withBusy(String(seat.id), async () => {
+      const result = await gatewayRequest('POST', `/bookings/${hold.id}/release`, { body: { seatId: seat.id } });
+      if (result.status === 200) showHold(result.body as Booking, { id: seat.id, state: 'AVAILABLE' });
+      else await explain(result);
+    });
+  }
+
+  async function changeStanding(coach: SeatMapCoach, delta: 1 | -1) {
+    if (!journey) return;
+    setProblem(null);
+    await withBusy(`coach:${coach.id}`, async () => {
+      const result = delta === 1
+        ? await gatewayRequest('POST', '/bookings/pick', { body: { ...journey, coachId: coach.id, qty: 1 } })
+        : await gatewayRequest('POST', `/bookings/${hold?.id}/release`, { body: { coachId: coach.id, qty: 1 } });
+      if (result.status === 200 || result.status === 201) await load(); // the standing counters belong to the server: show them as they are
+      else await explain(result);
+    });
+  }
+
+  async function releaseAll() {
+    if (!hold) return;
+    setProblem(null);
+    const result = await gatewayRequest('DELETE', `/bookings/${hold.id}/hold`);
+    if (result.status === 200) await load();
+    else await explain(result);
   }
 
   if (error) {
@@ -164,6 +217,10 @@ export function SeatMapPage() {
   if (!map) return <p className="muted">Loading the seat map…</p>;
 
   const closed = map.status === 'CANCELLED' || map.tripStatus !== 'OPEN';
+  const timeIsUp = left !== null && left <= 0;
+  const canPick = !closed && sameJourney && !timeIsUp;
+  const itemCount = hold ? hold.items.reduce((sum, item) => sum + item.qty, 0) : 0;
+  const priceOf = (coachClass: SeatMapCoach['class']) => map.fares[coachClass] ?? 0;
 
   return (
     <section>
@@ -173,14 +230,21 @@ export function SeatMapPage() {
         <strong>{map.journey.from?.stationName}</strong> {clock(map.journey.departureTime)} → <strong>{map.journey.to?.stationName}</strong>{' '}
         {clock(map.journey.arrivalTime)} · {map.departureDate} · <span className="mono">{map.train.number}</span> {map.train.name}
       </p>
-      {redirectMessage && <p className="notice notice-error" role="alert">{redirectMessage}</p>}
-      {holdProblem && <p className="notice notice-error" role="alert">{holdProblem}</p>}
-      {liveNotice && <p className="notice" role="status">{liveNotice}</p>}
+      {notice && <p className="notice notice-error" role="alert">{notice}</p>}
+      {problem && <p className="notice notice-error" role="alert">{problem}</p>}
       {closed && <p className="notice notice-error">This trip is closed: it is cancelled or being cancelled, so seats cannot be held.</p>}
+      {hold && !sameJourney && (
+        <p className="notice notice-error">
+          You are holding seats on this trip for another journey ({hold.trip.from.stationName} to {hold.trip.to.stationName}).{' '}
+          <Link to={`/trips/${map.tripId}/seats?from=${hold.fromStop}&to=${hold.toStop}`}>Go to that journey</Link> or{' '}
+          <button type="button" className="button" onClick={() => void releaseAll()}>release them</button> to choose here.
+        </p>
+      )}
+      {!hold && !closed && <p className="muted">Pick a seat to hold it. Your 5 minutes start with the first seat you pick.</p>}
 
       <ul className="seatmap-legend" aria-label="Legend">
         <li><span className="seat seat-legend">1A</span> Available</li>
-        <li><span className="seat seat-legend seat-selected">1A ✓</span> Selected by you</li>
+        <li><span className="seat seat-legend seat-selected">1A ✓</span> Yours (held)</li>
         <li><span className="seat seat-legend seat-held">1A ◐</span> Held by someone</li>
         <li><span className="seat seat-legend seat-booked">1A ✕</span> Booked</li>
       </ul>
@@ -197,16 +261,17 @@ export function SeatMapPage() {
               {rowsOf(coach).map((row) => (
                 <div key={row[0].row} className="coach-row">
                   {row.map((seat) => {
-                    const selected = selectedSeats.has(seat.id);
+                    const mine = mySeatIds.has(seat.id);
                     const state: SeatState = seat.state;
+                    const clickable = mine ? sameJourney && !timeIsUp : canPick && state === 'AVAILABLE';
                     return (
                       <button key={seat.id} type="button"
-                        className={`seat ${selected ? 'seat-selected' : state === 'HELD' ? 'seat-held' : state === 'BOOKED' ? 'seat-booked' : ''}`}
-                        disabled={closed || state !== 'AVAILABLE'}
-                        aria-pressed={selected}
-                        aria-label={`Seat ${seat.seatNumber}, ${selected ? 'selected by you' : STATE_LABEL[state]}`}
-                        onClick={() => toggle(seat)}>
-                        {seat.seatNumber} {selected ? '✓' : STATE_MARK[state]}
+                        className={`seat ${mine ? 'seat-selected' : state === 'HELD' ? 'seat-held' : state === 'BOOKED' ? 'seat-booked' : ''}`}
+                        disabled={!clickable || busy.has(String(seat.id))}
+                        aria-pressed={mine}
+                        aria-label={`Seat ${seat.seatNumber}, ${mine ? 'yours, held. Press to release it' : STATE_LABEL[state]}`}
+                        onClick={() => void (mine ? releaseSeat(seat) : pickSeat(seat))}>
+                        {seat.seatNumber} {mine ? '✓' : STATE_MARK[state]}
                       </button>
                     );
                   })}
@@ -218,11 +283,13 @@ export function SeatMapPage() {
             <div className="standing-row">
               <span>Standing places: <strong>{coach.standing.remaining}</strong> of {coach.standing.capacity} left</span>
               <span className="stepper">
-                <button type="button" className="button" aria-label={`Fewer standing places in coach ${coach.code}`}
-                  disabled={closed || (standing[coach.id] ?? 0) === 0} onClick={() => changeStanding(coach, -1)}>−</button>
-                <output aria-label={`Standing places chosen in coach ${coach.code}`}>{standing[coach.id] ?? 0}</output>
-                <button type="button" className="button" aria-label={`More standing places in coach ${coach.code}`}
-                  disabled={closed || (standing[coach.id] ?? 0) >= coach.standing.remaining} onClick={() => changeStanding(coach, 1)}>+</button>
+                <button type="button" className="button" aria-label={`Give back a standing place in coach ${coach.code}`}
+                  disabled={!sameJourney || timeIsUp || (myStanding.get(coach.id) ?? 0) === 0 || busy.has(`coach:${coach.id}`)}
+                  onClick={() => void changeStanding(coach, -1)}>−</button>
+                <output aria-label={`Your standing places in coach ${coach.code}`}>{myStanding.get(coach.id) ?? 0}</output>
+                <button type="button" className="button" aria-label={`Take a standing place in coach ${coach.code}`}
+                  disabled={!canPick || coach.standing.remaining === 0 || busy.has(`coach:${coach.id}`)}
+                  onClick={() => void changeStanding(coach, 1)}>+</button>
               </span>
             </div>
           )}
@@ -230,12 +297,25 @@ export function SeatMapPage() {
       ))}
 
       <div className="selection-bar">
-        <span>
-          {selectedCount === 0 ? 'Nothing selected yet.' : `${selectedCount} selected · about ${total.toFixed(2)} EGP`}
-        </span>
-        <button type="button" className="button button-primary" disabled={closed || holding || selectedCount === 0} onClick={() => void hold()}>
-          {holding ? 'Holding…' : 'Hold for 5 minutes'}
-        </button>
+        {hold && sameJourney ? (
+          <>
+            <span>
+              <span className={`countdown${timeIsUp ? ' countdown-over' : ''}`} role="timer" aria-live="off">
+                <span className="muted">Time left:</span> <strong>{formatRemaining(left ?? 5 * 60 * 1000)}</strong>
+              </span>
+              {' '}· {itemCount} held · <strong>{hold.amount.toFixed(2)}</strong> {hold.currency}
+              {timeIsUp && <span> · Time is up. Checking with the server…</span>}
+            </span>
+            <span className="actions">
+              <button type="button" className="button" onClick={() => void releaseAll()}>Release all</button>
+              <button type="button" className="button button-primary" disabled={timeIsUp} onClick={() => navigate(`/bookings/${hold.id}/pay`)}>
+                Continue to payment
+              </button>
+            </span>
+          </>
+        ) : (
+          <span>Nothing held yet.</span>
+        )}
       </div>
     </section>
   );

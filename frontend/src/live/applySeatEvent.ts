@@ -7,8 +7,8 @@ export type Applied =
   | { kind: 'stale' }
   /** An event was missed, or the change cannot be worked out from the event alone: the whole map must be loaded again. */
   | { kind: 'reload' }
-  /** The map after the event, and the seats of the user's own selection that are not available any more. */
-  | { kind: 'applied'; map: SeatMap; lostSeatIds: number[] };
+  /** The map after the event. */
+  | { kind: 'applied'; map: SeatMap };
 
 /**
  * Applies one live event to the seat map the user is looking at (SRS section 6, FR-R2, FR-R3), without reloading.
@@ -20,7 +20,7 @@ export type Applied =
  *   only free again for the whole journey if the event covers every segment of the journey; otherwise another hold on the rest of
  *   the journey may remain, which the event cannot tell, so the map is loaded again. The same holds for the standing places.
  */
-export function applySeatEvent(map: SeatMap, event: SeatEvent, selectedSeatIds: ReadonlySet<number>): Applied {
+export function applySeatEvent(map: SeatMap, event: SeatEvent): Applied {
   if (map.version === null || event.version > map.version + 1) {
     return { kind: 'reload' };
   }
@@ -32,26 +32,26 @@ export function applySeatEvent(map: SeatMap, event: SeatEvent, selectedSeatIds: 
   const eventSegments = event.segments.length === 0 ? journey : event.segments; // empty: every segment
   const shared = journey.filter((segment) => eventSegments.includes(segment));
   if (shared.length === 0) {
-    return { kind: 'applied', map: { ...map, version: event.version }, lostSeatIds: [] };
+    return { kind: 'applied', map: { ...map, version: event.version } };
   }
   const coversTheJourney = shared.length === journey.length;
 
   if (event.type === 'TRIP_CANCELLED') {
-    return { kind: 'applied', map: { ...map, tripStatus: 'CANCELLED', version: event.version }, lostSeatIds: [] };
+    return { kind: 'applied', map: { ...map, tripStatus: 'CANCELLED', version: event.version } };
   }
 
   if (event.type === 'STANDING_CHANGED') {
     if (!coversTheJourney) return { kind: 'reload' };
     const coaches = map.coaches.map((coach) => coach.id !== event.coachId ? coach
       : { ...coach, standing: { ...coach.standing, remaining: Math.max(0, Math.min(coach.standing.capacity, coach.standing.remaining + (event.delta ?? 0))) } });
-    return { kind: 'applied', map: { ...map, coaches, version: event.version }, lostSeatIds: [] };
+    return { kind: 'applied', map: { ...map, coaches, version: event.version } };
   }
 
   const ids = new Set(event.seatIds);
   if (event.type === 'SEAT_RELEASED' && !coversTheJourney) {
     return { kind: 'reload' };
   }
-  const lostSeatIds: number[] = [];
+  // The user's own picks are held for them, so no seat of theirs is ever "lost" here: the page shows its own seats from myHold.
   const coaches = map.coaches.map((coach) => ({
     ...coach,
     seats: coach.seats.map((seat) => {
@@ -60,9 +60,8 @@ export function applySeatEvent(map: SeatMap, event: SeatEvent, selectedSeatIds: 
       if (event.type === 'SEAT_HELD' && seat.state === 'AVAILABLE') state = 'HELD';
       if (event.type === 'SEAT_BOOKED') state = 'BOOKED';
       if (event.type === 'SEAT_RELEASED') state = 'AVAILABLE';
-      if (state !== 'AVAILABLE' && selectedSeatIds.has(seat.id)) lostSeatIds.push(seat.id);
       return state === seat.state ? seat : { ...seat, state };
     }),
   }));
-  return { kind: 'applied', map: { ...map, coaches, version: event.version }, lostSeatIds };
+  return { kind: 'applied', map: { ...map, coaches, version: event.version } };
 }

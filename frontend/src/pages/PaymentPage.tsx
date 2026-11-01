@@ -96,6 +96,9 @@ export function PaymentPage() {
 
   return (
     <section>
+      {booking.status === 'PENDING_PAYMENT' && (
+        <p><Link to={`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`}>← Back to the seat map</Link> (your seats stay held)</p>
+      )}
       <h1>{booking.status === 'CONFIRMED' ? 'Booking confirmed' : 'Payment'}</h1>
       <p>Booking reference <strong className="mono">{booking.reference}</strong></p>
 

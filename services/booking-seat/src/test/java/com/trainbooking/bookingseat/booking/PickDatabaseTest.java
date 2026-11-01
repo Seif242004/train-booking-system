@@ -634,7 +634,7 @@ class PickDatabaseTest extends DatabaseTest {
         assertThat(payment.invalidateCalls()).containsExactly(hold.id());
         assertThat(payment.cancelCalls()).isEmpty();
         assertThat(after.items()).hasSize(3);
-        assertThat(jdbc.sql("SELECT payment_started FROM booking WHERE id = :id").param("id", hold.id()).query(Integer.class).single()).isZero(); // a new payment is needed
+        assertThat(jdbc.sql("SELECT payment_started FROM booking WHERE id = :id").param("id", hold.id()).query(Integer.class).single()).isEqualTo(1); // never cleared: later changes keep asking Payment (cheap when nothing is open)
     }
 
     @Test
@@ -647,15 +647,16 @@ class PickDatabaseTest extends DatabaseTest {
     }
 
     @Test
-    void ifThePaymentAlreadySucceeded_theBookingIsConfirmed_andThePickIsRefused() {
+    void ifThePaymentAlreadySucceeded_thePickIsRefused_andTheHoldStaysForPaymentsReportToConfirm() {
         BookingView hold = holdWithPaymentStarted();
         payment.invalidateAnswers(id -> CancelOutcome.SUCCEEDED);
 
         assertThatThrownBy(() -> service.pick(ALICE, seat(0, 3, 3)))
                 .isInstanceOfSatisfying(BookingConflictException.class, e -> assertThat(e.code()).isEqualTo("already_paid"));
 
-        assertThat(statusOf(hold.id())).isEqualTo("CONFIRMED");
+        assertThat(statusOf(hold.id())).isEqualTo("PENDING_PAYMENT"); // Payment's report (with the amount) confirms it, not this pick
         assertThat(rows("seat_reservation WHERE seat_id = 3")).isZero();
+        assertThat(rows("seat_reservation WHERE booking_id = " + hold.id())).isEqualTo(6); // nothing was released
     }
 
     @Test

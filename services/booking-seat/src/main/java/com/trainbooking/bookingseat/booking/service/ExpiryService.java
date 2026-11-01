@@ -2,6 +2,7 @@ package com.trainbooking.bookingseat.booking.service;
 
 import com.trainbooking.bookingseat.booking.model.Booking;
 import com.trainbooking.bookingseat.booking.model.BookingStatus;
+import com.trainbooking.bookingseat.booking.model.PaymentStartedMeanwhileException;
 import com.trainbooking.bookingseat.booking.repository.BookingRepository;
 import com.trainbooking.bookingseat.payment.PaymentPort;
 import com.trainbooking.bookingseat.payment.PaymentUnavailableException;
@@ -82,25 +83,35 @@ public class ExpiryService {
         if (booking == null || booking.status() != BookingStatus.PENDING_PAYMENT) {
             return;
         }
-        PaymentPort.CancelOutcome outcome;
-        try {
-            outcome = payments.cancelPending(bookingId); // before anything is released, and not inside a transaction
-        } catch (PaymentUnavailableException e) {
-            log.warn("Payment of booking {} could not be cancelled yet: {}", bookingId, e.getMessage());
-            retryLater(bookingId, booking.attempts() + 1);
-            return;
+        // A hold whose owner never opened the payment page has no payment anywhere: there is nothing to cancel, and a Payment that is
+        // down must not stop such holds from being released. payment_started is set under the booking lock before Payment is ever
+        // asked for a payment, and the release below re-checks it under the same lock, so a payment page opened right now is not missed.
+        boolean paymentStarted = booking.paymentStarted();
+        PaymentPort.CancelOutcome outcome = PaymentPort.CancelOutcome.NONE;
+        if (paymentStarted) {
+            try {
+                outcome = payments.cancelPending(bookingId); // before anything is released, and not inside a transaction
+            } catch (PaymentUnavailableException e) {
+                log.warn("Payment of booking {} could not be cancelled yet: {}", bookingId, e.getMessage());
+                retryLater(bookingId, booking.attempts() + 1);
+                return;
+            }
         }
         switch (outcome) {
-            case NONE, CANCELLED -> releases.release(bookingId, HoldReleaseService.Reason.EXPIRED, true, "system");
-            case SUCCEEDED -> {
-                // The payment won the race with the timeout.
-                ConfirmationService.Result result = confirmations.confirm(bookingId);
-                if (result == ConfirmationService.Result.NOT_CONFIRMABLE) {
-                    // Money was taken for a hold that is already gone. Payment refunds such a payment when it learns of it.
-                    log.error("Booking {} was paid but its hold is already over: the payment must be refunded", bookingId);
+            case NONE, CANCELLED -> {
+                try {
+                    releases.release(bookingId, HoldReleaseService.Reason.EXPIRED, true, "system", paymentStarted);
+                } catch (PaymentStartedMeanwhileException e) {
+                    // The payment page was opened between our look and our lock: ask Payment at the next sweep.
+                    bookings.scheduleRetry(bookingId, at(clock.instant().plus(PROCESSING_RETRY)), booking.attempts());
                 }
             }
-            case PROCESSING -> bookings.scheduleRetry(bookingId, at(clock.instant().plus(PROCESSING_RETRY)), booking.attempts());
+            case SUCCEEDED, PROCESSING -> {
+                // The money is taken (SUCCEEDED) or may still be taken (PROCESSING): the seats stay held, nothing is released, and the sweeper
+                // asks again. A succeeded payment confirms the booking through ONE path: Payment's report (payment-result), which carries the
+                // amount paid and is checked against the booking (PaymentResultService). Payment queued that report when it recorded the success.
+                bookings.scheduleRetry(bookingId, at(clock.instant().plus(PROCESSING_RETRY)), booking.attempts());
+            }
         }
     }
 

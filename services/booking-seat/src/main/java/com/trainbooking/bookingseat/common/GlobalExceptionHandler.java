@@ -3,6 +3,7 @@ package com.trainbooking.bookingseat.common;
 import com.trainbooking.bookingseat.booking.model.BookingConflictException;
 import com.trainbooking.bookingseat.booking.model.BookingNotFoundException;
 import com.trainbooking.bookingseat.booking.model.HoldExpiredException;
+import com.trainbooking.bookingseat.payment.PaymentRejectedException;
 import com.trainbooking.bookingseat.payment.PaymentUnavailableException;
 import com.trainbooking.bookingseat.booking.model.HoldConflictException;
 import com.trainbooking.bookingseat.booking.model.TripClosedException;
@@ -96,7 +97,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PaymentUnavailableException.class)
     ResponseEntity<ApiError> paymentUnavailable(PaymentUnavailableException e) {
         log.warn("Payment unavailable: {}", e.getMessage());
-        return respond(HttpStatus.SERVICE_UNAVAILABLE, ApiError.of("payment_unavailable", "The payment service is not available right now. Try again in a moment."));
+        String message = "stripe_not_configured".equals(e.code())
+                ? "Payments are not set up yet: this deployment has no Stripe key."
+                : "The payment service is not available right now. Try again in a moment.";
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ApiError.of(e.code(), message));
+    }
+
+    /** Payment understood the request and refused it: the hold ended, already paid, a payment is being created... */
+    @ExceptionHandler(PaymentRejectedException.class)
+    ResponseEntity<ApiError> paymentRejected(PaymentRejectedException e) {
+        return respond(HttpStatus.CONFLICT, ApiError.of(e.code(), "The booking cannot be paid right now (" + e.code() + ")."));
     }
 
     @ExceptionHandler(TripClosedException.class)

@@ -13,6 +13,7 @@ import com.trainbooking.bookingseat.booking.model.BookingStatus;
 import com.trainbooking.bookingseat.booking.model.BookingView;
 import com.trainbooking.bookingseat.booking.model.HoldConflictException;
 import com.trainbooking.bookingseat.booking.model.HoldExpiredException;
+import com.trainbooking.bookingseat.booking.model.PaymentStartedMeanwhileException;
 import com.trainbooking.bookingseat.booking.model.PickRequest;
 import com.trainbooking.bookingseat.booking.model.ReleaseRequest;
 import com.trainbooking.bookingseat.booking.model.StandingUnavailableException;
@@ -66,6 +67,9 @@ public class HoldService {
     static final int MAX_STANDING_PER_COACH = 20;
 
     private static final Logger log = LoggerFactory.getLogger(HoldService.class);
+
+    /** How often a change is tried again when the user opens the payment page at the very moment it is made. */
+    private static final int SETTLE_ATTEMPTS = 3;
 
     /** The result of a pick: the hold, and whether this pick started it. */
     public record PickResult(BookingView booking, boolean started) {
@@ -122,20 +126,26 @@ public class HoldService {
         AuthenticatedUser user = checked(caller);
         Prepared prepared = prepare(request);
 
-        // A user who was at the payment page and came back: the open payment is cancelled first, before the hold changes.
-        bookings.findActiveHold(user.id(), request.tripId()).ifPresent(hold -> {
-            if (hold.paymentStarted() && !isOver(hold)) {
-                settlePaymentBefore(hold, false);
+        for (int attempt = 1; ; attempt++) {
+            // A user who was at the payment page and came back: the open payment is cancelled first, before the hold changes.
+            Booking open = bookings.findActiveHold(user.id(), request.tripId()).orElse(null);
+            boolean paymentWasStarted = open != null && open.paymentStarted();
+            if (paymentWasStarted && !isOver(open)) {
+                settlePaymentBefore(open, false);
             }
-        });
-
-        try {
-            Picked picked = tx.execute(status -> pickInTransaction(user, prepared));
-            return new PickResult(views.view(picked.bookingId()), picked.started());
-        } catch (DuplicateKeyException | StandingUnavailableException | DeadlockLoserDataAccessException | CannotAcquireLockException e) {
-            // The transaction of this pick was rolled back: this pick changed nothing. Say what was lost (FR-H2).
-            log.info("Pick refused for trip {}: {}", request.tripId(), e.getClass().getSimpleName());
-            throw new HoldConflictException(lostItems(prepared));
+            try {
+                Picked picked = tx.execute(status -> pickInTransaction(user, prepared, paymentWasStarted));
+                return new PickResult(views.view(picked.bookingId()), picked.started());
+            } catch (PaymentStartedMeanwhileException e) {
+                // The payment page was opened between our look and our lock: nothing was changed; cancel that payment and try again.
+                if (attempt >= SETTLE_ATTEMPTS) {
+                    throw new BookingConflictException("payment_in_progress", "A payment was just started for this booking. Try again in a moment.");
+                }
+            } catch (DuplicateKeyException | StandingUnavailableException | DeadlockLoserDataAccessException | CannotAcquireLockException e) {
+                // The transaction of this pick was rolled back: this pick changed nothing. Say what was lost (FR-H2).
+                log.info("Pick refused for trip {}: {}", request.tripId(), e.getClass().getSimpleName());
+                throw new HoldConflictException(lostItems(prepared));
+            }
         }
     }
 
@@ -174,7 +184,8 @@ public class HoldService {
         return new Prepared(request, journey, null, coach, one, one.price());
     }
 
-    private Picked pickInTransaction(AuthenticatedUser user, Prepared p) {
+    /** @param paymentWasStarted whether the caller saw the payment page opened and cancelled the payment before this transaction */
+    private Picked pickInTransaction(AuthenticatedUser user, Prepared p, boolean paymentWasStarted) {
         PickRequest request = p.request();
         long tripId = request.tripId();
         Instant now = clock.instant();
@@ -209,9 +220,11 @@ public class HoldService {
             }
             bookingId = hold.id();
             expiresAt = hold.expiresAt();
-            if (hold.paymentStarted()) {
-                bookings.setPaymentStarted(bookingId, false); // the open payment was cancelled before this transaction
+            if (hold.paymentStarted() && !paymentWasStarted) {
+                throw new PaymentStartedMeanwhileException(); // see the exception: rolled back, cancel the payment, try again
             }
+            // payment_started is never cleared: once the user has been to the payment page, every change goes through Payment (cheap
+            // and idempotent when there is nothing open), so a payment that is created later can never be missed.
         }
 
         List<Integer> segments = IntStream.range(p.journey().fromStop(), p.journey().toStop()).boxed().toList();
@@ -291,28 +304,46 @@ public class HoldService {
         if (request.seatId() == null == (request.coachId() == null)) {
             throw new RequestValidationException(List.of(new ApiError.Detail("seatId", "give either a seat or a coach for standing places, not both and not neither")));
         }
-        Booking hold = ownHold(user, bookingId);
-        boolean emptiesTheHold = emptiesTheHold(hold, request);
-        // Cancel first: an open payment is cancelled before the hold changes (SRS 4.2), outside any transaction.
-        if (hold.paymentStarted()) {
-            settlePaymentBefore(hold, emptiesTheHold);
+        for (int attempt = 1; ; attempt++) {
+            Booking hold = ownHold(user, bookingId);
+            boolean emptiesTheHold = emptiesTheHold(hold, request);
+            boolean paymentWasStarted = hold.paymentStarted();
+            // Cancel first: an open payment is cancelled before the hold changes (SRS 4.2), outside any transaction.
+            if (paymentWasStarted) {
+                settlePaymentBefore(hold, emptiesTheHold);
+            }
+            try {
+                if (emptiesTheHold) {
+                    releases.release(bookingId, HoldReleaseService.Reason.RELEASED, false, user.id(), paymentWasStarted);
+                } else {
+                    tx.executeWithoutResult(status -> releaseInTransaction(user, bookingId, request, paymentWasStarted));
+                }
+                return views.view(bookingId);
+            } catch (PaymentStartedMeanwhileException e) {
+                if (attempt >= SETTLE_ATTEMPTS) {
+                    throw new BookingConflictException("payment_in_progress", "A payment was just started for this booking. Try again in a moment.");
+                }
+            }
         }
-        if (emptiesTheHold) {
-            releases.release(bookingId, HoldReleaseService.Reason.RELEASED, false, user.id());
-            return views.view(bookingId);
-        }
-        tx.executeWithoutResult(status -> releaseInTransaction(user, bookingId, request));
-        return views.view(bookingId);
     }
 
     /** Releases the whole hold at once (FR-H7: for example when the user presses Back or Cancel). */
     public BookingView releaseAll(AuthenticatedUser user, long bookingId) {
-        Booking hold = ownHold(user, bookingId);
-        if (hold.paymentStarted()) {
-            settlePaymentBefore(hold, true);
+        for (int attempt = 1; ; attempt++) {
+            Booking hold = ownHold(user, bookingId);
+            boolean paymentWasStarted = hold.paymentStarted();
+            if (paymentWasStarted) {
+                settlePaymentBefore(hold, true);
+            }
+            try {
+                releases.release(bookingId, HoldReleaseService.Reason.RELEASED, false, user.id(), paymentWasStarted);
+                return views.view(bookingId);
+            } catch (PaymentStartedMeanwhileException e) {
+                if (attempt >= SETTLE_ATTEMPTS) {
+                    throw new BookingConflictException("payment_in_progress", "A payment was just started for this booking. Try again in a moment.");
+                }
+            }
         }
-        releases.release(bookingId, HoldReleaseService.Reason.RELEASED, false, user.id());
-        return views.view(bookingId);
     }
 
     private Booking ownHold(AuthenticatedUser user, long bookingId) {
@@ -336,13 +367,16 @@ public class HoldService {
         return bookings.findStandingQty(hold.id(), request.coachId()).map(qty -> request.places() >= qty).orElse(false);
     }
 
-    private void releaseInTransaction(AuthenticatedUser user, long bookingId, ReleaseRequest request) {
+    private void releaseInTransaction(AuthenticatedUser user, long bookingId, ReleaseRequest request, boolean paymentWasStarted) {
         Booking hold = locks.lock(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (hold.status() != BookingStatus.PENDING_PAYMENT) {
             throw new BookingConflictException("not_a_hold", "This booking is not a hold any more.");
         }
         if (isOver(hold)) {
             throw new HoldExpiredException();
+        }
+        if (hold.paymentStarted() && !paymentWasStarted) {
+            throw new PaymentStartedMeanwhileException();
         }
         long tripId = hold.tripId();
         if (request.isSeat()) {
@@ -374,9 +408,6 @@ public class HoldService {
             }
             events.standing(tripId, standing.coachId(), give, segments);
         }
-        if (hold.paymentStarted()) {
-            bookings.setPaymentStarted(bookingId, false); // the open payment was cancelled before this transaction
-        }
         bookings.recomputeAmount(bookingId);
         audit.record(user.id(), "booking", bookingId, "RELEASE", Map.of("tripId", tripId, request.isSeat() ? "seatId" : "coachId",
                 request.isSeat() ? request.seatId() : request.coachId(), "qty", request.isSeat() ? 1 : request.places()));
@@ -398,10 +429,8 @@ public class HoldService {
         PaymentPort.CancelOutcome outcome = ending ? payments.cancelPending(hold.id()) : payments.invalidate(hold.id());
         switch (outcome) {
             case NONE, CANCELLED -> { /* nothing is open any more: the hold may change */ }
-            case SUCCEEDED -> {
-                confirmations.confirm(hold.id());
-                throw new BookingConflictException("already_paid", "This booking is already paid.");
-            }
+            case SUCCEEDED -> // the money is taken: Payment's report confirms the booking (with the amount checked); the hold must not change
+                    throw new BookingConflictException("already_paid", "This booking is already paid.");
             case PROCESSING -> throw new BookingConflictException("payment_in_progress", "The payment is being processed. Try again in a moment.");
         }
     }

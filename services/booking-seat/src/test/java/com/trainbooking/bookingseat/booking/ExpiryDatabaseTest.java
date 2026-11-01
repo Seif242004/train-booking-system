@@ -9,6 +9,7 @@ import com.trainbooking.bookingseat.booking.model.HoldConflictException;
 import com.trainbooking.bookingseat.booking.model.HoldRequest;
 import com.trainbooking.bookingseat.booking.service.ExpiryService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
+import com.trainbooking.bookingseat.booking.service.PaymentResultService;
 import com.trainbooking.bookingseat.live.SeatEvent;
 import com.trainbooking.bookingseat.live.UserEvent;
 import com.trainbooking.bookingseat.payment.PaymentPort.CancelOutcome;
@@ -39,13 +40,28 @@ class ExpiryDatabaseTest extends DatabaseTest {
     @Autowired
     ExpiryService expiry;
 
+    @Autowired
+    com.trainbooking.bookingseat.booking.service.PaymentResultService results;
+
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
     }
 
+    /** A hold whose owner has been to the payment page (so a payment may exist at Payment and Stripe). */
     private BookingView holdSeatAndStanding() {
+        BookingView hold = holdWithoutPaymentPage();
+        jdbc.sql("UPDATE booking SET payment_started = 1 WHERE id = :id").param("id", hold.id()).update();
+        return hold;
+    }
+
+    /** A hold whose owner never opened the payment page: no payment can exist anywhere. */
+    private BookingView holdWithoutPaymentPage() {
         return holds.hold(ALICE, new HoldRequest(TRIP, 0, 3, List.of(2L), List.of(new HoldRequest.StandingRequest(30L, 2))));
+    }
+
+    private java.math.BigDecimal amountOf(long bookingId) {
+        return jdbc.sql("SELECT amount FROM booking WHERE id = :id").param("id", bookingId).query(java.math.BigDecimal.class).single();
     }
 
     private String statusOf(long bookingId) {
@@ -139,7 +155,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
     }
 
     @Test
-    void ifStripeRefusesBecauseThePaymentAlreadySucceeded_thePaymentWins_theBookingIsConfirmed_andTheSeatsAreKept() {
+    void ifStripeRefusesBecauseThePaymentAlreadySucceeded_thePaymentWins_theSeatsAreKept_andPaymentsReportConfirmsTheBooking() {
         BookingView booking = holdSeatAndStanding();
         pastExpiry();
         payment.alwaysAnswers(CancelOutcome.SUCCEEDED);
@@ -147,12 +163,32 @@ class ExpiryDatabaseTest extends DatabaseTest {
 
         expiry.sweep();
 
-        assertThat(statusOf(booking.id())).isEqualTo("CONFIRMED");
+        // Nothing is released and nothing is decided here: the money is taken, so the seats stay, and the booking is confirmed through
+        // the one path that knows the amount paid (Payment's report, checked against the booking).
+        assertThat(statusOf(booking.id())).isEqualTo("PENDING_PAYMENT");
         assertThat(rows("seat_reservation WHERE booking_id = " + booking.id())).isEqualTo(3);
-        assertThat(rows("seat_reservation WHERE expires_at IS NOT NULL")).isZero(); // no longer a hold: the sweeper can never take it
-        assertThat(usedStanding(1)).isEqualTo(2); // the standing places stay taken
-        assertThat(committed.seatEvents()).extracting(SeatEvent::type).containsExactly(SeatEvent.SEAT_BOOKED);
+        assertThat(usedStanding(1)).isEqualTo(2);
         assertThat(committed.userEvents()).isEmpty(); // nobody is sent back to the seat map
+
+        assertThat(results.paymentSucceeded(booking.id(), amountOf(booking.id()))).isEqualTo(PaymentResultService.Result.CONFIRMED);
+
+        assertThat(statusOf(booking.id())).isEqualTo("CONFIRMED");
+        assertThat(rows("seat_reservation WHERE expires_at IS NOT NULL")).isZero(); // no longer a hold: the sweeper can never take it
+        assertThat(committed.seatEvents()).extracting(SeatEvent::type).containsExactly(SeatEvent.SEAT_BOOKED);
+    }
+
+    @Test
+    void aSucceededPayment_isNeverConfirmedBySweeperForAnotherAmount() {
+        BookingView booking = holdSeatAndStanding();
+        pastExpiry();
+        payment.alwaysAnswers(CancelOutcome.SUCCEEDED);
+
+        expiry.sweep();
+        // Payment reports a different amount than the booking costs (a payment for an old selection): never confirmed, the hold ends.
+        assertThat(results.paymentSucceeded(booking.id(), amountOf(booking.id()).subtract(java.math.BigDecimal.ONE))).isEqualTo(PaymentResultService.Result.REFUND_REQUIRED);
+
+        assertThat(statusOf(booking.id())).isEqualTo("EXPIRED");
+        assertThat(rows("seat_reservation")).isZero();
     }
 
     @Test
@@ -161,6 +197,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
         pastExpiry();
         payment.alwaysAnswers(CancelOutcome.SUCCEEDED);
         expiry.sweep();
+        results.paymentSucceeded(booking.id(), amountOf(booking.id()));
         payment.reset();
 
         clock.advance(Duration.ofHours(1));
@@ -168,6 +205,19 @@ class ExpiryDatabaseTest extends DatabaseTest {
 
         assertThat(statusOf(booking.id())).isEqualTo("CONFIRMED");
         assertThat(payment.cancelCalls()).isEmpty(); // Payment was not asked again (the list was cleared after the first sweep)
+    }
+
+    @Test
+    void aHoldThatNeverVisitedThePaymentPage_isReleasedWithoutAskingPayment_evenWhenPaymentIsDown() {
+        BookingView booking = holdWithoutPaymentPage();
+        pastExpiry();
+        payment.answers(id -> { throw new PaymentUnavailableException("Payment is down", new RuntimeException()); });
+
+        expiry.sweep();
+
+        assertThat(payment.cancelCalls()).isEmpty(); // no payment can exist, so there is nothing to cancel
+        assertThat(statusOf(booking.id())).isEqualTo("EXPIRED");
+        assertThat(rows("seat_reservation")).isZero();
     }
 
     @Test
@@ -206,6 +256,8 @@ class ExpiryDatabaseTest extends DatabaseTest {
         clock.advance(Duration.ofMillis(1100));
         payment.alwaysAnswers(CancelOutcome.SUCCEEDED);
         expiry.sweep();
+        assertThat(statusOf(booking.id())).isEqualTo("PENDING_PAYMENT"); // still held until Payment's report arrives
+        results.paymentSucceeded(booking.id(), amountOf(booking.id()));
 
         assertThat(statusOf(booking.id())).isEqualTo("CONFIRMED");
         assertThat(rows("seat_reservation WHERE expires_at IS NULL")).isEqualTo(3);
@@ -291,7 +343,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
     @Test
     void aTimedOutHoldIsNeverCharged_theSweeperAsksOnlyToCancel_neverToRefund() {
         // The port has no refund operation at all: expiry can only cancel a pending payment, so a timeout cannot refund (FR-P4).
-        assertThat(com.trainbooking.bookingseat.payment.PaymentPort.class.getDeclaredMethods()).extracting(java.lang.reflect.Method::getName).containsExactlyInAnyOrder("cancelPending", "invalidate");
+        assertThat(com.trainbooking.bookingseat.payment.PaymentPort.class.getDeclaredMethods()).extracting(java.lang.reflect.Method::getName).containsExactlyInAnyOrder("cancelPending", "invalidate", "createPayment"); // still no refund
     }
 
     @Test
@@ -338,6 +390,6 @@ class ExpiryDatabaseTest extends DatabaseTest {
 
         expiry.sweep();
 
-        assertThat(statusOf(booking.id())).isEqualTo("EXPIRED"); // confirm() found it not confirmable and changed nothing
+        assertThat(statusOf(booking.id())).isEqualTo("EXPIRED"); // the sweeper changed nothing on a booking that was not a hold any more
     }
 }

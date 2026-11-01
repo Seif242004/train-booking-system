@@ -2,10 +2,12 @@ package com.trainbooking.bookingseat.booking.controller;
 
 import com.trainbooking.bookingseat.booking.model.AuthenticatedUser;
 import com.trainbooking.bookingseat.booking.model.BookingView;
+import com.trainbooking.bookingseat.booking.model.PaymentStart;
 import com.trainbooking.bookingseat.booking.model.PickRequest;
 import com.trainbooking.bookingseat.booking.model.ReleaseRequest;
 import com.trainbooking.bookingseat.booking.service.BookingQueryService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
+import com.trainbooking.bookingseat.booking.service.PaymentStartService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +26,12 @@ public class BookingController {
 
     private final HoldService holds;
     private final BookingQueryService queries;
+    private final PaymentStartService paymentStarts;
 
-    public BookingController(HoldService holds, BookingQueryService queries) {
+    public BookingController(HoldService holds, BookingQueryService queries, PaymentStartService paymentStarts) {
         this.holds = holds;
         this.queries = queries;
+        this.paymentStarts = paymentStarts;
     }
 
     /**
@@ -57,6 +61,15 @@ public class BookingController {
     @DeleteMapping("/bookings/{id}/hold")
     public BookingView releaseAll(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return holds.releaseAll(AuthenticatedUser.of(jwt), id);
+    }
+
+    /**
+     * {@code POST /bookings/{id}/payment} (Flow 4, SRS 7.1): "Continue to payment". Only while the hold is active (410 once it ran out); returns
+     * the client secret for the embedded Stripe form and the time left. The amount is the one the server worked out, never the client's.
+     */
+    @PostMapping("/bookings/{id}/payment")
+    public PaymentStart startPayment(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+        return paymentStarts.start(jwt.getSubject(), id);
     }
 
     /** {@code GET /bookings/{id}}: the booking, if it is the caller's (404 otherwise). The payment page also polls it. */

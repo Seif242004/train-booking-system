@@ -1,5 +1,7 @@
 package com.trainbooking.bookingseat.payment;
 
+import java.math.BigDecimal;
+
 /**
  * What Booking and Seat needs from the Payment service. It is an interface so that the booking logic (the sweeper above all)
  * can be tested without Stripe, and so that Booking never depends on how Payment talks to Stripe.
@@ -34,4 +36,17 @@ public interface PaymentPort {
      * booking must not change any more. Like cancelPending, never inside a database transaction.
      */
     CancelOutcome invalidate(long bookingId);
+
+    /** What the payment page needs to show Stripe's embedded form. */
+    record PaymentSession(String clientSecret, String publishableKey, BigDecimal amount, String currency) {
+    }
+
+    /**
+     * Creates (or returns) the payment of a booking for the amount Booking worked out. The caller has already set payment_started on the
+     * booking, so from now on every change of the hold goes through {@link #invalidate} and {@link #cancelPending}.
+     *
+     * @throws PaymentRejectedException     Payment refused (409): the hold ended, already paid, a payment is being created...
+     * @throws PaymentUnavailableException  Payment or Stripe could not be reached
+     */
+    PaymentSession createPayment(long bookingId, BigDecimal amount, String currency);
 }

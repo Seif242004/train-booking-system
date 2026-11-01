@@ -113,6 +113,10 @@ public class BookingRepository {
         jdbc.sql("UPDATE booking SET payment_started = :v WHERE id = :b").param("v", started ? 1 : 0).param("b", bookingId).update();
     }
 
+    public void setRefundStatus(long bookingId, RefundStatus status) {
+        jdbc.sql("UPDATE booking SET refund_status = :s WHERE id = :b").param("s", status.name()).param("b", bookingId).update();
+    }
+
     /** The active hold (PENDING_PAYMENT) of a user on a trip, if there is one. At most one exists: a unique index guarantees it. */
     public Optional<Booking> findActiveHold(String userId, long tripId) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND trip_id = :t AND status = 'PENDING_PAYMENT'").param("u", userId).param("t", tripId)

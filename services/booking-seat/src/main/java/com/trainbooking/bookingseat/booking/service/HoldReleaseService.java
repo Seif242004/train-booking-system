@@ -3,6 +3,7 @@ package com.trainbooking.bookingseat.booking.service;
 import com.trainbooking.bookingseat.audit.AuditTrail;
 import com.trainbooking.bookingseat.booking.model.Booking;
 import com.trainbooking.bookingseat.booking.model.BookingStatus;
+import com.trainbooking.bookingseat.booking.model.PaymentStartedMeanwhileException;
 import com.trainbooking.bookingseat.booking.repository.BookingRepository;
 import com.trainbooking.bookingseat.live.AvailabilityEvents;
 import com.trainbooking.bookingseat.live.UserEvent;
@@ -43,10 +44,13 @@ public class HoldReleaseService {
     /**
      * @param onlyIfPastExpiry true for the sweeper: a hold that has not run out is left alone, whatever the caller thinks
      * @param actor            who it is for the audit log: the user id, an admin id, or "system" for the sweeper
+     * @param paymentWasStarted true if the caller saw that the user had been to the payment page and cancelled the payment first. If the
+     *                         payment page was opened after that look, the release is refused (rolled back) so the caller cancels
+     *                         the new payment first; the sweeper always cancels first and passes true.
      * @return true if the hold was released; false if the booking is not a pending hold any more (it was paid, or already released)
      */
     @Transactional
-    public boolean release(long bookingId, Reason reason, boolean onlyIfPastExpiry, String actor) {
+    public boolean release(long bookingId, Reason reason, boolean onlyIfPastExpiry, String actor, boolean paymentWasStarted) {
         // The locks (the trip, then the booking: the one lock order of every inventory change) make this safe against a payment that
         // is confirmed at the same moment: whoever gets the rows first decides, and the other one then sees the new status.
         Booking booking = locks.lock(bookingId).orElse(null);
@@ -55,6 +59,9 @@ public class HoldReleaseService {
         }
         if (onlyIfPastExpiry && booking.expiresAt().toInstant().isAfter(clock.instant())) {
             return false;
+        }
+        if (booking.paymentStarted() && !paymentWasStarted) {
+            throw new PaymentStartedMeanwhileException();
         }
         inventory.giveBack(booking);
         BookingStatus target = reason == Reason.RELEASED ? BookingStatus.ABANDONED : BookingStatus.EXPIRED;

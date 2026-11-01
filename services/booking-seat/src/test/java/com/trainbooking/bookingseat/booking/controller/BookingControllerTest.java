@@ -29,6 +29,9 @@ import com.trainbooking.bookingseat.booking.model.ReleaseRequest;
 import com.trainbooking.bookingseat.booking.model.TripClosedException;
 import com.trainbooking.bookingseat.booking.service.BookingQueryService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
+import com.trainbooking.bookingseat.booking.service.PaymentStartService;
+import com.trainbooking.bookingseat.booking.model.PaymentStart;
+import com.trainbooking.bookingseat.payment.PaymentRejectedException;
 import com.trainbooking.bookingseat.common.ApiError;
 import com.trainbooking.bookingseat.common.GlobalExceptionHandler;
 import com.trainbooking.bookingseat.common.RequestValidationException;
@@ -68,6 +71,9 @@ class BookingControllerTest {
     BookingQueryService queries;
 
     @MockitoBean
+    PaymentStartService paymentStarts;
+
+    @MockitoBean
     JwtDecoder jwtDecoder;
 
     @Test
@@ -76,7 +82,8 @@ class BookingControllerTest {
         mvc.perform(post("/bookings/31/release").contentType(MediaType.APPLICATION_JSON).content("{\"seatId\":223}")).andExpect(status().isUnauthorized());
         mvc.perform(delete("/bookings/31/hold")).andExpect(status().isUnauthorized());
         mvc.perform(get("/bookings/31")).andExpect(status().isUnauthorized());
-        verifyNoInteractions(holds, queries);
+        mvc.perform(post("/bookings/31/payment")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(holds, queries, paymentStarts);
     }
 
     @Test
@@ -200,6 +207,34 @@ class BookingControllerTest {
 
         mvc.perform(get("/bookings/31").with(passenger())).andExpect(status().isOk()).andExpect(jsonPath("$.reference").value("TB-ABC234"));
         mvc.perform(get("/bookings/32").with(passenger())).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("booking_not_found"));
+    }
+
+    @Test
+    void continueToPayment_returnsTheSecretAndTheTimeLeft_forTheUserOfTheToken() throws Exception {
+        given(paymentStarts.start("user-sub", 31)).willReturn(new PaymentStart("pi_1_secret", "pk_test_x", new BigDecimal("230.00"), "EGP", NOW.plusMinutes(4), NOW.plusMinutes(1)));
+
+        mvc.perform(post("/bookings/31/payment").with(passenger()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.clientSecret").value("pi_1_secret"))
+                .andExpect(jsonPath("$.publishableKey").value("pk_test_x"))
+                .andExpect(jsonPath("$.amount").value(230.00))
+                .andExpect(jsonPath("$.expiresAt").exists())
+                .andExpect(jsonPath("$.serverTime").exists());
+    }
+
+    @Test
+    void continueToPayment_failuresHaveTheirOwnStatus() throws Exception {
+        given(paymentStarts.start("user-sub", 31)).willThrow(new HoldExpiredException());
+        given(paymentStarts.start("user-sub", 32)).willThrow(new BookingNotFoundException(32));
+        given(paymentStarts.start("user-sub", 33)).willThrow(new PaymentRejectedException("payment_closed", "x"));
+        given(paymentStarts.start("user-sub", 34)).willThrow(new PaymentUnavailableException("down", null));
+        given(paymentStarts.start("user-sub", 35)).willThrow(new PaymentUnavailableException("stripe_not_configured", "no key", null));
+
+        mvc.perform(post("/bookings/31/payment").with(passenger())).andExpect(status().isGone()).andExpect(jsonPath("$.error.code").value("hold_expired"));
+        mvc.perform(post("/bookings/32/payment").with(passenger())).andExpect(status().isNotFound());
+        mvc.perform(post("/bookings/33/payment").with(passenger())).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("payment_closed"));
+        mvc.perform(post("/bookings/34/payment").with(passenger())).andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("payment_unavailable"));
+        mvc.perform(post("/bookings/35/payment").with(passenger())).andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("stripe_not_configured"));
     }
 
     @Test

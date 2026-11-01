@@ -13,6 +13,7 @@ export const config = {
   // Backend services the Gateway forwards to.
   trainScheduleUrl: process.env.TRAIN_SCHEDULE_URL ?? 'http://localhost:8081',
   bookingSeatUrl: process.env.BOOKING_SEAT_URL ?? 'http://localhost:8082',
+  paymentUrl: process.env.PAYMENT_URL ?? 'http://localhost:8083',
   upstreamTimeoutMs: Number(process.env.UPSTREAM_TIMEOUT_MS ?? 10_000),
   // The availability of each trip in the search results: if Booking & Seat is slower than this, the trip is shown without it.
   availabilityTimeoutMs: Number(process.env.AVAILABILITY_TIMEOUT_MS ?? 3000),

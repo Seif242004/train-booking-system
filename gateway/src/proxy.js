@@ -16,8 +16,9 @@ const RELAYED_RESPONSE_HEADERS = ['content-type', 'location', 'www-authenticate'
  * `pathPrefix` is the only part of the backend the route may reach: it stops a crafted URL from escaping
  * to another host or another path.
  * Mount it after the auth middleware and after a body parser that produces a Buffer (express.raw).
+ * `requestHeaders` is the list of request headers that are passed on (by default the token, the content type and accept).
  */
-export function forwardTo(baseUrl, pathPrefix) {
+export function forwardTo(baseUrl, pathPrefix, { requestHeaders = FORWARDED_REQUEST_HEADERS } = {}) {
   const base = new URL(baseUrl);
 
   return async (req, res) => {
@@ -27,7 +28,7 @@ export function forwardTo(baseUrl, pathPrefix) {
     }
 
     const headers = {};
-    for (const name of FORWARDED_REQUEST_HEADERS) {
+    for (const name of requestHeaders) {
       if (req.headers[name]) headers[name] = req.headers[name];
     }
     const hasBody = !['GET', 'HEAD'].includes(req.method) && Buffer.isBuffer(req.body) && req.body.length > 0;

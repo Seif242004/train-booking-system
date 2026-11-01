@@ -64,6 +64,15 @@ export function createApp() {
   // to the caller (the token is forwarded), and answers 404 for anyone else's.
   app.use('/bookings', requireAuth, passThroughBody, forwardTo(config.bookingSeatUrl, '/bookings'));
 
+  // Stripe's webhook (Flow 4, SRS 9.3): no token (Stripe has none), the signature is what authenticates it, and Payment verifies it. The body
+  // must reach Payment byte for byte, because the signature is computed over the exact bytes: express.raw, never a JSON parser. Only the
+  // content type and Stripe-Signature are passed on. Only POST on this exact path.
+  app.post(
+    '/webhooks/payment',
+    express.raw({ type: () => true, limit: '1mb' }),
+    forwardTo(config.paymentUrl, '/webhooks/payment', { requestHeaders: ['content-type', 'stripe-signature'] }),
+  );
+
   app.use((req, res) => {
     sendError(res, 404, 'not_found', `No route for ${req.method} ${req.path}.`);
   });

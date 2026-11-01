@@ -55,6 +55,12 @@ SQL
     echo "BOOKING_SEAT_TEST_DB_PASSWORD is not set: not creating the booking_seat_test schema (the Booking & Seat database tests will be skipped)"
   fi
   create_schema payment        "${PAYMENT_DB_PASSWORD}"
+  # Throwaway schema for the Payment database tests (optional, like booking_seat_test).
+  if [ -n "${PAYMENT_TEST_DB_PASSWORD:-}" ]; then
+    create_schema payment_test "${PAYMENT_TEST_DB_PASSWORD}"
+  else
+    echo "PAYMENT_TEST_DB_PASSWORD is not set: not creating the payment_test schema (the Payment database tests will be skipped)"
+  fi
   create_schema ticket         "${TICKET_DB_PASSWORD}"
   create_schema notification   "${NOTIFICATION_DB_PASSWORD}"
   # Keycloak stores its users in Oracle too (docs/ARCHITECTURE.md, Flow 1). It gets its own schema like the services.

@@ -16,6 +16,8 @@ services:
       # Optional: the booking_seat_test schema (for the Booking & Seat database tests) is created only if this is set.
       BOOKING_SEAT_TEST_DB_PASSWORD: ${BOOKING_SEAT_TEST_DB_PASSWORD:-}
       PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD in .env}
+      # Optional: the payment_test schema (for the Payment database tests) is created only if this is set.
+      PAYMENT_TEST_DB_PASSWORD: ${PAYMENT_TEST_DB_PASSWORD:-}
       TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD:?set TICKET_DB_PASSWORD in .env}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD in .env}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
@@ -76,6 +78,27 @@ services:
       timeout: 5s
       retries: 30
       start_period: 60s
+
+  # ---- Dev-only tools (not started by a plain `docker compose up`; use `--profile dev`) ----------------------------------------
+
+  # Forwards Stripe's test-mode events to the Payment webhook through the Gateway, with the signature of the real events:
+  #   docker compose --profile dev run --rm stripe-cli listen --api-key $STRIPE_SECRET_KEY --print-secret   -> prints the whsec_... secret once
+  #   docker compose --profile dev up stripe-cli                                                             -> forwards the events
+  # Put the printed whsec_... in STRIPE_WEBHOOK_SECRET in .env. The Gateway runs on the host and listens on 127.0.0.1 by default, so for the
+  # forwarding to reach it from this container start it with HOST=0.0.0.0 (see gateway/README.md).
+  stripe-cli:
+    profiles: ["dev"]
+    image: stripe/stripe-cli:latest
+    container_name: tbs-stripe-cli
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Test-mode secret key only: the CLI is started with it, never with a live key (the Payment service refuses a live key too).
+      STRIPE_API_KEY: ${STRIPE_SECRET_KEY:?set STRIPE_SECRET_KEY (an sk_test_ key) in .env}
+    command: >-
+      listen
+      --forward-to http://host.docker.internal:8080/webhooks/payment
+      --events payment_intent.succeeded,payment_intent.processing,payment_intent.payment_failed,payment_intent.canceled,refund.updated,refund.failed
 
 volumes:
   oracle-data:

@@ -27,8 +27,15 @@ the trips** that Train & Schedule pushes, the **inventory tables** (still empty:
 | GET | `/trips/{id}/availability?from=&to=` | any signed-in user (the Gateway calls it for the browser) | Availability of the trip for the journey. `from` and `to` are **stop indexes** of the trip (the boarding stop and the destination stop). Returns `tripId`, `tripStatus`, `fromStop`, `toStop`, `summary { seatsLeft, standingLeft }` (counts per class) and, unless `view=summary`, `fares` (the price of the whole journey per class in EGP, the sum of its segments; a class with a missing segment fare is left out), `seats [{ seatId, coachId, state AVAILABLE\|HELD\|BOOKED }]` and `standing [{ coachId, capacity, remaining }]`. 400 for a journey that is not valid for the trip, 404 for an unknown trip |
 | PUT | `/internal/trips/{id}/snapshot` | Train & Schedule (API key) | Stores or updates the copy of a trip, all or nothing. Idempotent. Header `X-Acting-User` (optional): the admin whose action caused it, written to the audit log |
 | DELETE | `/internal/trips/{id}` | Train & Schedule (API key) | Removes the copy of a deleted trip (204; also 204 if there is none); 409 if the trip has holds, bookings or any booking history |
+| WebSocket | `/ws` (STOMP) | any valid token, offered as the subprotocol `access_token.<jwt>` | The live seat updates, reached through the Gateway. See "Live updates" |
 | POST | `/bookings` | any signed-in user | **Holds** seats and standing places: `{ tripId, fromStop, toStop, seatIds[], standing[{ coachId, qty }] }`. 201 with the booking (`PENDING_PAYMENT`, `reference`, `amount`, `expiresAt`, `serverTime`, `items`). 409 `seats_unavailable` (nothing held; `details` list the lost items as `seat:<id>` / `standing:<coachId>`), 409 `trip_closed` / `trip_departed`, 400 for a selection that is not valid for the trip, 404 for an unknown trip |
 | GET | `/bookings/{id}` | the owner | The booking; another user's booking is 404 `booking_not_found` |
+
+### Live updates (Flow 2, SRS section 6)
+
+Spring WebSocket with STOMP, pushed after every change of the availability of a trip. The endpoint is `/ws`; the token is checked at the handshake (`HandshakeAuthentication`) from the subprotocol `access_token.<jwt>` (never from the URL), with the same Keycloak validation as the HTTP endpoints, and the connection is named after the token's subject. Only the configured web origin (`CORS_ORIGIN`) may connect. A client may only **subscribe**, to `/topic/trips/{id}` (the events of a trip: `SEAT_HELD`, `SEAT_RELEASED`, `SEAT_BOOKED`, `STANDING_CHANGED`, `TRIP_CANCELLED`, each `{ type, tripId, seatIds, coachId, delta, segments, version }`) and to its own `/user/queue/holds` (`HOLD_EXPIRED` with the booking id and the reason `EXPIRED`, `TRIP_CANCELLED` or `RELEASED`); anything else, and every SEND, is refused and closes the connection (`SubscriptionGuard`).
+
+The events are published inside the transaction of the change (each one takes the next `trip_version`) and delivered by `LiveUpdates` only with `@TransactionalEventListener(AFTER_COMMIT)`: an event of a transaction that rolled back is never sent. The version goes up by one per event, so a client that sees a gap, or that reconnects, loads the seat map again (`version` is in the seat map). One instance and the in-memory broker are assumed (SRS section 6).
 
 ### Holds (Flow 3) and the sweeper (Flow 5)
 
@@ -91,6 +98,7 @@ Set in `services/booking-seat/.env` (git-ignored; copy `.env.example`), or in th
 | `BOOKING_SEAT_DB_URL` | `jdbc:oracle:thin:@//localhost:1521/FREEPDB1` | JDBC URL |
 | `BOOKING_SEAT_DB_USER` | `booking_seat` | Oracle user |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the keys are fetched from it |
+| `CORS_ORIGIN` | `http://localhost:5173` | The one origin that may open the WebSocket |
 | `TRAINBOOKING_SWEEPER_FIXED_DELAY_MS` | `1000` | Delay between two sweeps of expired holds (`fixedDelay`) |
 
 The service listens on port **8082**.

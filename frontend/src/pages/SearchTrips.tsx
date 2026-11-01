@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { CLASS_LABEL, type CoachClass, type JourneyAvailability, type Station, type TripSearchResponse, type TripSearchResult, type TripStop } from '../adminTypes';
 import { gatewayRequest, readError } from '../api';
+import { Link } from 'react-router-dom';
 import { addDays, clock, daysLater, duration, todayLocal } from '../time';
 
 /**
@@ -228,13 +229,16 @@ export function SearchTrips() {
                     ) : (
                       <p className="muted">No fares are set for this journey yet.</p>
                     )}
+                    <p className="result-actions">
+                      <Link className="button button-primary" to={`/trips/${trip.tripId}/seats?from=${trip.fromStopIndex}&to=${trip.toStopIndex}`}>Select seats</Link>
+                    </p>
                     {trip.availability === null && <p className="muted availability-missing">Seats left: not available right now.</p>}
                   </li>
                 );
               })}
             </ul>
           )}
-          <p className="muted">Booking comes in a later step.</p>
+          
         </div>
       )}
     </section>

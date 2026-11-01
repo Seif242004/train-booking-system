@@ -35,6 +35,7 @@ registration or account screens: Login and Register send the browser to Keycloak
   **Previous day** / **Next day** arrows above the results search the neighbouring day (previous is disabled on today);
   when a day has no trips the page says "No trips on <date>. Next available: <date>" with a button that searches that
   date. For today the page notes that trips that have already left are not shown (the service does the filtering). Seats left and booking come in later steps.
+- **Seat map** (`/trips/:id/seats?from=&to=`, reached with **Select seats** on a search result): the coaches in train order, each seat as a button whose state is written as well as coloured (available, selected ✓, held ◐, booked ✕, with an accessible label), standing places per coach with a − and + stepper limited to what is left, the journey and the price per class, and a bar with the selection and its estimated price (the server works out the real amount). Holding the selection comes in a later step.
 - **Train page** (`/admin/trains/:id`): the train's coaches in train order, with add, edit and delete, standing
   capacity, and a **Seats** panel per coach: a seat map, a layout generator (start row, number of rows, column
   letters, saved all at once or not at all) and edit or delete of a single seat. A seat's class is always its coach's

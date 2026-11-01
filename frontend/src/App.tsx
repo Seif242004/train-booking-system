@@ -8,6 +8,7 @@ import { Profile } from './pages/Profile';
 import { RouteFares } from './pages/RouteFares';
 import { RouteList } from './pages/RouteList';
 import { SearchTrips } from './pages/SearchTrips';
+import { SeatMapPage } from './pages/SeatMapPage';
 import { Stations } from './pages/Stations';
 import { TrainDetail } from './pages/TrainDetail';
 import { Trips } from './pages/Trips';
@@ -24,6 +25,7 @@ export function App() {
             <Route element={<RequireAuth />}>
               <Route path="profile" element={<Profile />} />
               <Route path="search" element={<SearchTrips />} />
+              <Route path="trips/:id/seats" element={<SeatMapPage />} />
               <Route element={<RequireAdmin />}>
                 <Route path="admin" element={<Admin />} />
                 <Route path="admin/stations" element={<Stations />} />

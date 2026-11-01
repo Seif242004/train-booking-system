@@ -766,3 +766,125 @@ h4 {
   padding: 4px 12px;
   font-size: 0.9rem;
 }
+
+/* Seat map (Flow 2): coaches with their seats, the legend and the selection bar. State is shown with a mark and a label as well as a colour. */
+.seatmap-journey {
+  margin-top: 0;
+}
+
+.seatmap-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.coach-card {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.coach-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+
+.coach-rows {
+  display: grid;
+  gap: 6px;
+}
+
+.coach-row {
+  display: flex;
+  gap: 6px;
+}
+
+.seat {
+  min-width: 64px;
+  padding: 6px 8px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.seat:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.seat-legend {
+  display: inline-block;
+  min-width: 0;
+  cursor: default;
+}
+
+.seat-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.seat-held {
+  border-style: dashed;
+  background: var(--warn-bg);
+  color: var(--text);
+}
+
+.seat-booked {
+  background: var(--border);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.seat:disabled {
+  cursor: not-allowed;
+}
+
+.standing-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selection-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.result-actions {
+  margin: 8px 0 0;
+}
+
+a.button {
+  text-decoration: none;
+  display: inline-block;
+}

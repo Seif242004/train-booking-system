@@ -4,6 +4,7 @@ import { requireAuth, requireRole } from './auth.js';
 import { config } from './config.js';
 import { HttpError, sendError } from './errors.js';
 import { forwardTo } from './proxy.js';
+import { tripSearch } from './search.js';
 
 export function createApp() {
   const app = express();
@@ -50,7 +51,9 @@ export function createApp() {
   // Read-only routes for any signed-in user (not only admins): trip search, and the station list that the search page
   // offers. They are exact GET paths on purpose: /trips/{id}/... (the seat map, availability, layout) is routed later,
   // each to its own service, and must not be swallowed by a broad /trips prefix.
-  app.get('/trips', requireAuth, forwardTo(config.trainScheduleUrl, '/trips'));
+  // The search is composed here (Flow 2): the trips come from Train & Schedule, the seats and standing places left for
+  // each journey from Booking & Seat. /trips/{id}/availability is called by the Gateway itself and has no public route.
+  app.get('/trips', requireAuth, tripSearch());
   app.get('/stations', requireAuth, forwardTo(config.trainScheduleUrl, '/stations'));
 
   app.use((req, res) => {

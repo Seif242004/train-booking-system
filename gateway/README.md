@@ -15,7 +15,20 @@ the Stripe webhook forwarding come with their steps.
 | GET | `/me` | any valid token | `{ sub, name, email, roles }` |
 | GET | `/admin/ping` | role `ADMIN` | `{ "message": "pong", "admin": "<sub>" }` (example admin-only route) |
 | any | `/admin/stations/**`, `/admin/trains/**` (including `/admin/trains/{id}/coaches`), `/admin/coaches/**` (including `/admin/coaches/{id}/seats`), `/admin/seats/**`, `/admin/routes/**` (including `/admin/routes/{id}/fares`), `/admin/trips/**` | role `ADMIN` | forwarded to Train & Schedule (`TRAIN_SCHEDULE_URL`), answer relayed unchanged |
-| GET | `/trips?from=&to=&date=`, `/stations` | any valid token | forwarded to Train & Schedule: trip search and the station list for the search page (exact paths only; `/trips/{id}/...` is routed later, to its own service) |
+| GET | `/trips?from=&to=&date=` | any valid token | **composed** (see "Trip search"): the trips of Train & Schedule, each with the seats and standing places left for the journey from Booking & Seat |
+| GET | `/stations` | any valid token | forwarded to Train & Schedule: the station list for the search page (exact path only; `/trips/{id}/...` is routed later, to its own service) |
+
+## Trip search
+
+`GET /trips` is answered by `src/search.js`, so the browser makes one call (Flow 2). The Gateway sends the search to Train &
+Schedule; if that answers 200, it asks Booking & Seat for the totals of each trip (`GET /trips/{id}/availability?from=&to=&view=summary`,
+with the trip's own stop indexes and the caller's token) and adds them to the trip as `availability: { seatsLeft, standingLeft }`
+(counts per class). The lookups run at the same time and give up after `AVAILABILITY_TIMEOUT_MS`. Booking & Seat is optional
+for the search: if it is down, slow, or does not know a trip, that trip gets `availability: null` and the search still
+returns the timetable. Any answer of Train & Schedule that is not a 200 (a 400 for a bad station code, for example) is relayed
+unchanged. There is no public route for `/trips/{id}/availability` and `/internal/**` is never forwarded.
+
+Tests: `npm test` (Node's built-in test runner, with small fake services).
 
 ## Forwarding to services
 
@@ -64,7 +77,9 @@ All are optional; the defaults are for local development. See `.env.example`.
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the JWKS URL is derived from it |
 | `CORS_ORIGIN` | `http://localhost:5173` | The one allowed browser origin |
 | `TRAIN_SCHEDULE_URL` | `http://localhost:8081` | Where the stations, trains, coaches, seats, routes, fares and trips routes are forwarded |
+| `BOOKING_SEAT_URL` | `http://localhost:8082` | Where Booking & Seat is asked for the availability in the search results |
 | `UPSTREAM_TIMEOUT_MS` | `10000` | How long to wait for a service before answering 504 |
+| `AVAILABILITY_TIMEOUT_MS` | `3000` | How long to wait for Booking & Seat per trip before showing the trip without its availability |
 
 ## Run
 

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { CLASS_LABEL, type CoachClass } from '../adminTypes';
-import { gatewayGet, readError } from '../api';
+import { gatewayGet, gatewayRequest, readError } from '../api';
+import type { Booking } from '../bookingTypes';
 import type { SeatMap, SeatMapCoach, SeatMapSeat, SeatState } from '../seatMapTypes';
 import { clock } from '../time';
 
@@ -23,6 +24,11 @@ export function SeatMapPage() {
   const from = query.get('from') ?? '';
   const to = query.get('to') ?? '';
 
+  const navigate = useNavigate();
+  // The payment page sends the user back here with a message when the hold ran out or the trip was cancelled (SRS FR-H5).
+  const redirectMessage = (useLocation().state as { message?: string } | null)?.message ?? null;
+  const [holding, setHolding] = useState(false);
+  const [holdProblem, setHoldProblem] = useState<string | null>(null);
   const [map, setMap] = useState<SeatMap | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Set<number>>(new Set());
@@ -73,6 +79,38 @@ export function SeatMapPage() {
     });
   }
 
+  /** Holds the selection (Flow 3): all or nothing. On success the payment page opens; if something was lost, the map is refreshed. */
+  async function hold() {
+    if (!map) return;
+    setHolding(true);
+    setHoldProblem(null);
+    const result = await gatewayRequest('POST', '/bookings', {
+      body: {
+        tripId: map.tripId,
+        fromStop: map.journey.fromStop,
+        toStop: map.journey.toStop,
+        seatIds: [...selectedSeats],
+        standing: Object.entries(standing).filter(([, qty]) => qty > 0).map(([coachId, qty]) => ({ coachId: Number(coachId), qty })),
+      },
+    });
+    setHolding(false);
+    if (result.status === 201) {
+      navigate(`/bookings/${(result.body as Booking).id}/pay`);
+      return;
+    }
+    const problem = readError(result);
+    if (problem.code === 'seats_unavailable') {
+      // Nothing was held. Say which items were lost, drop them from the selection, and show the map as it is now.
+      setHoldProblem(`Nothing was held. ${problem.details.map((d) => d.message).join('; ')}. Please choose again.`);
+      const lostSeats = problem.details.filter((d) => d.field.startsWith('seat:')).map((d) => Number(d.field.slice(5)));
+      setSelectedSeats((current) => new Set([...current].filter((seatId) => !lostSeats.includes(seatId))));
+      setStanding({});
+      await load();
+    } else {
+      setHoldProblem(problem.message);
+    }
+  }
+
   if (error) {
     return (
       <section>
@@ -94,6 +132,8 @@ export function SeatMapPage() {
         <strong>{map.journey.from?.stationName}</strong> {clock(map.journey.departureTime)} → <strong>{map.journey.to?.stationName}</strong>{' '}
         {clock(map.journey.arrivalTime)} · {map.departureDate} · <span className="mono">{map.train.number}</span> {map.train.name}
       </p>
+      {redirectMessage && <p className="notice notice-error" role="alert">{redirectMessage}</p>}
+      {holdProblem && <p className="notice notice-error" role="alert">{holdProblem}</p>}
       {closed && <p className="notice notice-error">This trip is closed: it is cancelled or being cancelled, so seats cannot be held.</p>}
 
       <ul className="seatmap-legend" aria-label="Legend">
@@ -151,6 +191,9 @@ export function SeatMapPage() {
         <span>
           {selectedCount === 0 ? 'Nothing selected yet.' : `${selectedCount} selected · about ${total.toFixed(2)} EGP`}
         </span>
+        <button type="button" className="button button-primary" disabled={closed || holding || selectedCount === 0} onClick={() => void hold()}>
+          {holding ? 'Holding…' : 'Hold for 5 minutes'}
+        </button>
       </div>
     </section>
   );

@@ -4,6 +4,7 @@ import { RequireAdmin, RequireAuth } from './auth/guards';
 import { Layout } from './components/Layout';
 import { Admin } from './pages/Admin';
 import { Home } from './pages/Home';
+import { PaymentPage } from './pages/PaymentPage';
 import { Profile } from './pages/Profile';
 import { RouteFares } from './pages/RouteFares';
 import { RouteList } from './pages/RouteList';
@@ -26,6 +27,7 @@ export function App() {
               <Route path="profile" element={<Profile />} />
               <Route path="search" element={<SearchTrips />} />
               <Route path="trips/:id/seats" element={<SeatMapPage />} />
+              <Route path="bookings/:id/pay" element={<PaymentPage />} />
               <Route element={<RequireAdmin />}>
                 <Route path="admin" element={<Admin />} />
                 <Route path="admin/stations" element={<Stations />} />

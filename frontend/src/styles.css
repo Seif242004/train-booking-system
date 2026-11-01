@@ -888,3 +888,33 @@ a.button {
   text-decoration: none;
   display: inline-block;
 }
+
+/* The payment page: the countdown, the lines of the booking and the payment box. */
+.countdown {
+  font-size: 1.3rem;
+}
+
+.countdown-over strong {
+  color: var(--fail);
+}
+
+.booking-items {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.booking-total {
+  margin: 8px 0 0;
+  font-size: 1.1rem;
+}
+
+.payment-box {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.payment-box:disabled {
+  opacity: 0.55;
+}

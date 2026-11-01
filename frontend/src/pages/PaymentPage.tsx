@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
-import { gatewayGet, readError } from '../api';
-import type { Booking } from '../bookingTypes';
+import { StripeCheckout } from '../components/StripeCheckout';
+import { gatewayGet, gatewayRequest, readError } from '../api';
+import type { Booking, PaymentStart } from '../bookingTypes';
 import { connectLive } from '../live/connectLive';
 import { formatRemaining, remainingMs, startCountdown, type Countdown } from '../countdown';
 import { clock } from '../time';
@@ -21,6 +22,10 @@ export function PaymentPage() {
   const countdown = useRef<Countdown | null>(null);
   // Why the hold ended, when the server pushed it (the poll below only knows that it ended).
   const endedBecause = useRef<string | null>(null);
+  // The payment (Stripe's form): asked from the server once when the page opens. 'waiting': Stripe took the payment (or it is being
+  // processed) and the page waits for the server's confirmation, which comes from Stripe's signed webhook.
+  const [payment, setPayment] = useState<{ state: 'idle' | 'loading' | 'ready' | 'waiting' | 'unavailable'; start?: PaymentStart; message?: string }>({ state: 'idle' });
+  const paymentAsked = useRef(false);
 
   const load = useCallback(async () => {
     const result = await gatewayGet(`/bookings/${id}`);
@@ -70,6 +75,29 @@ export function PaymentPage() {
     const timer = setInterval(tick, 250);
     return () => clearInterval(timer);
   }, [booking]);
+
+  // "Continue to payment": the server checks the hold, works out the amount and returns the client secret for Stripe's form.
+  const bookingStatus = booking?.status;
+  useEffect(() => {
+    if (bookingStatus !== 'PENDING_PAYMENT' || paymentAsked.current) return;
+    paymentAsked.current = true;
+    setPayment({ state: 'loading' });
+    void (async () => {
+      const result = await gatewayRequest('POST', `/bookings/${id}/payment`);
+      if (result.status === 200) {
+        setPayment({ state: 'ready', start: result.body as PaymentStart });
+        return;
+      }
+      const failure = readError(result);
+      if (failure.code === 'payment_in_progress' || failure.code === 'already_paid') {
+        setPayment({ state: 'waiting' }); // paid (a bank page redirected back here) or being processed: the poll shows the result
+      } else if (failure.code === 'hold_expired' || failure.code === 'payment_closed' || failure.code === 'not_a_hold') {
+        void load(); // the hold ended: the poll below sends the user back to the seat map
+      } else {
+        setPayment({ state: 'unavailable', message: failure.message });
+      }
+    })();
+  }, [bookingStatus, id, load]);
 
   useEffect(() => {
     if (!booking) return;
@@ -132,7 +160,26 @@ export function PaymentPage() {
       {booking.status === 'PENDING_PAYMENT' && (
         <fieldset className="payment-box" disabled={timeIsUp}>
           <legend>Pay</legend>
-          <p className="muted">The payment form appears here.</p>
+          {payment.state === 'loading' && <p className="muted">Preparing the payment form…</p>}
+          {payment.state === 'unavailable' && (
+            <>
+              <p className="notice notice-error" role="alert">{payment.message}</p>
+              <button type="button" className="button" onClick={() => { paymentAsked.current = false; setPayment({ state: 'idle' }); void load(); }}>Try again</button>
+            </>
+          )}
+          {payment.state === 'waiting' && (
+            <>
+              <p role="status">Your payment was received. Waiting for the confirmation…</p>
+              {/* If the payment did not go through after all (a bank step failed), the form can be asked for again. */}
+              <button type="button" className="button" onClick={() => { paymentAsked.current = false; setPayment({ state: 'idle' }); void load(); }}>
+                Pay again
+              </button>
+            </>
+          )}
+          {payment.state === 'ready' && payment.start && payment.start.publishableKey && (
+            <StripeCheckout publishableKey={payment.start.publishableKey} clientSecret={payment.start.clientSecret}
+              returnUrl={`${window.location.origin}/bookings/${booking.id}/pay`} onSubmitted={() => setPayment({ state: 'waiting' })} />
+          )}
         </fieldset>
       )}
     </section>

@@ -22,6 +22,16 @@ export interface BookingStop {
   departureTime: string | null;
 }
 
+/** The answer of `POST /bookings/{id}/payment` (Continue to payment): what Stripe's embedded form needs. */
+export interface PaymentStart {
+  clientSecret: string;
+  publishableKey: string;
+  amount: number;
+  currency: string;
+  expiresAt: string;
+  serverTime: string;
+}
+
 /** A booking as returned by the Gateway (Booking & Seat). */
 export interface Booking {
   id: number;

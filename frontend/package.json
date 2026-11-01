@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@stomp/stompjs": "7.5.0",
+    "@stripe/react-stripe-js": "7.0.1",
+    "@stripe/stripe-js": "10.2.0",
     "keycloak-js": "26.2.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",

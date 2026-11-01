@@ -1,5 +1,6 @@
 package com.trainbooking.bookingseat.availability.repository;
 
+import com.trainbooking.bookingseat.availability.model.FareInfo;
 import com.trainbooking.bookingseat.availability.model.Journey;
 import com.trainbooking.bookingseat.availability.model.ReservationInfo;
 import com.trainbooking.bookingseat.availability.model.SeatInfo;
@@ -52,6 +53,14 @@ public class AvailabilityRepository {
                 .param("fromSegment", journey.fromStop())
                 .param("toStop", journey.toStop())
                 .query((rs, row) -> new ReservationInfo(rs.getLong("seat_id"), rs.getInt("segment_index"), rs.getObject("expires_at") != null))
+                .list();
+    }
+
+    /** The fares of the trip: one per segment and class. */
+    public List<FareInfo> findFares(long tripId) {
+        return jdbc.sql("SELECT segment_index, class, amount FROM trip_fare WHERE trip_id = :tripId ORDER BY segment_index, class")
+                .param("tripId", tripId)
+                .query((rs, row) -> new FareInfo(rs.getInt("segment_index"), CoachClass.valueOf(rs.getString("class")), rs.getBigDecimal("amount")))
                 .list();
     }
 

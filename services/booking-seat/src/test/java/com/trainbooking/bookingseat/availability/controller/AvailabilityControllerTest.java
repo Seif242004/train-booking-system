@@ -41,7 +41,8 @@ class AvailabilityControllerTest {
                     new SeatStatus(3, 20, CoachClass.SECOND, SeatState.BOOKED)),
             List.of(new CoachStandingLeft(20, CoachClass.SECOND, 10, 4)),
             Map.of(CoachClass.FIRST, 1, CoachClass.SECOND, 0),
-            Map.of(CoachClass.SECOND, 4)));
+            Map.of(CoachClass.SECOND, 4)),
+            Map.of(CoachClass.FIRST, new java.math.BigDecimal("150.00"), CoachClass.SECOND, new java.math.BigDecimal("100.00")));
 
     @Autowired
     MockMvc mvc;
@@ -79,7 +80,9 @@ class AvailabilityControllerTest {
                 .andExpect(jsonPath("$.standing[0].remaining").value(4))
                 .andExpect(jsonPath("$.summary.seatsLeft.FIRST").value(1))
                 .andExpect(jsonPath("$.summary.seatsLeft.SECOND").value(0))
-                .andExpect(jsonPath("$.summary.standingLeft.SECOND").value(4));
+                .andExpect(jsonPath("$.summary.standingLeft.SECOND").value(4))
+                .andExpect(jsonPath("$.fares.FIRST").value(150.00))
+                .andExpect(jsonPath("$.fares.SECOND").value(100.00));
     }
 
     @Test
@@ -90,6 +93,7 @@ class AvailabilityControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.seatsLeft.FIRST").value(1))
                 .andExpect(jsonPath("$.summary.standingLeft.SECOND").value(4))
+                .andExpect(jsonPath("$.fares").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.seats").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.standing").doesNotHaveJsonPath());
     }

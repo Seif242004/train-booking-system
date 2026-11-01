@@ -28,6 +28,6 @@ public class AvailabilityService {
         Journey journey = Journey.of(fromStop, toStop, trip.stopCount());
         var result = SegmentAvailability.compute(journey, repository.findSeats(tripId),
                 repository.findReservations(tripId, journey), repository.findStanding(tripId));
-        return new TripAvailability(tripId, trip.status(), result);
+        return new TripAvailability(tripId, trip.status(), result, JourneyFares.perClass(journey, repository.findFares(tripId)));
     }
 }

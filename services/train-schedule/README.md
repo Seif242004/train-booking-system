@@ -42,6 +42,7 @@ All require the `ADMIN` role. Browsers reach them through the Gateway. JSON fiel
 | GET / PUT / DELETE | `/admin/trips/{id}` | read / replace train, route, date and all stop times / delete (the stops go with it) |
 | GET | `/trips?from=CAI&to=ALX&date=2026-11-02` | **passenger trip search**, any signed-in user (see below) |
 | GET | `/stations` | read-only station list for any signed-in user, so the search page can offer the stations |
+| GET | `/trips/{id}/layout` | any signed-in user: the train, the stops with their times and every coach in train order with its seats and standing capacity, for the seat map. No availability (that is Booking & Seat's). Called by the Gateway, not by the browser; 404 for an unknown trip |
 
 Rules worth knowing:
 

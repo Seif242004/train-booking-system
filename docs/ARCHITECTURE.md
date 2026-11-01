@@ -43,25 +43,30 @@ The Authentication Service is **Keycloak**. It stores the users, hashes the pass
 3. Web App updates the seat map instantly, without reloading. If a seat the user selected becomes unavailable, it is deselected and the user is told.
 4. After a reconnect, the Web App reloads the full availability to avoid missing changes.
 
-### Flow 3 — Hold seats
+### Flow 3 — Hold seats (the hold starts when the first seat is picked)
 
-1. User confirms the selected seats and/or standing places. Web App sends the trip, journey and selection to the Gateway.
-2. Gateway forwards it to Booking & Seat. Booking refuses the request if the trip was closed or cancelled (Flow 8).
-3. Booking & Seat tries to hold the seats on **every segment** of the journey in one database transaction. The database rejects a seat that is already held or booked on any segment. The hold is all-or-nothing.
-4. **If any seat was just taken:** nothing is held. Booking returns "no longer available" with the lost seats, and the Web App refreshes the seat map.
-5. **If all seats are free:**
-   - The booking is created as `PENDING_PAYMENT` with `expires_at` = now + **5 minutes**.
-   - Booking returns `expires_at` and the Web App opens the payment page with a 5:00 countdown.
-   - Booking pushes "seats held" over WebSocket, so other users see them as held immediately.
+There is no separate "confirm" step to start the hold. The 5 minutes start the moment the user picks the first seat or standing place, and the seats stay held while the user continues to the payment page.
+
+1. User picks a seat or a standing place on the seat map. Web App sends the trip, journey and the pick to the Gateway, which forwards it to Booking & Seat. Booking refuses the request if the trip was closed or cancelled (Flow 8).
+2. **First pick (the user has no active hold on this trip):**
+   - Booking & Seat tries to hold the seat on **every segment** of the journey in one database transaction. The database rejects a seat that is already held or booked on any segment.
+   - If it succeeds, the booking is created as `PENDING_PAYMENT` with `expires_at` = now + **5 minutes**. The timer starts now.
+   - Booking returns `expires_at`, and the Web App shows a countdown on the seat map.
+3. **Further picks:** each one is added to the same booking in its own all-or-nothing transaction. `expires_at` does **not** change, so the timer is never extended.
+4. **Deselecting** a seat releases it at once. If the last seat is released, the hold ends and the booking is `ABANDONED`.
+5. **If a seat was just taken by someone else:** that pick fails with "no longer available" and the Web App refreshes the seat map. The seats already held stay held.
+6. Booking pushes "seats held" and "seats released" over WebSocket after each change, so other users see them immediately.
+7. When the user is ready, they choose **Continue to payment** and the Web App opens the payment page (Flow 4). The countdown continues with the remaining time, not a fresh 5:00.
+8. If the time runs out at any point, the hold timeout in Flow 5 applies.
 
 ### Flow 4 — Pay and receive the ticket
 
 **Start payment**
-1. The payment page opens after the hold (Flow 3). Web App asks the Gateway, which forwards the request to Booking & Seat.
+1. The payment page opens when the user chooses Continue to payment (Flow 3). Web App asks the Gateway, which forwards the request to Booking & Seat.
 2. Booking checks that the hold is still active (`expires_at` has not passed). If not, it refuses (Flow 5).
 3. Booking asks Payment to create a payment. The amount is calculated on the server.
 4. Payment creates the payment with Stripe and returns a client secret.
-5. Web App shows Stripe's secure payment form **inside our payment page**, next to the 5:00 countdown. Because the form is part of our page, a timeout can send the user back to the seat map (Flow 5).
+5. Web App shows Stripe's secure payment form **inside our payment page**, next to the countdown with the remaining time. Because the form is part of our page, a timeout can send the user back to the seat map (Flow 5).
 
 **Pay**
 1. User enters card details in Stripe's form. Card data goes straight to Stripe and never reaches our system.
@@ -80,7 +85,7 @@ The Authentication Service is **Keycloak**. It stores the users, hashes the pass
 
 When the 5 minutes run out, the user must not be able to pay. The payment is blocked **before** any money moves, so no refund is needed.
 
-1. The countdown on the payment page reaches 0:00 and the payment form is disabled.
+1. The countdown, on the seat map or on the payment page, reaches 0:00 and the payment form (if open) is disabled.
 2. A job inside Booking & Seat runs every second and finds holds past `expires_at`. Booking also refuses any new payment request for an expired hold.
 3. Booking asks Payment to **cancel the pending Stripe payment first**. Stripe then rejects any later attempt to pay it.
 4. Once Stripe confirms the cancellation, Booking releases the seats on every segment and sets the booking to `EXPIRED`.

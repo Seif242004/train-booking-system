@@ -47,6 +47,13 @@ SQL
 
   create_schema train_schedule "${TRAIN_SCHEDULE_DB_PASSWORD}"
   create_schema booking_seat   "${BOOKING_SEAT_DB_PASSWORD}"
+  # Throwaway schema for the Booking & Seat database tests, so they never touch the dev data. It is optional: it is
+  # created only when its password is set, and a setup without it simply skips those tests.
+  if [ -n "${BOOKING_SEAT_TEST_DB_PASSWORD:-}" ]; then
+    create_schema booking_seat_test "${BOOKING_SEAT_TEST_DB_PASSWORD}"
+  else
+    echo "BOOKING_SEAT_TEST_DB_PASSWORD is not set: not creating the booking_seat_test schema (the Booking & Seat database tests will be skipped)"
+  fi
   create_schema payment        "${PAYMENT_DB_PASSWORD}"
   create_schema ticket         "${TICKET_DB_PASSWORD}"
   create_schema notification   "${NOTIFICATION_DB_PASSWORD}"

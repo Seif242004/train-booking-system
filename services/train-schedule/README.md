@@ -3,8 +3,8 @@
 Spring Boot service (Java 21, Gradle, Spring MVC: controller → service → repository) that owns trains, coaches,
 seats, standing capacity, routes, trips and stations (`CLAUDE.md`, "Services"). So far it has **stations**, **trains**,
 **coaches** (with standing capacity), **seats**, **routes** with ordered stops, **fares** and **trips**, all admin CRUD
-with the audit log required by FR-A10, plus passenger **trip search**. The Booking & Seat service and the trip snapshot
-push to it come next.
+with the audit log required by FR-A10, plus passenger **trip search**. Every trip that it creates, changes or deletes is
+also handed to Booking & Seat, which keeps its own copy (see "Trip snapshot").
 
 ## Responsibility
 
@@ -87,16 +87,29 @@ Rules worth knowing:
   TODO(slice 6): add the seats and standing places left for each journey, which Booking & Seat owns (FR-S2).
 - **Trips use trains, routes and stations:** a train or a route that has trips cannot be deleted (409 `train_in_use`,
   `route_in_use`), and the stops of a route that has trips cannot change (409 `route_in_use`; renaming is fine).
-- **Trip snapshot:** `TripSnapshotPublisher` is called when a trip is created or changed and does nothing yet.
-  TODO(slice 5): push the immutable snapshot (coaches, seats, capacity, stops and times, fares) to Booking & Seat through
-  an outbox and retry poller, and commit the trip only after Booking accepts it.
+- **Trip snapshot:** when a trip is created or changed, `TripSnapshotPublisher` builds the immutable snapshot (stops with
+  their times and offsets, coaches with standing capacity, seats, fares) and pushes it to Booking & Seat with
+  `PUT /internal/trips/{id}/snapshot`; when a trip is deleted it calls `DELETE /internal/trips/{id}`. The calls carry the
+  shared `INTERNAL_API_KEY` and the admin's id (for Booking's audit log). The push is **synchronous and the last step of the
+  admin request**, inside its transaction, so a trip is saved only after Booking has accepted it; there is no outbox for
+  it (the outbox and retry poller are for calls that do not need an answer first, such as emails). Timeouts: 2 s to
+  connect, 5 s to answer. Failures, all of which leave nothing saved: **409 `booking_conflict`** (Booking refuses: the trip
+  has holds or bookings, so its stops, times, train, date and fares are frozen and it cannot be deleted; or the change would
+  remove capacity that is in use; its explanation is passed on), **503 `booking_unavailable`** (not reachable, timeout,
+  a 5xx, or a wrong key) and **502 `booking_rejected_snapshot`** (Booking found the snapshot invalid, which is a fault in
+  our data, not something to retry). Pushing is idempotent, so after a failure the admin repeats the request. The one gap:
+  if Booking accepts and this service's commit then fails, Booking keeps a copy of a trip that does not exist; nothing
+  offers it to passengers and a later push of the same id overwrites it.
 - **Errors** have one JSON shape: `{ "error": { "code", "message", "details": [ { "field", "message" } ] } }`
   (`details` for validation and seat conflicts). A missing value reports only "is required". Security failures use the
   same shape: `401 unauthenticated` or `invalid_token`, `403 forbidden`.
-- **TODOs for when bookings exist (slice 5 on):** refuse changing or deleting a trip that has holds or confirmed bookings,
-  and relax the train delete to FR-A4 exactly (only future trips with confirmed bookings block it); refuse deleting a train that has future trips with confirmed bookings
-  (FR-A4, Flow 7), and refuse capacity changes (removing seats or coaches, lowering standing capacity) that conflict
-  with active holds or confirmed bookings (FR-A9). Until then these deletes and changes always go through.
+- **TODO, a separate slice before the hold logic:** the snapshot is pushed only when a trip is created, changed or deleted.
+  Things that are inside a snapshot but are edited elsewhere (coaches, seats, standing capacity, fares, station names) are
+  not pushed yet, so Booking's copy goes stale if they are edited after a trip exists. The planned rule: a fare edit
+  re-publishes the snapshots of all trips on the route and is refused with 409 if any of those trips has reservations;
+  the same for coach, seat and standing edits (Booking already refuses capacity changes that conflict with holds or
+  bookings, FR-A9). Also still open: relax the train delete to FR-A4 exactly (refuse deleting a train that has future
+  trips with confirmed bookings, Flow 7).
 
 ## Database
 
@@ -127,6 +140,8 @@ Set in `services/train-schedule/.env` (git-ignored; copy `.env.example`), or in 
 | `TRAIN_SCHEDULE_DB_USER` | `train_schedule` | Oracle user |
 | `KEYCLOAK_ISSUER` | `http://localhost:8180/realms/train-booking` | Expected token issuer; the keys are fetched from it |
 | `TRAINBOOKING_TIMEZONE` | `Africa/Cairo` | Time zone of trip times (entered, shown and used for "the date of a trip") |
+| `INTERNAL_API_KEY` | none, required | Key shared with Booking & Seat for the snapshot push (the same value in both `.env` files) |
+| `BOOKING_SEAT_URL` | `http://localhost:8082` | Where Booking & Seat runs |
 
 The service listens on port **8081**.
 

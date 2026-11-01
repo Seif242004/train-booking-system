@@ -13,6 +13,8 @@ services:
       # One password per service schema, read by infra/oracle/init/01-create-schemas.sh.
       TRAIN_SCHEDULE_DB_PASSWORD: ${TRAIN_SCHEDULE_DB_PASSWORD:?set TRAIN_SCHEDULE_DB_PASSWORD in .env}
       BOOKING_SEAT_DB_PASSWORD: ${BOOKING_SEAT_DB_PASSWORD:?set BOOKING_SEAT_DB_PASSWORD in .env}
+      # Optional: the booking_seat_test schema (for the Booking & Seat database tests) is created only if this is set.
+      BOOKING_SEAT_TEST_DB_PASSWORD: ${BOOKING_SEAT_TEST_DB_PASSWORD:-}
       PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD in .env}
       TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD:?set TICKET_DB_PASSWORD in .env}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD in .env}

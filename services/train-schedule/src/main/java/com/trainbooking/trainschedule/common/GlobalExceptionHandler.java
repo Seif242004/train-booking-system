@@ -14,6 +14,9 @@ import com.trainbooking.trainschedule.station.model.StationNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainInUseException;
 import com.trainbooking.trainschedule.train.model.TrainNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainNumberTakenException;
+import com.trainbooking.trainschedule.trip.model.BookingConflictException;
+import com.trainbooking.trainschedule.trip.model.BookingSnapshotRejectedException;
+import com.trainbooking.trainschedule.trip.model.BookingUnavailableException;
 import com.trainbooking.trainschedule.trip.model.RouteFaresIncompleteException;
 import com.trainbooking.trainschedule.trip.model.TrainHasNoCoachesException;
 import com.trainbooking.trainschedule.trip.model.TrainInactiveException;
@@ -145,6 +148,12 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.CONFLICT, ApiError.of("route_has_fares", e.getMessage()));
     }
 
+    @ExceptionHandler(BookingConflictException.class)
+    ResponseEntity<ApiError> bookingConflict(BookingConflictException e) {
+        return respond(HttpStatus.CONFLICT, e.details().isEmpty()
+                ? ApiError.of("booking_conflict", e.getMessage()) : ApiError.of("booking_conflict", e.getMessage(), e.details()));
+    }
+
     @ExceptionHandler(TrainNumberTakenException.class)
     ResponseEntity<ApiError> trainNumberTaken(TrainNumberTakenException e) {
         return respond(HttpStatus.CONFLICT, ApiError.of("train_number_taken", e.getMessage()));
@@ -163,6 +172,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(SeatConflictException.class)
     ResponseEntity<ApiError> seatConflict(SeatConflictException e) {
         return respond(HttpStatus.CONFLICT, ApiError.of("seat_conflict", e.getMessage(), e.details()));
+    }
+
+    // ---- 502 and 503: Booking and Seat, which keeps its own copy of every trip, did not accept the change ------------
+
+    @ExceptionHandler(BookingSnapshotRejectedException.class)
+    ResponseEntity<ApiError> bookingRejected(BookingSnapshotRejectedException e) {
+        return respond(HttpStatus.BAD_GATEWAY, e.details().isEmpty()
+                ? ApiError.of("booking_rejected_snapshot", e.getMessage()) : ApiError.of("booking_rejected_snapshot", e.getMessage(), e.details()));
+    }
+
+    @ExceptionHandler(BookingUnavailableException.class)
+    ResponseEntity<ApiError> bookingUnavailable() {
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, ApiError.of("booking_unavailable",
+                "Booking and Seat could not be reached, so the change was not saved. Try again in a moment."));
     }
 
     // ---- everything else ---------------------------------------------------------------------------------------

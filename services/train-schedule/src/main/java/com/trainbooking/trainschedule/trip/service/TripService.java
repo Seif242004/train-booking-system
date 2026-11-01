@@ -78,15 +78,15 @@ public class TripService {
         trips.insertStops(id, plan.rows());
         Trip created = get(id);
         audit.change(adminId, ENTITY, id, "CREATE", null, created);
-        snapshots.publish(created);
+        // Last step: Booking and Seat must accept the trip, or this request fails and nothing above is saved.
+        snapshots.publish(created, adminId);
         return created;
     }
 
     /**
      * Replaces the train, route, date and all stop times of a trip, with the same checks as create (the train must be
-     * ACTIVE only when it is changed, so that the times of an existing trip can still be corrected).
-     * TODO(slice 5): once bookings exist, refuse changes that would affect holds or confirmed bookings, and push the
-     * changed snapshot to Booking & Seat.
+     * ACTIVE only when it is changed, so that the times of an existing trip can still be corrected). The changed
+     * snapshot is pushed to Booking & Seat, which refuses it (409) if it would affect holds or bookings of the trip.
      */
     @Transactional
     public Trip update(long id, TripRequest request, String adminId) {
@@ -99,14 +99,14 @@ public class TripService {
         trips.insertStops(id, plan.rows());
         Trip after = get(id);
         audit.change(adminId, ENTITY, id, "UPDATE", before, after);
-        snapshots.publish(after);
+        // Booking and Seat refuses the change (409) if the trip has holds or bookings, and then nothing is saved.
+        snapshots.publish(after, adminId);
         return after;
     }
 
     /**
-     * Deletes a trip and its stops.
-     * TODO(slice 5): once bookings exist, refuse deleting a trip that has holds or confirmed bookings; it must be
-     * cancelled instead (Flow 8, slice 12). There are no bookings yet, so the delete always goes through.
+     * Deletes a trip and its stops, and asks Booking & Seat to drop its copy. Booking refuses (409) if the trip has holds
+     * or bookings: such a trip must be cancelled instead (Flow 8, slice 12).
      */
     @Transactional
     public void delete(long id, String adminId) {
@@ -115,6 +115,8 @@ public class TripService {
             throw new TripNotFoundException(id);
         }
         audit.change(adminId, ENTITY, id, "DELETE", before, null);
+        // Booking and Seat refuses (409) if the trip has holds or bookings: such a trip is cancelled, not deleted.
+        snapshots.remove(id, adminId);
     }
 
     // ---------------------------------------------------------------------------------------------------------------

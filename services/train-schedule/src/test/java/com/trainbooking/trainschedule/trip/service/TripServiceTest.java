@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,6 +30,8 @@ import com.trainbooking.trainschedule.train.model.Train;
 import com.trainbooking.trainschedule.train.model.TrainNotFoundException;
 import com.trainbooking.trainschedule.train.model.TrainStatus;
 import com.trainbooking.trainschedule.train.service.TrainService;
+import com.trainbooking.trainschedule.trip.model.BookingConflictException;
+import com.trainbooking.trainschedule.trip.model.BookingUnavailableException;
 import com.trainbooking.trainschedule.trip.model.RouteFaresIncompleteException;
 import com.trainbooking.trainschedule.trip.model.StopTimeRequest;
 import com.trainbooking.trainschedule.trip.model.TrainHasNoCoachesException;
@@ -117,7 +120,7 @@ class TripServiceTest {
         assertThat(rows.getValue().get(0).departure().getOffset()).isEqualTo(CAIRO.getRules().getOffset(DAY.atTime(8, 0)));
         assertThat(rows.getValue().get(2).departure()).isNull();
         verify(auditLog).record(eq("admin-1"), eq("trip"), eq(11L), eq("CREATE"), anyString());
-        verify(snapshots).publish(created);
+        verify(snapshots).publish(created, "admin-1");
     }
 
     @Test
@@ -174,7 +177,7 @@ class TripServiceTest {
                 .satisfies(e -> assertThat(((RouteFaresIncompleteException) e).details()).extracting(ApiError.Detail::message)
                         .containsExactly("segment 0 (Cairo to Giza) has no SECOND fare", "segment 1 (Giza to Alexandria) has no SECOND fare"));
         verify(trips, never()).insert(anyLong(), anyLong(), any());
-        verify(snapshots, never()).publish(any());
+        verify(snapshots, never()).publish(any(), anyString());
     }
 
     @Test
@@ -214,7 +217,7 @@ class TripServiceTest {
         verify(trips).deleteStops(11);
         verify(trips).insertStops(eq(11L), anyList());
         verify(auditLog).record(eq("admin-1"), eq("trip"), eq(11L), eq("UPDATE"), anyString());
-        verify(snapshots).publish(any());
+        verify(snapshots).publish(any(), eq("admin-1"));
     }
 
     @Test
@@ -243,5 +246,40 @@ class TripServiceTest {
         service.delete(11, "admin-1");
 
         verify(auditLog).record(eq("admin-1"), eq("trip"), eq(11L), eq("DELETE"), anyString());
+        verify(snapshots).remove(11, "admin-1"); // Booking and Seat is asked to drop its copy, as the last step
+    }
+
+    // ---- Booking and Seat must accept the trip, or the request fails (and the transaction rolls back) -----------
+
+    @Test
+    void create_whenBookingRefusesOrIsDown_theExceptionReachesTheCaller_soNothingIsCommitted() {
+        everythingValid();
+        given(trips.insert(7, 4, DAY)).willReturn(11L);
+        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11)));
+        doThrow(new BookingUnavailableException("down", new RuntimeException())).when(snapshots).publish(any(), anyString());
+
+        assertThatThrownBy(() -> service.create(request(7, 4), "admin-1")).isInstanceOf(BookingUnavailableException.class);
+    }
+
+    @Test
+    void update_whenBookingRefuses_theConflictReachesTheCaller() {
+        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11)), Optional.of(savedTrip(11)));
+        given(trains.get(7)).willReturn(ACTIVE_TRAIN);
+        given(routes.get(4)).willReturn(ROUTE);
+        given(coaches.listByTrain(7)).willReturn(FIRST_AND_SECOND);
+        given(fares.list(4)).willReturn(fares(CoachClass.FIRST, CoachClass.SECOND));
+        given(trips.update(11, 7, 4, DAY)).willReturn(true);
+        doThrow(new BookingConflictException("The trip has holds or bookings.", List.of())).when(snapshots).publish(any(), anyString());
+
+        assertThatThrownBy(() -> service.update(11, request(7, 4), "admin-1")).isInstanceOf(BookingConflictException.class);
+    }
+
+    @Test
+    void delete_whenBookingRefuses_theConflictReachesTheCaller() {
+        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11)));
+        given(trips.delete(11)).willReturn(true);
+        doThrow(new BookingConflictException("The trip has holds or bookings.", List.of())).when(snapshots).remove(anyLong(), anyString());
+
+        assertThatThrownBy(() -> service.delete(11, "admin-1")).isInstanceOf(BookingConflictException.class);
     }
 }

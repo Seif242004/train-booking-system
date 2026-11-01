@@ -28,6 +28,9 @@ import com.trainbooking.trainschedule.trip.model.Trip;
 import com.trainbooking.trainschedule.trip.model.TripNotFoundException;
 import com.trainbooking.trainschedule.trip.model.TripStatus;
 import com.trainbooking.trainschedule.trip.model.TripStop;
+import com.trainbooking.trainschedule.trip.model.BookingConflictException;
+import com.trainbooking.trainschedule.trip.model.BookingSnapshotRejectedException;
+import com.trainbooking.trainschedule.trip.model.BookingUnavailableException;
 import com.trainbooking.trainschedule.trip.service.TripService;
 import java.time.LocalDate;
 import java.util.List;
@@ -144,6 +147,43 @@ class TripControllerTest {
         mvc.perform(post("/admin/trips").with(admin()).contentType(MediaType.APPLICATION_JSON).content(BODY))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("train_has_no_coaches"));
+    }
+
+    @Test
+    void whenBookingAndSeatRefusesTheChange_theAnswerIs409_withItsExplanation() throws Exception {
+        given(service.update(eq(11L), any(), any())).willThrow(new BookingConflictException("Trip 11 has holds or bookings, so its date, train, stops, times and fares cannot change.",
+                List.of(new ApiError.Detail("fares", "cannot change: the trip has holds or bookings"))));
+
+        mvc.perform(put("/admin/trips/11").with(admin()).contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("booking_conflict"))
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("holds or bookings")))
+                .andExpect(jsonPath("$.error.details[0].field").value("fares"));
+        given(service.create(any(), any())).willThrow(new BookingConflictException("busy", List.of()));
+        mvc.perform(post("/admin/trips").with(admin()).contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.details").doesNotExist());
+    }
+
+    @Test
+    void whenBookingAndSeatIsDown_theAnswerIs503_andTheTripWasNotSaved() throws Exception {
+        given(service.create(any(), any())).willThrow(new BookingUnavailableException("down", new RuntimeException("Connection refused")));
+
+        mvc.perform(post("/admin/trips").with(admin()).contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error.code").value("booking_unavailable"))
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("was not saved")));
+    }
+
+    @Test
+    void whenBookingAndSeatFindsOurSnapshotInvalid_theAnswerIs502() throws Exception {
+        given(service.create(any(), any())).willThrow(new BookingSnapshotRejectedException("The request body is not valid.",
+                List.of(new ApiError.Detail("seats[0].class", "must be the class of its coach (FIRST)"))));
+
+        mvc.perform(post("/admin/trips").with(admin()).contentType(MediaType.APPLICATION_JSON).content(BODY))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.error.code").value("booking_rejected_snapshot"))
+                .andExpect(jsonPath("$.error.details[0].field").value("seats[0].class"));
     }
 
     @Test

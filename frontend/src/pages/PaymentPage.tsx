@@ -26,6 +26,8 @@ export function PaymentPage() {
   // processed) and the page waits for the server's confirmation, which comes from Stripe's signed webhook.
   const [payment, setPayment] = useState<{ state: 'idle' | 'loading' | 'ready' | 'waiting' | 'unavailable'; start?: PaymentStart; message?: string }>({ state: 'idle' });
   const paymentAsked = useRef(false);
+  // "Email my ticket again" on the confirmed booking (FR-T4).
+  const [resend, setResend] = useState<{ state: 'idle' | 'sending' | 'done' | 'error'; message?: string }>({ state: 'idle' });
 
   const load = useCallback(async () => {
     const result = await gatewayGet(`/bookings/${id}`);
@@ -109,6 +111,13 @@ export function PaymentPage() {
     }
   }, [booking, navigate]);
 
+  async function resendTicket() {
+    setResend({ state: 'sending' });
+    const result = await gatewayRequest('POST', `/bookings/${id}/resend-ticket`);
+    if (result.status === 202) setResend({ state: 'done' });
+    else setResend({ state: 'error', message: readError(result).message });
+  }
+
   if (error) {
     return (
       <section>
@@ -156,7 +165,16 @@ export function PaymentPage() {
         <p className="booking-total">Total <strong>{booking.amount.toFixed(2)}</strong> {booking.currency}</p>
       </div>
 
-      {booking.status === 'CONFIRMED' && <p className="notice notice-ok">Your booking is confirmed.</p>}
+      {booking.status === 'CONFIRMED' && (
+        <>
+          <p className="notice notice-ok">Your booking is confirmed. We are emailing your ticket (a PDF with its QR code); it can take a moment to arrive.</p>
+          <p>
+            <button type="button" className="button" disabled={resend.state === 'sending'} onClick={() => void resendTicket()}>Email my ticket again</button>
+            {resend.state === 'done' && <span role="status"> The ticket is on its way.</span>}
+            {resend.state === 'error' && <span role="alert" className="notice notice-error"> {resend.message}</span>}
+          </p>
+        </>
+      )}
       {booking.status === 'PENDING_PAYMENT' && (
         <fieldset className="payment-box" disabled={timeIsUp}>
           <legend>Pay</legend>

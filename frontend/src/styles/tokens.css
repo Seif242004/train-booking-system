@@ -1,0 +1,75 @@
+/* Design tokens: the single place where colours, type, radii, spacing and shadows are defined (docs/design/DESIGN.md).
+   Red is for the brand bar, the main action of a screen and selection. No other accent colours. */
+:root {
+  color-scheme: light;
+
+  /* Colour */
+  --red: #e10801;
+  --red-hover: #b80600;
+  --red-text: #c20700; /* links and small red text on white */
+  --ink: #191329;
+  --ink-2: #3b3450;
+  --muted: #4a4360; /* at least 4.5:1 on white and on paper */
+  --paper: #f4f3f5;
+  --white: #ffffff;
+  --line: #dcd8e2;
+  --line-soft: #eeebf2;
+  --ok-bg: #d9f3e3;
+  --ok-text: #006b2b;
+  --warn-bg: #fff4dc;
+  --warn-text: #7a4b00;
+  --danger-tint: #fff4f3;
+  --danger-border: #f3c9c7;
+  --danger-text: #8c0500;
+  --timer-ok: #00b64c;
+  --timer-low: #ff6b64;
+  --disabled: #6d6680;
+
+  /* Type */
+  --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Shape */
+  --r-control: 14px; /* inputs and buttons */
+  --r-card: 20px;
+  --r-hero-card: 24px;
+  --r-pill: 999px;
+  --r-seat: 12px;
+
+  /* Depth */
+  --shadow-rest: 0 2px 8px rgba(25, 19, 41, 0.05);
+  --shadow-raised: 0 18px 48px rgba(25, 19, 41, 0.14);
+  --shadow-hover: 0 14px 36px rgba(25, 19, 41, 0.12);
+
+  /* Layout */
+  --container: 1120px;
+  --gutter: 24px;
+  --touch: 44px; /* minimum size of anything you press */
+  --field-h: 54px;
+  --button-h: 54px;
+
+  /* Motion */
+  --ease: ease;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --t-fast: 150ms;
+}
+
+@media (max-width: 480px) {
+  :root {
+    --gutter: 16px;
+  }
+}
+
+/* Names the pages not yet rebuilt still use (styles/legacy.css). Removed when that file is. */
+:root {
+  --bg: var(--paper);
+  --surface: var(--white);
+  --text: var(--ink);
+  --border: var(--line);
+  --accent: var(--red);
+  --accent-text: #ffffff;
+  --ok: var(--ok-text);
+  --fail: var(--danger-text);
+  --fail-bg: var(--danger-tint);
+  --warn-border: #e2c15a;
+}

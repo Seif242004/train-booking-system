@@ -1,0 +1,179 @@
+/* Reset, typography and the pieces every page shares: container, focus ring, skeleton, utilities. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: clamp(28px, 4.5vw, 36px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  margin: 32px 0 12px;
+  font-size: clamp(22px, 3vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+h3,
+h4 {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+a {
+  color: var(--red-text);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--red-hover);
+}
+
+.mono,
+pre,
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* Prices, countdowns and counters do not jiggle when a digit changes. */
+.tabular,
+time,
+output {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus: a 3px ink ring on every control, white on dark areas. Never removed. */
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.on-dark :focus-visible,
+.dark :focus-visible {
+  outline-color: #fff;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.visually-hidden,
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -64px;
+  z-index: 20;
+  padding: 12px 20px;
+  font-weight: 700;
+  color: var(--ink);
+  background: #fff;
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-raised);
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Loading placeholder: a calm grey block with a slow light sweep. Only for waits longer than about 300 ms. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--line-soft);
+  border-radius: var(--r-control);
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: shimmer 1.3s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Entrance used by lists and cards: rises once. The element is fully visible when animation is switched off, because only the
+   keyframes (not the element) hold the starting state. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Everything that moves or fades is switched off when the person asks for less motion: the final state is shown at once. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

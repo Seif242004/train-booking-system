@@ -1,0 +1,166 @@
+/* App shell: the red header bar, the dark footer, and the page frame. */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1 0 auto;
+  outline: none;
+}
+
+.app-main > .container {
+  padding-top: 40px;
+  padding-bottom: 72px;
+}
+
+/* Header: red bar, white wordmark on the left, navigation on the right. */
+.site-header {
+  position: relative;
+  z-index: 5;
+  color: #fff;
+  background: var(--red);
+}
+
+.site-header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 24px;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 10px var(--gutter);
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+}
+
+.brand-logo img {
+  display: block;
+  width: auto;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 28px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.site-nav a,
+.site-nav .nav-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid transparent;
+  cursor: pointer;
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+.site-nav a:hover,
+.site-nav .nav-button:hover {
+  color: #fff;
+  opacity: 0.8;
+}
+
+.site-nav a.active {
+  border-bottom-color: #fff;
+}
+
+.site-nav .nav-pill {
+  padding: 0 20px;
+  font-weight: 700;
+  color: var(--red-text);
+  background: #fff;
+  border: none;
+  border-radius: var(--r-pill);
+}
+
+.site-nav .nav-pill:hover {
+  color: var(--red-hover);
+  opacity: 1;
+  background: var(--danger-tint);
+}
+
+.site-nav .who {
+  max-width: 14rem;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+/* Footer: dark, wordmark, links, the Stripe line. */
+.site-footer {
+  flex-shrink: 0;
+  color: #bdb6cc;
+  background: var(--ink);
+  border-top: 1px solid var(--ink-2);
+}
+
+.site-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 28px;
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 36px var(--gutter);
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 28px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.site-footer nav a,
+.site-footer nav button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #bdb6cc;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--t-fast) var(--ease);
+}
+
+.site-footer nav a:hover,
+.site-footer nav button:hover {
+  color: #fff;
+}
+
+.site-footer p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* The placeholder wordmark PNG carries its own red background: on the dark footer it is shown as a rounded badge. */
+.site-footer .brand-logo img {
+  border-radius: 8px;
+}

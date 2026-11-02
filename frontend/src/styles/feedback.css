@@ -102,3 +102,21 @@
   place-items: center;
   padding: 40px var(--gutter);
 }
+
+/* ---- Delight, restrained (A8): a short route rise, tactile presses. All of it is off under prefers-reduced-motion (base.css). ---- */
+.route-in {
+  animation: route-in 0.18s var(--ease-out) backwards;
+}
+
+@keyframes route-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.chip:active,
+.link-button:active,
+.class-tab:active {
+  transform: scale(0.97);
+}

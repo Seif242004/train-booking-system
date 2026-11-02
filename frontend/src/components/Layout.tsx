@@ -70,11 +70,14 @@ export function Layout() {
             <PageNav back={back} />
           </div>
         )}
-        {fullBleed ? <Outlet /> : (
-          <div className="container">
-            <Outlet />
-          </div>
-        )}
+        {/* A short rise when the page changes: the wrapper is new for every address. */}
+        <div key={pathname} className="route-in">
+          {fullBleed ? <Outlet /> : (
+            <div className="container">
+              <Outlet />
+            </div>
+          )}
+        </div>
       </main>
       <SessionEnded />
       <footer className="site-footer on-dark">

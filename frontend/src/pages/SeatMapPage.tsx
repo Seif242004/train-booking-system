@@ -4,6 +4,7 @@ import { CLASS_LABEL, COACH_CLASSES, type CoachClass } from '../adminTypes';
 import { gatewayGet, gatewayRequest, readError, type GatewayResult } from '../api';
 import type { Booking } from '../bookingTypes';
 import { BookingSteps } from '../components/BookingSteps';
+import { CountUp } from '../components/CountUp';
 import { HoldCard } from '../components/HoldCard';
 import { SeatShape, type SeatLook } from '../components/SeatShape';
 import { TrainStrip } from '../components/TrainStrip';
@@ -497,7 +498,7 @@ export function SeatMapPage() {
                 </ul>
                 <p className="selection-total">
                   <span>Total</span>
-                  <strong>{money(hold.amount, hold.currency)}</strong>
+                  <strong><CountUp amount={hold.amount} currency={hold.currency} /></strong>
                 </p>
                 <p className="selection-count muted">{itemCount} {itemCount === 1 ? 'place' : 'places'} held</p>
                 <div className="pay-desktop">{payButton}</div>

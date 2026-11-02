@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import { BookingSteps } from '../components/BookingSteps';
+import { CountUp } from '../components/CountUp';
 import { HoldCard } from '../components/HoldCard';
 import { StripeCheckout } from '../components/StripeCheckout';
 import { PageNav } from '../components/PageNav';
@@ -214,7 +215,7 @@ export function PaymentPage() {
             </ul>
             <p className="selection-total">
               <span>Total</span>
-              <strong>{money(booking.amount, booking.currency)}</strong>
+              <strong><CountUp amount={booking.amount} currency={booking.currency} /></strong>
             </p>
             <p className="selection-count muted">
               Booking reference <strong className="mono">{booking.reference}</strong>

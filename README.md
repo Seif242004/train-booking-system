@@ -27,6 +27,8 @@ Prerequisites: Docker. Everything else (Java, Node, Gradle) is inside the images
 3. For the Stripe webhook secret: `docker compose logs stripe-cli` prints a `whsec_...`; put it in `.env` as `STRIPE_WEBHOOK_SECRET` and run `docker compose up -d payment`.
 4. Open http://localhost:5173 and sign in as `dev.user@example.com` (passenger) or `dev.admin@example.com` (admin), with the passwords from `.env`. Emails land in Mailpit at http://localhost:8025, logs and traces in OpenObserve at http://localhost:5080 (the login from `.env`).
 
+The web app has help and policy pages (Help and FAQ, Cancellations and refunds, Terms of use, Privacy notice, Contact). The Terms and the Privacy notice are drafts for supervisor review. The Contact page shows `VITE_SUPPORT_EMAIL` (a build argument of the web app image; the default is a marked placeholder, `support@example.invalid`): set the real address before real use. The ticket PDF can be downloaded in the browser through the Gateway (`GET /bookings/{id}/ticket`), which therefore also needs `INTERNAL_API_KEY` (Compose passes it).
+
 Without `--profile dev` the stack runs without Mailpit and the Stripe CLI (point `MAIL_HOST` and the Stripe webhook at real ones).
 
 `docker compose down` stops it; `docker compose down -v` also deletes the databases and the OpenObserve data.

@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
+import { useAuth } from '../auth/AuthContext';
+import { BookingSteps } from '../components/BookingSteps';
+import { HoldCard } from '../components/HoldCard';
 import { StripeCheckout } from '../components/StripeCheckout';
+import { TicketView } from '../components/TicketView';
 import { gatewayGet, gatewayRequest, readError } from '../api';
 import type { Booking, PaymentStart } from '../bookingTypes';
 import { connectLive } from '../live/connectLive';
-import { formatRemaining, remainingMs, startCountdown, type Countdown } from '../countdown';
-import { clock } from '../time';
+import { remainingMs, startCountdown, type Countdown } from '../countdown';
+import { money } from '../format';
+import { clock, dayLabel } from '../time';
 
 /** What the seat map says when the five minutes ran out (SRS FR-H5). */
 export const EXPIRED_MESSAGE = 'Your 5 minutes ran out. The seats were released, please select again.';
@@ -16,6 +21,7 @@ export const TRIP_CANCELLED_MESSAGE = 'This trip was cancelled.';
 export function PaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState<number | null>(null);
@@ -121,85 +127,116 @@ export function PaymentPage() {
   if (error) {
     return (
       <section>
+        <BookingSteps current="payment" />
         <h1>Payment</h1>
-        <p className="notice notice-error">{error}</p>
+        <p className="notice notice-error" role="alert">{error}</p>
         <p><Link to="/search">Back to the search</Link></p>
       </section>
     );
   }
-  if (!booking) return <p className="muted">Loading your booking…</p>;
+  if (!booking) {
+    return (
+      <section aria-busy="true">
+        <BookingSteps current="payment" />
+        <p className="muted">Loading your booking…</p>
+      </section>
+    );
+  }
+
+  if (booking.status === 'CONFIRMED') {
+    return (
+      <section>
+        <BookingSteps current="ticket" />
+        <TicketView booking={booking} passenger={user?.name ?? user?.email ?? null} resend={resend} onResend={() => void resendTicket()} />
+      </section>
+    );
+  }
 
   const timeIsUp = left !== null && left <= 0;
+  const holding = booking.status === 'PENDING_PAYMENT';
+  const testMode = payment.start?.publishableKey?.startsWith('pk_test_') ?? false;
 
   return (
-    <section>
-      {booking.status === 'PENDING_PAYMENT' && (
-        <p><Link to={`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`}>← Back to the seat map</Link> (your seats stay held)</p>
-      )}
-      <h1>{booking.status === 'CONFIRMED' ? 'Booking confirmed' : 'Payment'}</h1>
-      <p>Booking reference <strong className="mono">{booking.reference}</strong></p>
+    <section className="payment-page">
+      <BookingSteps current="payment" />
+      <h1>Pay for your trip</h1>
 
-      {booking.status === 'PENDING_PAYMENT' && (
-        <p className={`countdown${timeIsUp ? ' countdown-over' : ''}`} role="timer" aria-live="off">
-          <span className="muted">Time left to pay:</span> <strong>{formatRemaining(left ?? 5 * 60 * 1000)}</strong>
-          {timeIsUp && <span> · Time is up. Checking with the server…</span>}
-        </p>
-      )}
+      <div className="pay-layout">
+        {holding && (
+          <fieldset className="pay-card" disabled={timeIsUp}>
+            <legend className="sr-only">Pay</legend>
+            <div className="pay-card-head">
+              <h2>Card details</h2>
+              {testMode && <span className="status-chip is-warn">Test mode · no real charges</span>}
+            </div>
+            {payment.state === 'loading' && (
+              <div aria-busy="true">
+                <p className="muted">Preparing the payment form…</p>
+                <div className="skeleton" style={{ height: 160 }} />
+              </div>
+            )}
+            {payment.state === 'unavailable' && (
+              <>
+                <p className="notice notice-error" role="alert">{payment.message}</p>
+                <button type="button" className="button" onClick={() => { paymentAsked.current = false; setPayment({ state: 'idle' }); void load(); }}>Try again</button>
+              </>
+            )}
+            {payment.state === 'waiting' && (
+              <>
+                <p role="status" className="notice notice-ok">Your payment was received. Waiting for the confirmation…</p>
+                {/* If the payment did not go through after all (a bank step failed), the form can be asked for again. */}
+                <button type="button" className="button" onClick={() => { paymentAsked.current = false; setPayment({ state: 'idle' }); void load(); }}>
+                  Pay again
+                </button>
+              </>
+            )}
+            {payment.state === 'ready' && payment.start && payment.start.publishableKey && (
+              <StripeCheckout publishableKey={payment.start.publishableKey} clientSecret={payment.start.clientSecret}
+                amountLabel={money(payment.start.amount, payment.start.currency)}
+                returnUrl={`${window.location.origin}/bookings/${booking.id}/pay`} onSubmitted={() => setPayment({ state: 'waiting' })} />
+            )}
+            <p className="pay-note">Payments are processed by Stripe. Card details never touch our servers. Your booking is confirmed as soon as the payment succeeds.</p>
+          </fieldset>
+        )}
 
-      <div className="coach-card">
-        <h2>
-          {booking.trip.from.stationName} → {booking.trip.to.stationName}
-        </h2>
-        <p className="muted">
-          {booking.trip.departureDate} · {clock(booking.trip.from.departureTime)} → {clock(booking.trip.to.arrivalTime)} ·{' '}
-          <span className="mono">{booking.trip.trainNumber}</span> {booking.trip.trainName}
-        </p>
-        <ul className="booking-items">
-          {booking.items.map((item, index) => (
-            <li key={index}>
-              {item.type === 'SEAT' ? `Seat ${item.seatNumber} · coach ${item.coachCode}` : `${item.qty} standing ${item.qty === 1 ? 'place' : 'places'} · coach ${item.coachCode}`}
-              {' '}<span className="muted">({CLASS_LABEL[item.coachClass]})</span> <strong>{item.price.toFixed(2)}</strong> {booking.currency}
-            </li>
-          ))}
-        </ul>
-        <p className="booking-total">Total <strong>{booking.amount.toFixed(2)}</strong> {booking.currency}</p>
+        <aside className="pay-summary" aria-label="Order summary">
+          {holding && <HoldCard left={left} label="Seats held for" timeIsUp={timeIsUp} />}
+          <div className="selection-card">
+            <h2>Order summary</h2>
+            <p className="summary-route">
+              <span className="summary-clock">{clock(booking.trip.from.departureTime)}</span> <strong>{booking.trip.from.stationName}</strong>
+              <span aria-hidden="true" className="trip-arrow"> → </span>
+              <span className="summary-clock">{clock(booking.trip.to.arrivalTime)}</span> <strong>{booking.trip.to.stationName}</strong>
+            </p>
+            <p className="selection-sub">
+              {dayLabel(booking.trip.departureDate)} · Train <span className="mono">{booking.trip.trainNumber}</span> {booking.trip.trainName}
+            </p>
+            <ul className="selection-list summary-items">
+              {booking.items.map((item, index) => (
+                <li key={index}>
+                  <div className="selection-what">
+                    <p className="selection-title">{item.type === 'SEAT' ? `Seat ${item.seatNumber}` : `${item.qty} standing ${item.qty === 1 ? 'place' : 'places'}`}</p>
+                    <p className="selection-sub">{CLASS_LABEL[item.coachClass]} class · Coach {item.coachCode}</p>
+                  </div>
+                  <span className="selection-price">{money(item.price, booking.currency)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="selection-total">
+              <span>Total</span>
+              <strong>{money(booking.amount, booking.currency)}</strong>
+            </p>
+            <p className="selection-count muted">
+              Booking reference <strong className="mono">{booking.reference}</strong>
+            </p>
+          </div>
+          {holding && (
+            <Link className="link-button summary-back" to={`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`}>
+              Back to seats <span className="muted">(your seats stay held)</span>
+            </Link>
+          )}
+        </aside>
       </div>
-
-      {booking.status === 'CONFIRMED' && (
-        <>
-          <p className="notice notice-ok">Your booking is confirmed. We are emailing your ticket (a PDF with its QR code); it can take a moment to arrive.</p>
-          <p>
-            <button type="button" className="button" disabled={resend.state === 'sending'} onClick={() => void resendTicket()}>Email my ticket again</button>
-            {resend.state === 'done' && <span role="status"> The ticket is on its way.</span>}
-            {resend.state === 'error' && <span role="alert" className="notice notice-error"> {resend.message}</span>}
-          </p>
-        </>
-      )}
-      {booking.status === 'PENDING_PAYMENT' && (
-        <fieldset className="payment-box" disabled={timeIsUp}>
-          <legend>Pay</legend>
-          {payment.state === 'loading' && <p className="muted">Preparing the payment form…</p>}
-          {payment.state === 'unavailable' && (
-            <>
-              <p className="notice notice-error" role="alert">{payment.message}</p>
-              <button type="button" className="button" onClick={() => { paymentAsked.current = false; setPayment({ state: 'idle' }); void load(); }}>Try again</button>
-            </>
-          )}
-          {payment.state === 'waiting' && (
-            <>
-              <p role="status">Your payment was received. Waiting for the confirmation…</p>
-              {/* If the payment did not go through after all (a bank step failed), the form can be asked for again. */}
-              <button type="button" className="button" onClick={() => { paymentAsked.current = false; setPayment({ state: 'idle' }); void load(); }}>
-                Pay again
-              </button>
-            </>
-          )}
-          {payment.state === 'ready' && payment.start && payment.start.publishableKey && (
-            <StripeCheckout publishableKey={payment.start.publishableKey} clientSecret={payment.start.clientSecret}
-              returnUrl={`${window.location.origin}/bookings/${booking.id}/pay`} onSubmitted={() => setPayment({ state: 'waiting' })} />
-          )}
-        </fieldset>
-      )}
     </section>
   );
 }

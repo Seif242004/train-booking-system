@@ -1,0 +1,990 @@
+/* The booking flow: step indicator, seat map, hold countdown, payment and the ticket. */
+
+/* ---- Steps ---------------------------------------------------------------------------------------------------------------------- */
+.booking-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 0 0 28px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.booking-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5f5873;
+}
+
+.booking-step-current {
+  color: var(--ink);
+}
+
+/* The line between two steps is decoration only. */
+.booking-step:not(:last-child)::after {
+  content: '';
+  width: 24px;
+  height: 2px;
+  margin-left: 4px;
+  background: #d9d5df;
+}
+
+.booking-step-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: #5f5873;
+  background: #e9e6ee;
+  border-radius: var(--r-pill);
+}
+
+.booking-step-done .booking-step-badge {
+  color: var(--ok-text);
+  background: var(--ok-bg);
+}
+
+.booking-step-current .booking-step-badge {
+  color: #fff;
+  background: var(--red);
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Trip summary and the two columns ------------------------------------------------------------------------------------------- */
+.trip-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 40px;
+  padding: 20px 24px;
+  background: var(--white);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+}
+
+.trip-summary-route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.trip-summary-clock {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.trip-summary-station {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.trip-summary-meta {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.trip-summary-change {
+  margin-left: auto;
+}
+
+.seatmap-page > .notice {
+  margin-top: 16px;
+}
+
+.seatmap-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+  margin-top: 24px;
+}
+
+.seat-picker {
+  flex: 1 1 520px;
+  min-width: 0;
+  padding: 28px;
+  background: var(--white);
+  border-radius: 24px;
+  box-shadow: var(--shadow-rest);
+}
+
+.selection-column {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 420px;
+  min-width: 0;
+}
+
+/* ---- Class tabs, coach chips, legend, plan -------------------------------------------------------------------------------------- */
+.class-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.class-tab {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 20px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-control);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+
+.class-tab:hover {
+  border-color: var(--red);
+}
+
+.class-tab[aria-pressed='true'] {
+  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.class-tab-price {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.plan-pop {
+  animation: pop 0.35s var(--ease-out) backwards;
+}
+
+.coach-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.coach-chips-label {
+  margin-right: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5f5873;
+}
+
+.coach-chips .chip {
+  min-width: 48px;
+  justify-content: center;
+}
+
+.plan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.plan-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--disabled);
+  background: var(--white);
+  border: 1.5px solid #cfc9d8;
+  border-radius: 6px;
+}
+
+.legend-swatch.is-mine,
+.plan-seat.is-mine {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.legend-swatch.is-held,
+.plan-seat.is-held {
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border: 1.5px dashed #d4b96a;
+}
+
+.legend-swatch.is-booked,
+.plan-seat.is-booked {
+  color: var(--disabled);
+  background: #ece9f0;
+  border-color: #ece9f0;
+}
+
+.coach-plan {
+  max-width: 420px;
+  margin: 24px auto 0;
+  padding: 20px 24px 28px;
+  background: #faf9fb;
+  border: 1.5px solid #e6e2ec;
+  border-radius: 28px;
+}
+
+.plan-label {
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--disabled);
+}
+
+.plan-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-row {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+
+.plan-rownum {
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--disabled);
+}
+
+.plan-seat,
+.plan-seat-empty {
+  width: 100%;
+  max-width: 48px;
+  min-width: 0;
+  min-height: var(--touch);
+  aspect-ratio: 1 / 1;
+  justify-self: center;
+}
+
+.plan-seat {
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--white);
+  border: 1.5px solid #cfc9d8;
+  border-radius: var(--r-seat);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.plan-seat:not(:disabled):hover {
+  border-color: var(--red);
+  transform: translateY(-1px);
+}
+
+.plan-seat:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.plan-seat:disabled {
+  cursor: not-allowed;
+}
+
+.plan-seat:disabled:not(.is-booked):not(.is-held):not(.is-mine) {
+  opacity: 0.6;
+}
+
+.plan-seat.is-mine:disabled {
+  opacity: 0.85;
+}
+
+/* ---- Standing places ------------------------------------------------------------------------------------------------------------- */
+.standing-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 24px;
+  padding: 28px;
+  background: #faf9fb;
+  border: 1.5px solid #e6e2ec;
+  border-radius: var(--r-card);
+}
+
+.standing-card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.standing-card p {
+  max-width: 340px;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #5f5873;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stepper output {
+  min-width: 32px;
+  font-size: 28px;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-button {
+  width: 48px;
+  height: 48px;
+  font: inherit;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--white);
+  border: 1.5px solid #cfc9d8;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.stepper-button:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.stepper-plus {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.stepper-button:disabled {
+  color: var(--disabled);
+  background: var(--line-soft);
+  border-color: var(--line-soft);
+  cursor: not-allowed;
+}
+
+/* ---- Hold card (countdown) and the selection list -------------------------------------------------------------------------------- */
+.hold-card {
+  padding: 20px 22px;
+  color: #fff;
+  background: var(--ink);
+  border-radius: var(--r-card);
+  animation: pop 0.35s var(--ease-out) backwards;
+}
+
+.hold-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hold-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e4e0ee;
+}
+
+.hold-time {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.hold-track {
+  height: 6px;
+  margin-top: 14px;
+  overflow: hidden;
+  background: var(--ink-2);
+  border-radius: var(--r-pill);
+}
+
+.hold-bar {
+  width: 100%;
+  height: 100%;
+  background: var(--timer-ok);
+  border-radius: var(--r-pill);
+  transition: width 1s linear, background-color 0.3s var(--ease);
+}
+
+.hold-bar.is-low {
+  background: var(--timer-low);
+}
+
+.hold-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e4e0ee;
+}
+
+.selection-card {
+  padding: 22px;
+  background: var(--white);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+}
+
+.selection-card h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.selection-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.selection-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+  animation: pop 0.35s var(--ease-out) backwards;
+}
+
+.selection-what {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.selection-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.selection-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #5f5873;
+}
+
+.selection-price {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  color: #5f5873;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.icon-button:hover {
+  background: var(--line-soft);
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.selection-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 18px 0 0;
+}
+
+.selection-total span {
+  font-size: 15px;
+  font-weight: 600;
+  color: #5f5873;
+}
+
+.selection-total strong {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-count {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.pay-button {
+  width: 100%;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.release-all {
+  display: flex;
+  margin: 8px auto 0;
+  color: #5f5873;
+}
+
+.hold-bar-mobile {
+  display: none;
+}
+
+/* ---- Payment -------------------------------------------------------------------------------------------------------------------- */
+.pay-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.pay-card {
+  flex: 1 1 520px;
+  min-width: 0;
+  margin: 0;
+  padding: 32px;
+  background: var(--white);
+  border: 0;
+  border-radius: 24px;
+  box-shadow: var(--shadow-rest);
+  animation: pop 0.35s var(--ease-out) backwards;
+}
+
+.pay-card:disabled {
+  opacity: 0.6;
+}
+
+.pay-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.pay-card-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.pay-note {
+  margin: 18px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #5f5873;
+}
+
+.pay-submit {
+  margin: 20px 0 0;
+}
+
+.pay-submit .button {
+  width: 100%;
+  min-height: 56px;
+  gap: 10px;
+  font-size: 17px;
+}
+
+.pay-card .notice {
+  margin-top: 16px;
+}
+
+.pay-summary {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 420px;
+  min-width: 0;
+}
+
+.summary-route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 15px;
+}
+
+.summary-clock {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-items {
+  margin-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.summary-back {
+  align-self: center;
+}
+
+/* ---- Ticket --------------------------------------------------------------------------------------------------------------------- */
+.ticket-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-top: 12px;
+}
+
+.ticket-confirmation {
+  text-align: center;
+}
+
+.ticket-confirmation h1 {
+  margin: 18px 0 0;
+  font-size: clamp(30px, 5vw, 36px);
+}
+
+.ticket-confirmation p {
+  max-width: 52ch;
+  margin: 10px auto 0;
+  color: #5f5873;
+}
+
+/* The check draws itself: ring first, then the tick. Only the keyframes hold the hidden start, so it is complete when motion is off. */
+.check-draw {
+  display: block;
+  margin: 0 auto;
+}
+
+.check-ring,
+.check-tick {
+  stroke: var(--timer-ok);
+}
+
+.check-ring {
+  stroke-dasharray: 170;
+  animation: draw-ring 0.7s 0.1s ease-out backwards;
+}
+
+.check-tick {
+  stroke-dasharray: 40;
+  animation: draw-tick 0.45s 0.7s ease-out backwards;
+}
+
+@keyframes draw-ring {
+  from {
+    stroke-dashoffset: 170;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes draw-tick {
+  from {
+    stroke-dashoffset: 40;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ticket {
+  margin-top: 36px;
+  overflow: hidden;
+  background: var(--white);
+  border-radius: 28px;
+  box-shadow: 0 20px 56px rgba(25, 19, 41, 0.14);
+  animation: rise 0.7s 0.3s var(--ease-out) backwards;
+}
+
+.ticket-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 32px;
+  color: #fff;
+  background: var(--red);
+}
+
+.ticket-top span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ticket-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px 40px;
+  padding: 32px;
+}
+
+.ticket-main {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.ticket-route {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ticket-clock {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ticket-station {
+  margin: 6px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ticket-end {
+  text-align: right;
+}
+
+.ticket-line {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 40px;
+}
+
+.ticket-line span {
+  width: 8px;
+  height: 8px;
+  background: var(--red);
+  border-radius: var(--r-pill);
+}
+
+.ticket-line .ticket-line-bar {
+  flex: 1 1 auto;
+  width: auto;
+  height: 2px;
+  background: #e4c3c1;
+  border-radius: 0;
+}
+
+.ticket-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+  margin: 0;
+}
+
+.ticket-facts dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: #5f5873;
+}
+
+.ticket-facts dd {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.ticket-perforation {
+  flex: 0 0 2px;
+  align-self: stretch;
+  border-left: 2px dashed var(--line);
+}
+
+.ticket-code {
+  display: flex;
+  flex: 0 1 200px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto;
+}
+
+.ticket-qr-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px;
+  color: #5f5873;
+  text-align: center;
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+}
+
+.ticket-qr-note p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.ticket-ref-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.ticket-ref {
+  margin: -8px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.ticket-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.ticket-actions .button {
+  min-height: var(--button-h);
+}
+
+.ticket-status {
+  min-height: 3em;
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* ---- Wide screens: the selection stays in view while the plan scrolls -------------------------------------------------------------- */
+@media (min-width: 900px) {
+  .selection-column {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+/* ---- Phones and tablets ------------------------------------------------------------------------------------------------------------ */
+@media (max-width: 899px) {
+  .seatmap-page {
+    padding-bottom: 96px;
+  }
+
+  .pay-desktop {
+    display: none;
+  }
+
+  /* The countdown and the button to continue stay at the bottom of the screen while the plan scrolls. */
+  .hold-bar-mobile {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px var(--gutter);
+    background: var(--white);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgba(25, 19, 41, 0.1);
+  }
+
+  .hold-bar-time {
+    display: block;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hold-bar-sub {
+    font-size: 13px;
+    color: #5f5873;
+  }
+
+  .hold-bar-mobile .pay-button {
+    width: auto;
+    margin: 0;
+    padding: 0 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .seat-picker,
+  .pay-card {
+    padding: 20px 16px;
+  }
+
+  .coach-plan {
+    padding: 16px 12px 20px;
+  }
+
+  .ticket-body,
+  .ticket-top {
+    padding: 24px 20px;
+  }
+
+  .ticket-clock {
+    font-size: 32px;
+  }
+
+  .ticket-perforation {
+    flex: 0 0 100%;
+    align-self: auto;
+    height: 0;
+    border-left: 0;
+    border-top: 2px dashed var(--line);
+  }
+}

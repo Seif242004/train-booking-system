@@ -49,3 +49,8 @@ export function dayHeading(day: string, today: string): string {
   if (day === addDays(today, 1)) return `Tomorrow, ${dayLabel(day)}`;
   return dayLabel(day);
 }
+
+/** "2026-11-14" becomes "Sat 14 Nov 2026". */
+export function fullDay(day: string): string {
+  return `${dayLabel(day)} ${day.slice(0, 4)}`;
+}

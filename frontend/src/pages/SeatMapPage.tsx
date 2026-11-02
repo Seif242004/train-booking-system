@@ -1,24 +1,41 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { CLASS_LABEL } from '../adminTypes';
+import { CLASS_LABEL, COACH_CLASSES, type CoachClass } from '../adminTypes';
 import { gatewayGet, gatewayRequest, readError, type GatewayResult } from '../api';
 import type { Booking } from '../bookingTypes';
-import { formatRemaining, remainingMs, startCountdown, type Countdown } from '../countdown';
+import { BookingSteps } from '../components/BookingSteps';
+import { HoldCard } from '../components/HoldCard';
+import { remainingMs, startCountdown, formatRemaining, type Countdown } from '../countdown';
+import { money } from '../format';
 import { applySeatEvent } from '../live/applySeatEvent';
 import { connectLive } from '../live/connectLive';
 import type { SeatMap, SeatMapCoach, SeatMapSeat, SeatState } from '../seatMapTypes';
-import { clock } from '../time';
+import { clock, dayLabel, duration } from '../time';
+import { useDelayedFlag } from '../useDelayedFlag';
 import { EXPIRED_MESSAGE, TRIP_CANCELLED_MESSAGE } from './PaymentPage';
 
 const STATE_LABEL: Record<SeatState, string> = { AVAILABLE: 'Available', HELD: 'Held by someone', BOOKED: 'Booked' };
-// A glyph next to the seat number, so the state never depends on colour alone (NFR-9).
-const STATE_MARK: Record<SeatState, string> = { AVAILABLE: '', HELD: '◐', BOOKED: '✕' };
+// A glyph on the seat, so the state never depends on colour alone (NFR-9): the letter when free, a mark otherwise.
+const STATE_MARK: Record<SeatState, string> = { AVAILABLE: '', HELD: '◐', BOOKED: '×' };
 
-/** The seats of a coach as rows: seats with the same row number side by side, in column order. */
-function rowsOf(coach: SeatMapCoach): SeatMapSeat[][] {
-  const byRow = new Map<number, SeatMapSeat[]>();
-  for (const seat of coach.seats) byRow.set(seat.row, [...(byRow.get(seat.row) ?? []), seat]);
-  return [...byRow.entries()].sort((a, b) => a[0] - b[0]).map(([, seats]) => seats.sort((a, b) => a.column.localeCompare(b.column)));
+/**
+ * The plan of a coach: one line per seat row, the seat columns split into a left and a right side around the aisle (two and two, or two
+ * and one, or whatever the coach has). A column that has no seat in some row is left empty, so the aisle stays straight.
+ */
+function planOf(coach: SeatMapCoach): { left: string[]; right: string[]; rows: { row: number; seats: Map<string, SeatMapSeat> }[] } {
+  const columns = [...new Set(coach.seats.map((seat) => seat.column))].sort((a, b) => a.localeCompare(b));
+  const leftCount = Math.ceil(columns.length / 2);
+  const byRow = new Map<number, Map<string, SeatMapSeat>>();
+  for (const seat of coach.seats) {
+    const seats = byRow.get(seat.row) ?? new Map<string, SeatMapSeat>();
+    seats.set(seat.column, seat);
+    byRow.set(seat.row, seats);
+  }
+  return {
+    left: columns.slice(0, leftCount),
+    right: columns.slice(leftCount),
+    rows: [...byRow.entries()].sort((a, b) => a[0] - b[0]).map(([row, seats]) => ({ row, seats })),
+  };
 }
 
 /**
@@ -31,6 +48,7 @@ export function SeatMapPage() {
   const [query] = useSearchParams();
   const from = query.get('from') ?? '';
   const to = query.get('to') ?? '';
+  const classFromAddress = query.get('class');
   const navigate = useNavigate();
   // The payment page sends the user back here with a message when the hold ran out or the trip was cancelled (SRS FR-H5).
   const redirectMessage = (useLocation().state as { message?: string } | null)?.message ?? null;
@@ -45,6 +63,10 @@ export function SeatMapPage() {
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [left, setLeft] = useState<number | null>(null);
   const countdown = useRef<Countdown | null>(null);
+  // What the passenger chose to look at: a class tab and a coach chip. Null until they choose; then a sensible default is used.
+  const [chosenClass, setChosenClass] = useState<CoachClass | null>(null);
+  const [chosenCoach, setChosenCoach] = useState<number | null>(null);
+  const showSkeleton = useDelayedFlag(map === null && error === null);
 
   const load = useCallback(async () => {
     const result = await gatewayGet(`/trips/${id}/seat-map?from=${from}&to=${to}`);
@@ -197,6 +219,17 @@ export function SeatMapPage() {
     });
   }
 
+  /** The remove button of a standing line in the selection list: gives back all the places of that coach at once. */
+  async function releaseStanding(coachId: number, qty: number) {
+    if (!hold) return;
+    setProblem(null);
+    await withBusy(`coach:${coachId}`, async () => {
+      const result = await gatewayRequest('POST', `/bookings/${hold.id}/release`, { body: { coachId, qty } });
+      if (result.status === 200) await load();
+      else await explain(result);
+    });
+  }
+
   async function releaseAll() {
     if (!hold) return;
     setProblem(null);
@@ -208,28 +241,104 @@ export function SeatMapPage() {
   if (error) {
     return (
       <section>
-        <h1>Seat map</h1>
-        <p className="notice notice-error">{error}</p>
+        <BookingSteps current="seats" />
+        <h1>Choose your seats</h1>
+        <p className="notice notice-error" role="alert">{error}</p>
         <p><Link to="/search">Back to the search</Link></p>
       </section>
     );
   }
-  if (!map) return <p className="muted">Loading the seat map…</p>;
+  if (!map) {
+    return (
+      <section aria-busy="true">
+        <BookingSteps current="seats" />
+        <p className="sr-only">Loading the seat map…</p>
+        {showSkeleton && (
+          <>
+            <div className="skeleton" style={{ height: 92, borderRadius: 20 }} />
+            <div className="seatmap-layout">
+              <div className="skeleton" style={{ flex: '1 1 520px', height: 520, borderRadius: 24 }} />
+              <div className="skeleton" style={{ flex: '1 1 320px', maxWidth: 420, height: 320, borderRadius: 20 }} />
+            </div>
+          </>
+        )}
+      </section>
+    );
+  }
 
   const closed = map.status === 'CANCELLED' || map.tripStatus !== 'OPEN';
   const timeIsUp = left !== null && left <= 0;
   const canPick = !closed && sameJourney && !timeIsUp;
+  const holding = hold !== null && sameJourney;
   const itemCount = hold ? hold.items.reduce((sum, item) => sum + item.qty, 0) : 0;
   const priceOf = (coachClass: SeatMapCoach['class']) => map.fares[coachClass] ?? 0;
 
+  // Which class tab and coach chip are shown: the passenger's choice, else the class asked for in the address (the fare tile they came
+  // from), else the class of what they already hold, else the first class that still has room.
+  const classes = COACH_CLASSES.filter((c) => map.coaches.some((coach) => coach.class === c));
+  const heldClass = hold?.items[0]?.coachClass;
+  const roomIn = (c: CoachClass) => (map.summary.seatsLeft[c] ?? 0) + (map.summary.standingLeft[c] ?? 0) > 0;
+  const shownClass: CoachClass | undefined =
+    (chosenClass && classes.includes(chosenClass) ? chosenClass : undefined) ??
+    classes.find((c) => c === classFromAddress) ??
+    (heldClass && classes.includes(heldClass) ? heldClass : undefined) ??
+    classes.find(roomIn) ??
+    classes[0];
+  const coachesOfClass = map.coaches.filter((coach) => coach.class === shownClass);
+  const hasRoom = (coach: SeatMapCoach) => coach.seats.some((seat) => seat.state === 'AVAILABLE') || coach.standing.remaining > 0;
+  const heldInCoach = (coach: SeatMapCoach) => coach.seats.some((seat) => mySeatIds.has(seat.id)) || (myStanding.get(coach.id) ?? 0) > 0;
+  const shownCoach =
+    coachesOfClass.find((coach) => coach.id === chosenCoach) ?? coachesOfClass.find(heldInCoach) ?? coachesOfClass.find(hasRoom) ?? coachesOfClass[0];
+  const plan = shownCoach ? planOf(shownCoach) : null;
+  const stops = map.journey.toStop - map.journey.fromStop + 1;
+
+  function seatButton(seat: SeatMapSeat | undefined, key: string) {
+    if (!seat) return <span key={key} className="plan-seat-empty" aria-hidden="true" />;
+    const mine = mySeatIds.has(seat.id);
+    const state: SeatState = seat.state;
+    const clickable = mine ? sameJourney && !timeIsUp : canPick && state === 'AVAILABLE';
+    const mark = mine ? '✓' : STATE_MARK[state] || seat.column;
+    return (
+      <button key={key} type="button"
+        className={`plan-seat ${mine ? 'is-mine' : state === 'HELD' ? 'is-held' : state === 'BOOKED' ? 'is-booked' : ''}`}
+        disabled={!clickable || busy.has(String(seat.id))}
+        aria-pressed={mine}
+        aria-label={`Seat ${seat.seatNumber}, ${mine ? 'yours, held. Press to release it' : STATE_LABEL[state]}`}
+        onClick={() => void (mine ? releaseSeat(seat) : pickSeat(seat))}>
+        {mark}
+      </button>
+    );
+  }
+
+  const seatById = (seatId: number | undefined) => map.coaches.flatMap((coach) => coach.seats).find((seat) => seat.id === seatId);
+  const payButton = (
+    <button type="button" className="button button-primary pay-button" disabled={timeIsUp} onClick={() => hold && navigate(`/bookings/${hold.id}/pay`)}>
+      Continue to payment
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </svg>
+    </button>
+  );
+
   return (
-    <section>
-      <p><Link to="/search">← Back to the search</Link></p>
-      <h1>Choose your seats</h1>
-      <p className="seatmap-journey">
-        <strong>{map.journey.from?.stationName}</strong> {clock(map.journey.departureTime)} → <strong>{map.journey.to?.stationName}</strong>{' '}
-        {clock(map.journey.arrivalTime)} · {map.departureDate} · <span className="mono">{map.train.number}</span> {map.train.name}
-      </p>
+    <section className="seatmap-page">
+      <BookingSteps current="seats" />
+
+      <div className="trip-summary" aria-label="Trip">
+        <div className="trip-summary-route">
+          <span className="trip-summary-clock">{clock(map.journey.departureTime)}</span>
+          <span className="trip-summary-station">{map.journey.from?.stationName}</span>
+          <span aria-hidden="true" className="trip-arrow">→</span>
+          <span className="trip-summary-clock">{clock(map.journey.arrivalTime)}</span>
+          <span className="trip-summary-station">{map.journey.to?.stationName}</span>
+        </div>
+        <p className="trip-summary-meta">
+          {dayLabel(map.departureDate)} · Train <span className="mono">{map.train.number}</span> {map.train.name}
+          {map.journey.departureTime && map.journey.arrivalTime && <> · {duration(map.journey.departureTime, map.journey.arrivalTime)}</>} · {stops} stops
+        </p>
+        <Link className="link-button trip-summary-change" to="/search">Change trip</Link>
+      </div>
+
       {notice && <p className="notice notice-error" role="alert">{notice}</p>}
       {problem && <p className="notice notice-error" role="alert">{problem}</p>}
       {closed && <p className="notice notice-error">This trip is closed: it is cancelled or being cancelled, so seats cannot be held.</p>}
@@ -237,86 +346,139 @@ export function SeatMapPage() {
         <p className="notice notice-error">
           You are holding seats on this trip for another journey ({hold.trip.from.stationName} to {hold.trip.to.stationName}).{' '}
           <Link to={`/trips/${map.tripId}/seats?from=${hold.fromStop}&to=${hold.toStop}`}>Go to that journey</Link> or{' '}
-          <button type="button" className="button" onClick={() => void releaseAll()}>release them</button> to choose here.
+          <button type="button" className="link-button" onClick={() => void releaseAll()}>release them</button> to choose here.
         </p>
       )}
-      {!hold && !closed && <p className="muted">Pick a seat to hold it. Your 5 minutes start with the first seat you pick.</p>}
 
-      <ul className="seatmap-legend" aria-label="Legend">
-        <li><span className="seat seat-legend">1A</span> Available</li>
-        <li><span className="seat seat-legend seat-selected">1A ✓</span> Yours (held)</li>
-        <li><span className="seat seat-legend seat-held">1A ◐</span> Held by someone</li>
-        <li><span className="seat seat-legend seat-booked">1A ✕</span> Booked</li>
-      </ul>
+      <div className="seatmap-layout">
+        <section className="seat-picker" aria-label="Seat selection">
+          <div role="group" aria-label="Class" className="class-tabs">
+            {classes.map((c) => (
+              <button key={c} type="button" className="class-tab" aria-pressed={c === shownClass} onClick={() => { setChosenClass(c); setChosenCoach(null); }}>
+                {CLASS_LABEL[c]} class
+                <span className="class-tab-price">{money(priceOf(c))}</span>
+              </button>
+            ))}
+          </div>
 
-      {map.coaches.map((coach) => (
-        <div key={coach.id} className="coach-card">
-          <h2>
-            Coach {coach.code} <span className="muted">· {CLASS_LABEL[coach.class]} class · {priceOf(coach.class).toFixed(2)} EGP per seat for this journey</span>
-          </h2>
-          {coach.seats.length === 0 ? (
-            <p className="muted">This coach has no seats.</p>
-          ) : (
-            <div className="coach-rows" role="group" aria-label={`Seats of coach ${coach.code}`}>
-              {rowsOf(coach).map((row) => (
-                <div key={row[0].row} className="coach-row">
-                  {row.map((seat) => {
-                    const mine = mySeatIds.has(seat.id);
-                    const state: SeatState = seat.state;
-                    const clickable = mine ? sameJourney && !timeIsUp : canPick && state === 'AVAILABLE';
+          {shownCoach && plan && (
+            <div className="plan-pop" key={shownCoach.id}>
+              <div role="group" aria-label="Coach" className="coach-chips">
+                <span className="coach-chips-label">Coach</span>
+                {coachesOfClass.map((coach) => {
+                  const free = coach.seats.filter((seat) => seat.state === 'AVAILABLE').length;
+                  return (
+                    <button key={coach.id} type="button" className="chip" aria-pressed={coach.id === shownCoach.id}
+                      aria-label={`Coach ${coach.code}, ${free} ${free === 1 ? 'seat' : 'seats'} left`} onClick={() => setChosenCoach(coach.id)}>
+                      {coach.code}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <ul className="plan-legend" aria-label="Legend">
+                <li><span className="legend-swatch" aria-hidden="true" />Available</li>
+                <li><span className="legend-swatch is-mine" aria-hidden="true">✓</span>Your seat</li>
+                <li><span className="legend-swatch is-held" aria-hidden="true">◐</span>Held by someone</li>
+                <li><span className="legend-swatch is-booked" aria-hidden="true">×</span>Booked</li>
+              </ul>
+
+              {shownCoach.seats.length === 0 ? (
+                <p className="muted">This coach has no seats.</p>
+              ) : (
+                <div className="coach-plan">
+                  <p className="plan-label">Front of the train</p>
+                  <div className="plan-rows" role="group" aria-label={`Seats of coach ${shownCoach.code}`}>
+                    {plan.rows.map(({ row, seats }) => (
+                      <div key={row} className="plan-row" style={{ gridTemplateColumns: `repeat(${plan.left.length}, minmax(0, 1fr)) 28px repeat(${plan.right.length}, minmax(0, 1fr))` }}>
+                        {plan.left.map((column) => seatButton(seats.get(column), `${row}${column}`))}
+                        <span className="plan-rownum" aria-hidden="true">{row}</span>
+                        {plan.right.map((column) => seatButton(seats.get(column), `${row}${column}`))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {shownCoach.standing.capacity > 0 && (
+                <div className="standing-card">
+                  <div>
+                    <h2>Standing places</h2>
+                    <p>
+                      No seat is assigned. <strong>{shownCoach.standing.remaining}</strong> of {shownCoach.standing.capacity} left in coach {shownCoach.code}.
+                    </p>
+                  </div>
+                  <div role="group" aria-label="Number of standing places" className="stepper">
+                    <button type="button" className="stepper-button" aria-label={`Give back a standing place in coach ${shownCoach.code}`}
+                      disabled={!sameJourney || timeIsUp || (myStanding.get(shownCoach.id) ?? 0) === 0 || busy.has(`coach:${shownCoach.id}`)}
+                      onClick={() => void changeStanding(shownCoach, -1)}>−</button>
+                    <output aria-live="polite" aria-label={`Your standing places in coach ${shownCoach.code}`}>{myStanding.get(shownCoach.id) ?? 0}</output>
+                    <button type="button" className="stepper-button stepper-plus" aria-label={`Take a standing place in coach ${shownCoach.code}`}
+                      disabled={!canPick || shownCoach.standing.remaining === 0 || busy.has(`coach:${shownCoach.id}`)}
+                      onClick={() => void changeStanding(shownCoach, 1)}>+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        <aside className="selection-column" aria-label="Your selection">
+          {holding && (
+            <HoldCard left={left} label="Seats held for you" bar timeIsUp={timeIsUp}
+              note="The hold started when you picked your first seat. Adding seats does not extend it." />
+          )}
+
+          <div className="selection-card">
+            <h2>Your selection</h2>
+            {holding && hold && hold.items.length > 0 ? (
+              <>
+                <ul className="selection-list">
+                  {hold.items.map((item) => {
+                    const seat = item.type === 'SEAT' ? seatById(item.seatId) : undefined;
+                    const label = item.type === 'SEAT' ? `Seat ${item.seatNumber}` : `Standing × ${item.qty}`;
                     return (
-                      <button key={seat.id} type="button"
-                        className={`seat ${mine ? 'seat-selected' : state === 'HELD' ? 'seat-held' : state === 'BOOKED' ? 'seat-booked' : ''}`}
-                        disabled={!clickable || busy.has(String(seat.id))}
-                        aria-pressed={mine}
-                        aria-label={`Seat ${seat.seatNumber}, ${mine ? 'yours, held. Press to release it' : STATE_LABEL[state]}`}
-                        onClick={() => void (mine ? releaseSeat(seat) : pickSeat(seat))}>
-                        {seat.seatNumber} {mine ? '✓' : STATE_MARK[state]}
-                      </button>
+                      <li key={item.type === 'SEAT' ? `s${item.seatId}` : `c${item.coachId}`}>
+                        <div className="selection-what">
+                          <p className="selection-title">{label}</p>
+                          <p className="selection-sub">{item.type === 'SEAT' ? `${CLASS_LABEL[item.coachClass]} class · Coach ${item.coachCode}` : `No assigned seat · Coach ${item.coachCode}`}</p>
+                        </div>
+                        <span className="selection-price">{money(item.price, hold.currency)}</span>
+                        <button type="button" className="icon-button" aria-label={item.type === 'SEAT' ? `Remove seat ${item.seatNumber}` : `Remove standing places in coach ${item.coachCode}`}
+                          disabled={timeIsUp || (item.type === 'SEAT' ? !seat || busy.has(String(item.seatId)) : busy.has(`coach:${item.coachId}`))}
+                          onClick={() => void (item.type === 'SEAT' ? (seat && releaseSeat(seat)) : releaseStanding(item.coachId, item.qty))}>
+                          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                            <path d="M6 6l12 12M18 6L6 18" />
+                          </svg>
+                        </button>
+                      </li>
                     );
                   })}
-                </div>
-              ))}
-            </div>
-          )}
-          {coach.standing.capacity > 0 && (
-            <div className="standing-row">
-              <span>Standing places: <strong>{coach.standing.remaining}</strong> of {coach.standing.capacity} left</span>
-              <span className="stepper">
-                <button type="button" className="button" aria-label={`Give back a standing place in coach ${coach.code}`}
-                  disabled={!sameJourney || timeIsUp || (myStanding.get(coach.id) ?? 0) === 0 || busy.has(`coach:${coach.id}`)}
-                  onClick={() => void changeStanding(coach, -1)}>−</button>
-                <output aria-label={`Your standing places in coach ${coach.code}`}>{myStanding.get(coach.id) ?? 0}</output>
-                <button type="button" className="button" aria-label={`Take a standing place in coach ${coach.code}`}
-                  disabled={!canPick || coach.standing.remaining === 0 || busy.has(`coach:${coach.id}`)}
-                  onClick={() => void changeStanding(coach, 1)}>+</button>
-              </span>
-            </div>
-          )}
-        </div>
-      ))}
-
-      <div className="selection-bar">
-        {hold && sameJourney ? (
-          <>
-            <span>
-              <span className={`countdown${timeIsUp ? ' countdown-over' : ''}`} role="timer" aria-live="off">
-                <span className="muted">Time left:</span> <strong>{formatRemaining(left ?? 5 * 60 * 1000)}</strong>
-              </span>
-              {' '}· {itemCount} held · <strong>{hold.amount.toFixed(2)}</strong> {hold.currency}
-              {timeIsUp && <span> · Time is up. Checking with the server…</span>}
-            </span>
-            <span className="actions">
-              <button type="button" className="button" onClick={() => void releaseAll()}>Release all</button>
-              <button type="button" className="button button-primary" disabled={timeIsUp} onClick={() => navigate(`/bookings/${hold.id}/pay`)}>
-                Continue to payment
-              </button>
-            </span>
-          </>
-        ) : (
-          <span>Nothing held yet.</span>
-        )}
+                </ul>
+                <p className="selection-total">
+                  <span>Total</span>
+                  <strong>{money(hold.amount, hold.currency)}</strong>
+                </p>
+                <p className="selection-count muted">{itemCount} {itemCount === 1 ? 'place' : 'places'} held</p>
+                <div className="pay-desktop">{payButton}</div>
+                <button type="button" className="link-button release-all" onClick={() => void releaseAll()}>Release all seats</button>
+              </>
+            ) : (
+              !closed && <p className="muted">Pick a seat on the plan. Your 5-minute hold starts with your first pick.</p>
+            )}
+          </div>
+        </aside>
       </div>
+
+      {holding && hold && (
+        <div className="hold-bar-mobile" aria-label="Your hold">
+          <div>
+            <span className="hold-bar-time">{formatRemaining(left ?? 5 * 60 * 1000)}</span>
+            <span className="hold-bar-sub">{itemCount} held · {money(hold.amount, hold.currency)}</span>
+          </div>
+          {payButton}
+        </div>
+      )}
     </section>
   );
 }

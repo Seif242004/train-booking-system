@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAdmin, RequireAuth } from './auth/guards';
+import { AdminLayout } from './components/AdminLayout';
 import { Layout } from './components/Layout';
 import { Landing } from './pages/Landing';
 import { Admin } from './pages/Admin';
@@ -32,6 +33,7 @@ export function App() {
               <Route path="bookings" element={<MyBookingsPage />} />
               <Route path="bookings/:id/pay" element={<PaymentPage />} />
               <Route element={<RequireAdmin />}>
+                <Route element={<AdminLayout />}>
                 <Route path="admin" element={<Admin />} />
                 <Route path="admin/stations" element={<Stations />} />
                 <Route path="admin/trains" element={<Trains />} />
@@ -40,6 +42,7 @@ export function App() {
                 <Route path="admin/trips" element={<Trips />} />
                 <Route path="admin/support" element={<SupportPage />} />
                 <Route path="admin/routes/:id/fares" element={<RouteFares />} />
+                </Route>
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

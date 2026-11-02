@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { AdminHeader } from '../components/AdminHeader';
+import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
 
 interface Station {
@@ -45,7 +46,15 @@ export function Stations() {
     void load();
   }, [load]);
 
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  function startAdd() {
+    resetForm();
+    setPanelOpen(true);
+  }
+
   function resetForm() {
+    setPanelOpen(false);
     setForm(EMPTY_FORM);
     setEditingId(null);
     setFieldErrors({});
@@ -53,6 +62,7 @@ export function Stations() {
   }
 
   function startEdit(station: Station) {
+    setPanelOpen(true);
     setForm({ code: station.code, name: station.name, city: station.city });
     setEditingId(station.id);
     setFieldErrors({});
@@ -109,17 +119,14 @@ export function Stations() {
 
   return (
     <section>
-      <p>
-        <Link to="/admin">← Admin</Link>
-      </p>
-      <h1>Stations</h1>
+      <AdminHeader title="Stations" action={<button type="button" className="button button-primary button-compact" onClick={startAdd}>Add station</button>} />
 
       <p className="notice-slot" role="status" aria-live="polite">
         {notice && <span className="notice notice-ok">{notice}</span>}
       </p>
 
+      <SlideOver open={panelOpen} title={editingId === null ? 'Add station' : 'Edit station'} onClose={resetForm}>
       <form className="form" onSubmit={submit} noValidate>
-        <h2>{editingId === null ? 'Add station' : 'Edit station'}</h2>
 
         <div className="field">
           <label htmlFor="station-code">Code</label>
@@ -182,13 +189,13 @@ export function Stations() {
           )}
         </div>
       </form>
+      </SlideOver>
 
-      <h2>All stations</h2>
       {loadError && <p className="notice notice-error">{loadError}</p>}
       {stations === null && !loadError && <p className="muted">Loading…</p>}
-      {stations?.length === 0 && <p className="muted">No stations yet. Add the first one with the form above.</p>}
+      {stations?.length === 0 && <p className="muted">No stations yet. Use "Add station" to add the first one.</p>}
       {stations && stations.length > 0 && (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr>
               <th scope="col">Code</th>
@@ -232,7 +239,7 @@ export function Stations() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

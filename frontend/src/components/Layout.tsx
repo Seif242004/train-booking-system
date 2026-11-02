@@ -4,11 +4,13 @@ import { BrandLogo } from './BrandLogo';
 
 // Pages that draw their own full-width sections and their own container.
 const FULL_BLEED = ['/', '/search'];
+// The admin area has its own sidebar layout.
+const isFullBleed = (path: string) => FULL_BLEED.includes(path) || path === '/admin' || path.startsWith('/admin/');
 
 export function Layout() {
   const { status, authenticated, user, hasRole, login, logout } = useAuth();
   // Every other page sits in the 1120px container.
-  const fullBleed = FULL_BLEED.includes(useLocation().pathname);
+  const fullBleed = isFullBleed(useLocation().pathname);
 
   return (
     <div className="app">

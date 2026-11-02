@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { Route, Station } from '../adminTypes';
+import { AdminHeader } from '../components/AdminHeader';
+import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError, type ApiErrorDetail } from '../api';
 
 /** Admin page for routes (FR-A8): a name and an ordered list of stations. Fares are set on their own page. */
@@ -43,7 +45,15 @@ export function RouteList() {
   const stationById = useMemo(() => new Map((stations ?? []).map((s) => [s.id, s])), [stations]);
   const available = (stations ?? []).filter((s) => !stopIds.includes(s.id));
 
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  function startAdd() {
+    resetForm();
+    setPanelOpen(true);
+  }
+
   function resetForm() {
+    setPanelOpen(false);
     setName('');
     setStopIds([]);
     setPick('');
@@ -55,6 +65,7 @@ export function RouteList() {
   }
 
   function startEdit(route: Route) {
+    setPanelOpen(true);
     setName(route.name);
     setStopIds(route.stops.map((s) => s.stationId));
     setPick('');
@@ -151,10 +162,7 @@ export function RouteList() {
 
   return (
     <section>
-      <p>
-        <Link to="/admin">← Admin</Link>
-      </p>
-      <h1>Routes</h1>
+      <AdminHeader title="Routes" action={<button type="button" className="button button-primary button-compact" onClick={startAdd}>Add route</button>} />
 
       <p className="notice-slot" role="status" aria-live="polite">
         {notice && <span className="notice notice-ok">{notice}</span>}
@@ -166,8 +174,8 @@ export function RouteList() {
         </p>
       )}
 
+      <SlideOver open={panelOpen} title={editingId === null ? 'Add route' : 'Edit route'} onClose={resetForm} wide>
       <form className="form" onSubmit={submit} noValidate>
-        <h2>{editingId === null ? 'Add route' : 'Edit route'}</h2>
 
         <div className="field">
           <label htmlFor="route-name">Name</label>
@@ -256,13 +264,13 @@ export function RouteList() {
           )}
         </div>
       </form>
+      </SlideOver>
 
-      <h2>All routes</h2>
       {loadError && <p className="notice notice-error">{loadError}</p>}
       {routes === null && !loadError && <p className="muted">Loading…</p>}
-      {routes?.length === 0 && <p className="muted">No routes yet. Add the first one with the form above.</p>}
+      {routes?.length === 0 && <p className="muted">No routes yet. Use "Add route" to add the first one.</p>}
       {routes && routes.length > 0 && (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr>
               <th scope="col">Name</th>
@@ -293,7 +301,7 @@ export function RouteList() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

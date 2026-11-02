@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CLASS_LABEL, COACH_CLASSES, type Coach, type CoachClass, type Train } from '../adminTypes';
+import { AdminHeader } from '../components/AdminHeader';
+import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
 import { CoachSeats } from '../components/CoachSeats';
+import { label } from '../format';
 
 interface CoachForm {
   code: string;
@@ -63,7 +66,15 @@ export function TrainDetail() {
     };
   }, [trainId, loadCoaches]);
 
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  function startAdd() {
+    resetForm();
+    setPanelOpen(true);
+  }
+
   function resetForm() {
+    setPanelOpen(false);
     setForm(EMPTY_FORM);
     setEditingId(null);
     setFieldErrors({});
@@ -71,6 +82,7 @@ export function TrainDetail() {
   }
 
   function startEdit(coach: Coach) {
+    setPanelOpen(true);
     setForm({ code: coach.code, class: coach.class, position: String(coach.position), standingCapacity: String(coach.standingCapacity) });
     setEditingId(coach.id);
     setFieldErrors({});
@@ -148,11 +160,11 @@ export function TrainDetail() {
 
   return (
     <section>
-      <p><Link to="/admin/trains">← Trains</Link></p>
-      <h1>{train ? `Train ${train.number}` : 'Train'}</h1>
+      <AdminHeader title={train ? `Train ${train.number}` : 'Train'} back={{ to: '/admin/trains', label: 'Trains' }}
+        action={<button type="button" className="button button-primary button-compact" onClick={startAdd}>Add coach</button>} />
       {train && (
         <p className="muted">
-          {train.name} · {train.type} · <span className={train.status === 'ACTIVE' ? 'badge badge-ok' : 'badge'}>{train.status}</span>
+          {train.name} · {train.type} · <span className={train.status === 'ACTIVE' ? 'badge badge-ok' : 'badge'}>{label(train.status)}</span>
         </p>
       )}
 
@@ -160,8 +172,8 @@ export function TrainDetail() {
         {notice && <span className="notice notice-ok">{notice}</span>}
       </p>
 
+      <SlideOver open={panelOpen} title={editingId === null ? 'Add coach' : 'Edit coach'} onClose={resetForm}>
       <form className="form" onSubmit={submit} noValidate>
-        <h2>{editingId === null ? 'Add coach' : 'Edit coach'}</h2>
         <div className="inline-fields">
           <div className="field">
             <label htmlFor="coach-code">Code</label>
@@ -209,15 +221,16 @@ export function TrainDetail() {
           )}
         </div>
       </form>
+      </SlideOver>
 
       <h2>Coaches</h2>
       {loadError && <p className="notice notice-error">{loadError}</p>}
       {coaches === null && !loadError && <p className="muted">Loading…</p>}
-      {coaches?.length === 0 && <p className="muted">This train has no coaches yet. Add the first one with the form above.</p>}
+      {coaches?.length === 0 && <p className="muted">This train has no coaches yet. Use "Add coach" to add the first one.</p>}
       {coaches && coaches.length > 0 && (
         <>
           <p className="muted">In train order. Total standing capacity: {totalStanding}.</p>
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th scope="col">Position</th>
@@ -255,7 +268,7 @@ export function TrainDetail() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </>
       )}
 

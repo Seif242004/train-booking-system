@@ -65,7 +65,7 @@ export function TripCancellation({ tripId, tripStatus, onChanged }: Props) {
     <div className="trip-cancellation">
       {status && status.status !== 'OPEN' && (
         <p role="status">
-          <span className={pending ? 'badge' : 'badge badge-ok'}>{pending ? 'CANCELLED - bookings pending' : 'CANCELLED'}</span>{' '}
+          <span className={pending ? 'badge' : 'badge badge-ok'}>{pending ? 'Cancelled - bookings pending' : 'Cancelled'}</span>{' '}
           <span className="muted">
             {status.cancelledBookings} booking{status.cancelledBookings === 1 ? '' : 's'} cancelled (refunds follow)
             {pending && `, ${status.pendingConfirmed} confirmed and ${status.pendingHolds} hold${status.pendingHolds === 1 ? '' : 's'} left${status.trainScheduleNotified ? '' : ', search not updated yet'}`}

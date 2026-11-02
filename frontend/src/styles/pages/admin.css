@@ -1,0 +1,489 @@
+/* Admin area: dark sidebar, thin top line, page header, tables, slide-over panels, overview cards, support and trip cancellation. */
+.admin-shell {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 70vh;
+}
+
+.admin-side {
+  flex: 0 0 248px;
+  padding: 24px 16px;
+  color: #fff;
+  background: var(--ink);
+}
+
+.admin-side-title {
+  margin: 0 12px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #bdb6cc;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.admin-nav a {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 12px;
+  color: #e4e0ee;
+  text-decoration: none;
+  border-radius: 12px;
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.admin-nav a:hover {
+  color: #fff;
+  background: #2a2240;
+}
+
+.admin-nav a.active {
+  color: #fff;
+  background: var(--red);
+}
+
+.admin-main {
+  flex: 999 1 640px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 14px 32px;
+  background: var(--white);
+  border-bottom: 1px solid #e6e2ec;
+}
+
+.admin-topbar p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #5f5873;
+}
+
+.admin-topbar span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-content {
+  max-width: 1240px;
+  padding: 32px;
+}
+
+.admin-page-head {
+  margin-bottom: 20px;
+}
+
+.admin-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-page-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.admin-page-title h1 {
+  margin: 0;
+  font-size: clamp(26px, 3.4vw, 30px);
+}
+
+.admin-content h2 {
+  margin: 28px 0 12px;
+  font-size: 20px;
+}
+
+.admin-content .notice-slot {
+  min-height: 0;
+  margin: 0 0 12px;
+}
+
+.admin-content .notice-slot:empty {
+  display: none;
+}
+
+/* ---- Tables: they scroll inside their own box ------------------------------------------------------------------------------------ */
+.table-wrap .table {
+  min-width: 560px;
+}
+
+.table tbody tr {
+  transition: background-color var(--t-fast) var(--ease);
+}
+
+.table tbody tr:hover {
+  background: #faf9fb;
+}
+
+.table td,
+.table th[scope='row'] {
+  vertical-align: middle;
+}
+
+.table .row-actions .button {
+  min-height: var(--touch);
+}
+
+.times-line {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.table input[type='time'],
+.table input[type='number'],
+.table input[type='text'] {
+  min-height: var(--touch);
+  padding: 0 10px;
+  font-size: 15px;
+}
+
+.stop-times input[type='time'] {
+  max-width: 150px;
+}
+
+.stop-times th[scope='row'],
+.fare-grid th[scope='row'] {
+  font-weight: 500;
+}
+
+.stop-times .field-error {
+  display: block;
+  max-width: 22rem;
+}
+
+.fare-grid td input {
+  min-width: 6rem;
+}
+
+.fare-grid tfoot th,
+.fare-grid tfoot td {
+  border-bottom: none;
+  font-weight: 700;
+}
+
+/* ---- Slide-over panel -------------------------------------------------------------------------------------------------------------- */
+.slide-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(25, 19, 41, 0.45);
+  animation: fade 0.2s var(--ease) backwards;
+}
+
+.slide-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  height: 100%;
+  background: var(--white);
+  box-shadow: var(--shadow-raised);
+  animation: panel 0.4s var(--ease-out) backwards;
+}
+
+.slide-panel-wide {
+  width: min(720px, 100%);
+}
+
+.slide-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 16px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.slide-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.slide-body {
+  flex: 1 1 auto;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.slide-body .form {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.slide-body .field {
+  max-width: none;
+}
+
+.slide-body .inline-fields .field {
+  max-width: none;
+}
+
+.slide-body .actions {
+  position: sticky;
+  bottom: -24px;
+  padding: 16px 0 24px;
+  margin-top: 8px;
+  background: var(--white);
+  border-top: 1px solid var(--line-soft);
+}
+
+@keyframes panel {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---- Route stop editor ---------------------------------------------------------------------------------------------------------- */
+.stops {
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-control);
+}
+
+.stops legend {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.stop-list {
+  margin: 0 0 12px;
+  padding-left: 24px;
+}
+
+.stop-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.stop-buttons {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.add-stop .field {
+  max-width: 340px;
+}
+
+.field-spacer {
+  visibility: hidden;
+}
+
+.problem-list {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+/* ---- Seat editor of a coach (admin) --------------------------------------------------------------------------------------------- */
+.seat-grid {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  justify-content: start;
+  margin: 12px 0 16px;
+}
+
+.seat-label {
+  font-size: 13px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.seat-empty {
+  display: block;
+  height: 2rem;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+}
+
+/* ---- Overview ------------------------------------------------------------------------------------------------------------------- */
+.admin-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 24px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--white);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+  transition: box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
+}
+
+.admin-card:hover {
+  color: var(--ink);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.admin-card h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.admin-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-card-go {
+  margin-top: auto;
+  padding-top: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--red-text);
+}
+
+.gateway-check {
+  margin-top: 32px;
+}
+
+.gateway-check summary {
+  min-height: var(--touch);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.result pre {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+}
+
+/* ---- Support ------------------------------------------------------------------------------------------------------------------------ */
+.filters-card {
+  padding: 20px 24px 12px;
+  margin-bottom: 20px;
+  background: var(--white);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+}
+
+.support-details {
+  margin-top: 24px;
+}
+
+.support-details h2 {
+  margin-top: 0;
+}
+
+.booking-items {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+.booking-total {
+  margin: 12px 0;
+  font-size: 16px;
+}
+
+/* ---- Trip cancellation (inside the trip list) --------------------------------------------------------------------------------------- */
+.trip-cancellation {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.trip-cancellation p {
+  margin: 0;
+}
+
+.trip-cancellation .notice {
+  margin: 0;
+  text-align: left;
+}
+
+/* ---- Phones: the sidebar becomes a scrolling bar ------------------------------------------------------------------------------------- */
+@media (max-width: 899px) {
+  .admin-side {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 8px 16px;
+  }
+
+  .admin-side-title {
+    display: none;
+  }
+
+  .admin-nav {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+  }
+
+  .admin-nav a {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .admin-main {
+    flex-basis: 100%;
+  }
+
+  .admin-topbar {
+    padding: 12px 16px;
+  }
+
+  .admin-content {
+    padding: 24px 16px;
+  }
+}

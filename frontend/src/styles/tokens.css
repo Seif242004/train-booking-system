@@ -59,17 +59,3 @@
     --gutter: 16px;
   }
 }
-
-/* Names the pages not yet rebuilt still use (styles/legacy.css). Removed when that file is. */
-:root {
-  --bg: var(--paper);
-  --surface: var(--white);
-  --text: var(--ink);
-  --border: var(--line);
-  --accent: var(--red);
-  --accent-text: #ffffff;
-  --ok: var(--ok-text);
-  --fail: var(--danger-text);
-  --fail-bg: var(--danger-tint);
-  --warn-border: #e2c15a;
-}

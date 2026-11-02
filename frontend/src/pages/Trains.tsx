@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { TRAIN_STATUSES, type Train, type TrainStatus } from '../adminTypes';
+import { AdminHeader } from '../components/AdminHeader';
+import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
+import { label } from '../format';
 
 interface TrainForm {
   number: string;
@@ -56,7 +59,15 @@ export function Trains() {
     void load();
   }, [load]);
 
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  function startAdd() {
+    resetForm();
+    setPanelOpen(true);
+  }
+
   function resetForm() {
+    setPanelOpen(false);
     setForm(EMPTY_FORM);
     setEditingId(null);
     setFieldErrors({});
@@ -64,6 +75,7 @@ export function Trains() {
   }
 
   function startEdit(train: Train) {
+    setPanelOpen(true);
     setForm({ number: train.number, name: train.name, type: train.type, status: train.status });
     setEditingId(train.id);
     setFieldErrors({});
@@ -121,17 +133,14 @@ export function Trains() {
 
   return (
     <section>
-      <p>
-        <Link to="/admin">← Admin</Link>
-      </p>
-      <h1>Trains</h1>
+      <AdminHeader title="Trains" action={<button type="button" className="button button-primary button-compact" onClick={startAdd}>Add train</button>} />
 
       <p className="notice-slot" role="status" aria-live="polite">
         {notice && <span className="notice notice-ok">{notice}</span>}
       </p>
 
+      <SlideOver open={panelOpen} title={editingId === null ? 'Add train' : 'Edit train'} onClose={resetForm}>
       <form className="form" onSubmit={submit} noValidate>
-        <h2>{editingId === null ? 'Add train' : 'Edit train'}</h2>
 
         <div className="field">
           <label htmlFor="train-number">Number</label>
@@ -166,7 +175,7 @@ export function Trains() {
           <select id="train-status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TrainStatus })}
             aria-describedby="train-status-hint">
             {TRAIN_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>{label(status)}</option>
             ))}
           </select>
           <span id="train-status-hint" className="field-error">{fieldErrors.status}</span>
@@ -183,8 +192,8 @@ export function Trains() {
           )}
         </div>
       </form>
+      </SlideOver>
 
-      <h2>All trains</h2>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setFilters(draftFilters); }} aria-label="Filter trains">
         <div className="field">
           <label htmlFor="filter-number">Number contains</label>
@@ -202,7 +211,7 @@ export function Trains() {
             onChange={(e) => setDraftFilters({ ...draftFilters, status: e.target.value as Filters['status'] })}>
             <option value="">All</option>
             {TRAIN_STATUSES.map((status) => (
-              <option key={status} value={status}>{status}</option>
+              <option key={status} value={status}>{label(status)}</option>
             ))}
           </select>
         </div>
@@ -219,10 +228,10 @@ export function Trains() {
       {loadError && <p className="notice notice-error">{loadError}</p>}
       {trains === null && !loadError && <p className="muted">Loading…</p>}
       {trains?.length === 0 && (
-        <p className="muted">{filtered ? 'No trains match these filters.' : 'No trains yet. Add the first one with the form above.'}</p>
+        <p className="muted">{filtered ? 'No trains match these filters.' : 'No trains yet. Use "Add train" to add the first one.'}</p>
       )}
       {trains && trains.length > 0 && (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr>
               <th scope="col">Number</th>
@@ -238,7 +247,7 @@ export function Trains() {
                 <td className="mono">{train.number}</td>
                 <td>{train.name}</td>
                 <td>{train.type}</td>
-                <td><span className={train.status === 'ACTIVE' ? 'badge badge-ok' : 'badge'}>{train.status}</span></td>
+                <td><span className={train.status === 'ACTIVE' ? 'badge badge-ok' : 'badge'}>{label(train.status)}</span></td>
                 <td className="row-actions">
                   {confirmingId === train.id ? (
                     <>
@@ -257,7 +266,7 @@ export function Trains() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

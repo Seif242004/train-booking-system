@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { CLASS_LABEL } from '../adminTypes';
+import { AdminHeader } from '../components/AdminHeader';
 import { gatewayGet, gatewayRequest, readError } from '../api';
 import type { Booking, BookingStatus, RefundStatus } from '../bookingTypes';
 import { clock } from '../time';
+import { label } from '../format';
 
 interface AdminBooking {
   booking: Booking;
@@ -85,15 +87,15 @@ export function SupportPage() {
 
   return (
     <section>
-      <h1>Support: bookings</h1>
-      <form className="filters" onSubmit={onSearch}>
+      <AdminHeader title="Support: bookings" />
+      <form className="filters filters-card" onSubmit={onSearch}>
         <label>Reference <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="TB-ABC234" /></label>
         <label>Passenger email <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="part of the address" /></label>
         <label>Trip id <input value={tripId} inputMode="numeric" onChange={(event) => setTripId(event.target.value.replace(/\D/g, ''))} /></label>
         <label>Status
           <select value={status} onChange={(event) => setStatus(event.target.value)}>
             <option value="">Any</option>
-            {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
           </select>
         </label>
         <span className="actions filters-actions">
@@ -105,7 +107,7 @@ export function SupportPage() {
       {error && <p className="notice notice-error" role="alert">{error}</p>}
       {results && results.length === 0 && <p className="muted">No booking matches.</p>}
       {results && results.length > 0 && (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr><th scope="col">Reference</th><th scope="col">Passenger</th><th scope="col">Journey</th><th scope="col">Status</th><th scope="col">Refund</th><th scope="col"><span className="visually-hidden">Open</span></th></tr>
           </thead>
@@ -115,19 +117,19 @@ export function SupportPage() {
                 <td className="mono">{row.booking.reference}</td>
                 <td>{row.userEmail}</td>
                 <td>{row.booking.trip.from.stationName} → {row.booking.trip.to.stationName}<div className="muted">{row.booking.trip.departureDate} · trip {row.booking.tripId}</div></td>
-                <td>{row.booking.status}</td>
+                <td><span className={`status-chip ${row.booking.status === 'CONFIRMED' ? 'is-ok' : ''}`}>{label(row.booking.status)}</span></td>
                 <td className={row.booking.refundStatus === 'REFUND_FAILED' ? 'status-fail' : ''}>{row.booking.refundStatus === 'NONE' ? '' : REFUND_LABEL[row.booking.refundStatus]}</td>
                 <td><button type="button" className="button" onClick={() => void open(row)}>Open</button></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {results && results.length === 100 && <p className="muted">Only the 100 newest are shown: narrow the search.</p>}
 
       {selected && (
-        <div className="coach-card" aria-label="Booking details">
-          <h2>{selected.booking.reference} · {selected.booking.status}</h2>
+        <div className="card support-details" aria-label="Booking details">
+          <h2>{selected.booking.reference} · {label(selected.booking.status)}</h2>
           <p>
             <strong>{selected.userName ?? selected.userEmail}</strong> · {selected.userEmail} <span className="muted mono">({selected.userId})</span>
           </p>

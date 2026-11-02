@@ -414,6 +414,7 @@ button.chip[aria-selected='true'] {
 
 /* ---- Tables: they scroll inside their own box, never the page ------------------------------------------------------------------ */
 .table-wrap {
+  position: relative; /* the containing block of the visually hidden header texts, so they are clipped with the table */
   max-width: 100%;
   overflow-x: auto;
   background: var(--white);

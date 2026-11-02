@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { CLASS_LABEL, COACH_CLASSES, type CoachClass, type Fare, type Route } from '../adminTypes';
+import { AdminHeader } from '../components/AdminHeader';
 import { gatewayRequest, readError } from '../api';
 
 /** The grid is keyed by segment and class, for example "0/FIRST". The cell holds the text of the amount box. */
@@ -122,8 +123,7 @@ export function RouteFares() {
 
   return (
     <section>
-      <p><Link to="/admin/routes">← Routes</Link></p>
-      <h1>{route ? `Fares: ${route.name}` : 'Fares'}</h1>
+      <AdminHeader title={route ? `Fares: ${route.name}` : 'Fares'} back={{ to: '/admin/routes', label: 'Routes' }} />
       {route && <p className="muted mono">{route.stops.map((s) => s.stationCode).join(' → ')}</p>}
 
       <p className="notice-slot" role="status" aria-live="polite">
@@ -139,7 +139,7 @@ export function RouteFares() {
             One price per segment (the leg between two stops) and class, in EGP. A journey costs the sum of the segments it
             uses. Saving replaces all the fares of this route; an empty box means no fare.
           </p>
-          <table className="table fare-grid">
+          <div className="table-wrap"><table className="table fare-grid">
             <caption className="visually-hidden">Fares per segment and class in EGP</caption>
             <thead>
               <tr>
@@ -182,7 +182,7 @@ export function RouteFares() {
                 })}
               </tr>
             </tfoot>
-          </table>
+          </table></div>
 
           {formError && <p className="notice notice-error">{formError}</p>}
           <div className="actions">

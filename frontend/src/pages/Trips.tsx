@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { Route, Train, Trip } from '../adminTypes';
+import { AdminHeader } from '../components/AdminHeader';
+import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError, type ApiErrorDetail } from '../api';
 import { TripCancellation } from '../components/TripCancellation';
 import { clock, daysLater, todayLocal } from '../time';
+import { label } from '../format';
 
 interface StopTimes {
   arrival: string; // "HH:mm" or ""
@@ -69,7 +72,15 @@ export function Trips() {
     return Array.from({ length: stopCount }, () => ({ arrival: '', departure: '' }));
   }
 
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  function startAdd() {
+    resetForm();
+    setPanelOpen(true);
+  }
+
   function resetForm() {
+    setPanelOpen(false);
     setTrainId('');
     setRouteId('');
     setDate(todayLocal());
@@ -97,6 +108,7 @@ export function Trips() {
   }
 
   function startEdit(trip: Trip) {
+    setPanelOpen(true);
     setTrainId(String(trip.trainId));
     setRouteId(String(trip.routeId));
     setDate(trip.departureDate);
@@ -173,10 +185,7 @@ export function Trips() {
 
   return (
     <section>
-      <p>
-        <Link to="/admin">← Admin</Link>
-      </p>
-      <h1>Trips</h1>
+      <AdminHeader title="Trips" action={<button type="button" className="button button-primary button-compact" onClick={startAdd}>Add trip</button>} />
 
       <p className="notice-slot" role="status" aria-live="polite">
         {notice && <span className="notice notice-ok">{notice}</span>}
@@ -190,8 +199,8 @@ export function Trips() {
         </p>
       )}
 
+      <SlideOver open={panelOpen} title={editingId === null ? 'Add trip' : 'Edit trip'} onClose={resetForm} wide>
       <form className="form" onSubmit={submit} noValidate>
-        <h2>{editingId === null ? 'Add trip' : 'Edit trip'}</h2>
 
         <div className="inline-fields">
           <div className="field">
@@ -233,7 +242,7 @@ export function Trips() {
               Clock times, 24 hours. A time earlier than the one before it means the next day, so a trip can run past midnight
               (a trip lasts at most 24 hours).
             </p>
-            <table className="table stop-times">
+            <div className="table-wrap"><table className="table stop-times">
               <thead>
                 <tr>
                   <th scope="col">Stop</th>
@@ -272,7 +281,7 @@ export function Trips() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
             {fieldErrors.stops && <p className="field-error">{fieldErrors.stops}</p>}
           </fieldset>
         )}
@@ -304,13 +313,13 @@ export function Trips() {
           <p className="muted">This train is inactive, so no new trip can be scheduled for it.</p>
         )}
       </form>
+      </SlideOver>
 
-      <h2>All trips</h2>
       {loadError && <p className="notice notice-error">{loadError}</p>}
       {trips === null && !loadError && <p className="muted">Loading…</p>}
-      {trips?.length === 0 && <p className="muted">No trips yet. Add the first one with the form above.</p>}
+      {trips?.length === 0 && <p className="muted">No trips yet. Use "Add trip" to add the first one.</p>}
       {trips && trips.length > 0 && (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr>
               <th scope="col">Date</th>
@@ -329,7 +338,7 @@ export function Trips() {
                   {trip.routeName}
                   <div className="muted mono times-line">{timesLine(trip)}</div>
                 </td>
-                <td><span className={trip.status === 'ACTIVE' ? 'badge badge-ok' : 'badge'}>{trip.status}</span></td>
+                <td><span className={trip.status === 'ACTIVE' ? 'badge badge-ok' : 'badge'}>{label(trip.status)}</span></td>
                 <td className="row-actions">
                   {confirmingId === trip.id ? (
                     <>
@@ -348,7 +357,7 @@ export function Trips() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

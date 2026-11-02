@@ -1,6 +1,7 @@
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 
 // Stripe.js is loaded from Stripe's own servers, once per publishable key. Card data is typed into Stripe's iframe and goes straight
 // to Stripe: it never reaches this page's code or our servers.
@@ -37,18 +38,20 @@ interface Props {
   amountLabel: string;
   /** Called when Stripe accepted the payment on the page. The booking is confirmed by the server, on Stripe's signed webhook. */
   onSubmitted: () => void;
+  /** Where "Back to seats" goes after a failed payment. */
+  seatsHref?: string;
 }
 
 /** Stripe's embedded payment form (Flow 4): it is part of our payment page, next to the countdown. */
-export function StripeCheckout({ publishableKey, clientSecret, returnUrl, amountLabel, onSubmitted }: Props) {
+export function StripeCheckout({ publishableKey, clientSecret, returnUrl, amountLabel, onSubmitted, seatsHref }: Props) {
   return (
     <Elements stripe={stripeFor(publishableKey)} options={{ clientSecret, appearance: APPEARANCE, fonts: FONTS }}>
-      <CheckoutForm returnUrl={returnUrl} amountLabel={amountLabel} onSubmitted={onSubmitted} />
+      <CheckoutForm returnUrl={returnUrl} amountLabel={amountLabel} onSubmitted={onSubmitted} seatsHref={seatsHref} />
     </Elements>
   );
 }
 
-function CheckoutForm({ returnUrl, amountLabel, onSubmitted }: Pick<Props, 'returnUrl' | 'amountLabel' | 'onSubmitted'>) {
+function CheckoutForm({ returnUrl, amountLabel, onSubmitted, seatsHref }: Pick<Props, 'returnUrl' | 'amountLabel' | 'onSubmitted' | 'seatsHref'>) {
   const stripe = useStripe();
   const elements = useElements();
   const [paying, setPaying] = useState(false);
@@ -74,14 +77,20 @@ function CheckoutForm({ returnUrl, amountLabel, onSubmitted }: Pick<Props, 'retu
   return (
     <form onSubmit={(event) => void pay(event)}>
       <PaymentElement />
-      {problem && <p className="notice notice-error" role="alert">{problem}</p>}
+      {problem && (
+        <div className="pay-failed" role="alert">
+          <p className="pay-failed-title">That payment did not go through</p>
+          <p>{problem} Nothing was charged. Your seats are still held, so you can try again.</p>
+          {seatsHref && <Link to={seatsHref}>Back to seats</Link>}
+        </div>
+      )}
       <p className="pay-submit">
         <button type="submit" className="button button-primary" disabled={!stripe || !elements || paying}>
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="5" y="11" width="14" height="9" rx="2" />
             <path d="M8 11V8a4 4 0 018 0v3" />
           </svg>
-          {paying ? 'Paying…' : `Pay ${amountLabel}`}
+          {paying ? 'Paying…' : problem ? 'Try again' : `Pay ${amountLabel}`}
         </button>
       </p>
     </form>

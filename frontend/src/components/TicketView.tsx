@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import type { Booking } from '../bookingTypes';
+import { calendarFile, saveFile } from '../ics';
 import { clock, fullDay } from '../time';
 import { BrandLogo } from './BrandLogo';
 
@@ -97,7 +98,11 @@ export function TicketView({ booking, passenger, resend, onResend }: Props) {
           </svg>
           Email my ticket again
         </button>
+        <button type="button" className="button" onClick={() => { const ics = calendarFile(booking); if (ics) saveFile(`train-${booking.reference}.ics`, 'text/calendar', ics); }}>
+          Add to calendar
+        </button>
         <Link className="button" to="/bookings">View my bookings</Link>
+        <Link className="button" to="/search">Search another trip</Link>
       </div>
       <div className="ticket-status" aria-live="polite">
         {resend.state === 'done' && <p role="status">The ticket is on its way.</p>}

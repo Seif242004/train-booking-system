@@ -10,6 +10,7 @@ import './styles/pages/landing.css';
 import './styles/pages/search.css';
 import './styles/pages/booking.css';
 import './styles/pages/seatmap.css';
+import './styles/pages/search-extras.css';
 import './styles/pages/bookings.css';
 import './styles/pages/admin.css';
 import './styles/pages/account.css';

@@ -183,7 +183,7 @@ export function PaymentPage() {
             {payment.state === 'ready' && payment.start && payment.start.publishableKey && (
               <StripeCheckout publishableKey={payment.start.publishableKey} clientSecret={payment.start.clientSecret}
                 amountLabel={money(payment.start.amount, payment.start.currency)}
-                returnUrl={`${window.location.origin}/bookings/${booking.id}/pay`} onSubmitted={() => setPayment({ state: 'waiting' })} />
+                returnUrl={`${window.location.origin}/bookings/${booking.id}/pay`} seatsHref={seatsHref} onSubmitted={() => setPayment({ state: 'waiting' })} />
             )}
             <p className="pay-note">Payments are processed by Stripe. Card details never touch our servers. Your booking is confirmed as soon as the payment succeeds.</p>
           </fieldset>

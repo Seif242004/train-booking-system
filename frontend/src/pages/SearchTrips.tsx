@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { rememberSearch } from '../recentSearches';
 import { CLASS_LABEL, type CoachClass, type JourneyAvailability, type Station, type TripSearchResponse, type TripSearchResult, type TripStop } from '../adminTypes';
 import { gatewayRequest, readError } from '../api';
 import { SearchForm, type SearchValues } from '../components/SearchForm';
@@ -169,7 +170,7 @@ function stationFor(stations: Station[], text: string): Station | undefined {
 export function SearchTrips() {
   const [stations, setStations] = useState<Station[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
 
   const [formValues, setFormValues] = useState<SearchValues>({ from: '', to: '', date: todayLocal() });
   const [formKey, setFormKey] = useState(0);
@@ -208,6 +209,10 @@ export function SearchTrips() {
       const toStation = stations?.find((s) => s.code === toCode);
       const body = result.body as TripSearchResponse;
       if (fromStation && toStation) {
+        // The address always says what is shown (Back from the seat map returns here), and the search is remembered for the landing page.
+        // replace: a new day or station pair does not add a history entry, so Back never walks through every date tried.
+        setParams({ from: fromCode, to: toCode, date: day }, { replace: true });
+        rememberSearch({ from: fromCode, to: toCode, fromName: fromStation.name, toName: toStation.name, date: day });
         setSearched({ from: fromStation, to: toStation, date: day, results: body.trips, nextDate: body.nextAvailableDate });
         setShowForm(false);
       }
@@ -330,7 +335,12 @@ export function SearchTrips() {
                     </button>
                   </>
                 ) : (
-                  <p>There are no later trips from {searched.from.name} to {searched.to.name}. Try another pair of stations.</p>
+                  <>
+                    <p>There are no later trips from {searched.from.name} to {searched.to.name}. Try another pair of stations or another day.</p>
+                    <button type="button" className="button button-primary button-compact" onClick={() => setShowForm(true)}>
+                      Change search
+                    </button>
+                  </>
                 )}
               </div>
             ) : (

@@ -378,7 +378,11 @@ export function SeatMapPage() {
       </div>
 
       <p className="sr-only" role="status" aria-live="polite">{liveNote}</p>
-      {notice && <p className="notice notice-error" role="alert">{notice}</p>}
+      {notice && (
+        <p className="notice notice-error" role="alert">
+          {notice} <Link to={searchHref}>Search again</Link>
+        </p>
+      )}
       {problem && <p className="notice notice-error" role="alert">{problem}</p>}
       {closed && <p className="notice notice-error">This trip is closed: it is cancelled or being cancelled, so seats cannot be held.</p>}
       {hold && !sameJourney && (

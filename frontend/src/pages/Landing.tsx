@@ -5,6 +5,7 @@ import { gatewayRequest } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { HeroPhoto } from '../components/HeroPhoto';
 import { SearchForm, type SearchValues } from '../components/SearchForm';
+import { loadRecentSearches } from '../recentSearches';
 import { todayLocal } from '../time';
 
 const icon = (children: ReactNode) => (
@@ -50,6 +51,8 @@ export function Landing() {
   const { status, authenticated, error, login, register } = useAuth();
   const navigate = useNavigate();
   const [stations, setStations] = useState<Station[] | null>(null);
+  // The last three searches of this browser, as one-tap chips.
+  const [recent] = useState(loadRecentSearches);
 
   useEffect(() => {
     if (!authenticated) return;
@@ -92,6 +95,20 @@ export function Landing() {
       <div className="container search-overlap">
         <div className="search-card">
           <SearchForm hero idPrefix="home" stations={stations} initial={{ from: '', to: '', date: todayLocal() }} onSubmit={search} />
+          {recent.length > 0 && (
+            <div className="recent-searches">
+              <span id="recent-label">Recent searches</span>
+              <ul aria-labelledby="recent-label">
+                {recent.map((r) => (
+                  <li key={`${r.from}-${r.to}`}>
+                    <button type="button" className="chip" onClick={() => search({ from: r.from, to: r.to, date: r.date >= todayLocal() ? r.date : todayLocal() })}>
+                      {r.fromName} → {r.toName}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 

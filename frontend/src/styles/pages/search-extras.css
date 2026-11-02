@@ -1,0 +1,122 @@
+/* Station combobox, recent searches, payment failure. */
+.combobox-box {
+  position: relative;
+}
+
+.combobox-box input {
+  padding-right: 44px;
+}
+
+.combobox-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.combobox-clear:hover {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.combobox-clear:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: -3px;
+}
+
+.combobox-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 30;
+  max-height: 16rem;
+  padding: 6px;
+  margin: 0;
+  overflow-y: auto;
+  list-style: none;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-raised);
+}
+
+.combobox-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--touch);
+  padding: 0 12px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.combobox-list li.is-active {
+  background: var(--paper);
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.combobox-code {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.recent-searches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.recent-searches ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.pay-failed {
+  padding: 14px 16px;
+  margin-top: 16px;
+  background: var(--danger-tint);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--r-control);
+}
+
+.pay-failed p {
+  margin: 0 0 6px;
+  color: var(--danger-text);
+}
+
+.pay-failed-title {
+  font-weight: 800;
+}
+
+.pay-failed a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  font-weight: 700;
+  color: var(--red-text);
+}

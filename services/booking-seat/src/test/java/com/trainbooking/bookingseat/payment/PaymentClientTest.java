@@ -114,6 +114,20 @@ class PaymentClientTest {
     }
 
     @Test
+    void aRefundRequest_isSentWithTheReason_andAnUnknownPaymentMeansNothingToRefund() {
+        body = "{\"refundId\":1,\"status\":\"REFUND_PENDING\"}";
+        assertThat(client(2000).requestRefund(7, "Cancelled by the passenger.")).isEqualTo(RefundPort.Result.REQUESTED);
+        assertThat(requests.get(0)).startsWith("POST /internal/refunds key=secret-key").contains("\"bookingId\":7").contains("\"reason\":\"Cancelled by the passenger.\"");
+
+        status = 404;
+        body = "{\"error\":{\"code\":\"no_payment_to_refund\",\"message\":\"x\"}}";
+        assertThat(client(2000).requestRefund(7, null)).isEqualTo(RefundPort.Result.NO_PAYMENT);
+
+        status = 500; // anything else: the answer is not known, the outbox asks again
+        assertThatThrownBy(() -> client(2000).requestRefund(7, null)).isInstanceOf(PaymentUnavailableException.class);
+    }
+
+    @Test
     void aSlowPayment_isATimeout_notAHang() {
         delayMs = 1500;
         body = "{\"outcome\":\"NONE\"}";

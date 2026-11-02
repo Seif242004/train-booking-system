@@ -6,6 +6,7 @@ import com.trainbooking.bookingseat.booking.model.PaymentStart;
 import com.trainbooking.bookingseat.booking.model.PickRequest;
 import com.trainbooking.bookingseat.booking.model.ReleaseRequest;
 import com.trainbooking.bookingseat.booking.service.BookingQueryService;
+import com.trainbooking.bookingseat.booking.service.CancellationService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.PaymentStartService;
 import com.trainbooking.bookingseat.booking.service.TicketResendService;
@@ -29,12 +30,15 @@ public class BookingController {
     private final BookingQueryService queries;
     private final PaymentStartService paymentStarts;
     private final TicketResendService resends;
+    private final CancellationService cancellations;
 
-    public BookingController(HoldService holds, BookingQueryService queries, PaymentStartService paymentStarts, TicketResendService resends) {
+    public BookingController(HoldService holds, BookingQueryService queries, PaymentStartService paymentStarts, TicketResendService resends,
+                             CancellationService cancellations) {
         this.holds = holds;
         this.queries = queries;
         this.paymentStarts = paymentStarts;
         this.resends = resends;
+        this.cancellations = cancellations;
     }
 
     /**
@@ -73,6 +77,22 @@ public class BookingController {
     @PostMapping("/bookings/{id}/payment")
     public PaymentStart startPayment(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return paymentStarts.start(jwt.getSubject(), id);
+    }
+
+    /** {@code GET /bookings}: "My bookings" of the caller. */
+    @GetMapping("/bookings")
+    public java.util.List<com.trainbooking.bookingseat.booking.model.MyBooking> mine(@AuthenticationPrincipal Jwt jwt) {
+        return queries.listOwn(jwt.getSubject());
+    }
+
+    /**
+     * {@code POST /bookings/{id}/cancel} (Flow 6, way A): the passenger cancels their own confirmed booking. Instant, no approval, refunded in full.
+     * 404 for another user's booking, 409 {@code not_cancellable} or {@code trip_departed} when it cannot be cancelled; an already cancelled
+     * booking is returned as it is.
+     */
+    @PostMapping("/bookings/{id}/cancel")
+    public BookingView cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+        return cancellations.cancel(CancellationService.Actor.user(jwt.getSubject()), id, null);
     }
 
     /**

@@ -24,11 +24,17 @@ public class OutboxRepository {
         return key.getKey().longValue();
     }
 
-    /** The oldest due jobs. A job waits for the earlier pending job of the same booking, so the jobs of a booking run in order. */
+    /**
+     * The oldest due jobs. A job waits for an earlier pending job of the same booking only where the ORDER matters: the ticket (made by
+     * TICKET_EMAIL) must exist before TICKET_INVALIDATE turns it off, so those two form one chain. The refund request, the cancellation email
+     * and the refund email each stand alone: a Ticket or Notification that is down must never hold back the passenger's money.
+     */
     public List<OutboxMessage> findDue(OffsetDateTime now, int limit) {
         return jdbc.sql("SELECT o.id, o.kind, o.booking_id, o.payload, o.attempts, o.next_attempt_at FROM outbox o "
                         + "WHERE o.status = 'PENDING' AND o.next_attempt_at <= :now "
-                        + "AND NOT EXISTS (SELECT 1 FROM outbox e WHERE e.booking_id = o.booking_id AND e.status = 'PENDING' AND e.id < o.id) "
+                        + "AND NOT EXISTS (SELECT 1 FROM outbox e WHERE e.booking_id = o.booking_id AND e.status = 'PENDING' AND e.id < o.id "
+                        + "AND (CASE e.kind WHEN 'TICKET_EMAIL' THEN 'TICKET' WHEN 'TICKET_INVALIDATE' THEN 'TICKET' ELSE e.kind END) "
+                        + "  = (CASE o.kind WHEN 'TICKET_EMAIL' THEN 'TICKET' WHEN 'TICKET_INVALIDATE' THEN 'TICKET' ELSE o.kind END)) "
                         + "ORDER BY o.id FETCH FIRST :limit ROWS ONLY")
                 .param("now", now).param("limit", limit).query(OutboxRepository::map).list();
     }

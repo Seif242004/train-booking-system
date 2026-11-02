@@ -40,6 +40,17 @@ public class BookingQueryService {
         return toView(bookings.find(id).orElseThrow(() -> new BookingNotFoundException(id)));
     }
 
+    /** "My bookings": the caller's holds, confirmed and cancelled bookings, newest first, each with whether it can still be cancelled. */
+    @Transactional(readOnly = true)
+    public java.util.List<com.trainbooking.bookingseat.booking.model.MyBooking> listOwn(String userId) {
+        return bookings.findOfUser(userId, 50).stream().map(booking -> {
+            BookingView view = toView(booking);
+            boolean cancellable = booking.status() == com.trainbooking.bookingseat.booking.model.BookingStatus.CONFIRMED
+                    && view.trip().from().departureTime() != null && view.trip().from().departureTime().toInstant().isAfter(clock.instant());
+            return new com.trainbooking.bookingseat.booking.model.MyBooking(view, cancellable);
+        }).toList();
+    }
+
     public BookingView toView(Booking booking) {
         BookingView.TripInfo trip = bookings.findTripInfo(booking.tripId(), booking.fromStop(), booking.toStop()).orElseThrow();
         return new BookingView(booking.id(), booking.reference(), booking.status(), booking.refundStatus(), booking.tripId(), booking.fromStop(), booking.toStop(),

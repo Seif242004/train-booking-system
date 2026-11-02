@@ -158,7 +158,7 @@ class RefundDatabaseTest extends DatabaseTest {
     }
 
     @Test
-    void aRefundThatCannotBeSentForAnHour_isFlaggedFailedForAnAdmin() throws Exception {
+    void aRefundThatCannotBeSentForAnHour_isStillPending_andGoesOutWhenStripeIsBack() throws Exception {
         paidBooking();
         stripe.down(true);
         refunds.request(BOOKING, "Cancelled");
@@ -168,8 +168,12 @@ class RefundDatabaseTest extends DatabaseTest {
             retrier.retryDue();
         }
 
-        assertThat(jdbc.sql("SELECT status FROM refund").query(String.class).single()).isEqualTo("FAILED");
-        assertThat(outboxStatuses()).last().isEqualTo("{\"status\":\"REFUND_FAILED\"}");
+        assertThat(jdbc.sql("SELECT status FROM refund").query(String.class).single()).isEqualTo("PENDING"); // an outage never ends a refund
+        stripe.down(false);
+        clock.advance(Duration.ofSeconds(120));
+        assertThat(retrier.retryDue()).isEqualTo(1);
+        assertThat(jdbc.sql("SELECT status FROM refund").query(String.class).single()).isEqualTo("SUCCEEDED");
+        assertThat(outboxStatuses()).last().isEqualTo("{\"status\":\"REFUNDED\"}");
     }
 
     @Test

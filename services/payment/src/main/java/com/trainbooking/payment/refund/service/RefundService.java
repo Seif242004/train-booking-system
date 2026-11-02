@@ -37,8 +37,8 @@ public class RefundService {
 
     private static final Logger log = LoggerFactory.getLogger(RefundService.class);
 
-    /** About an hour of retries (the backoff is capped at a minute); then the refund is flagged REFUND_FAILED for an admin to look at. */
-    static final int MAX_ATTEMPTS = 60;
+    /** An outage is logged as an error every hour (the retries are a minute apart) but never ends the refund. */
+    static final int LOG_EVERY_ATTEMPTS = 60;
 
     /** How long the retrier leaves a new refund alone, while the request that created it is talking to Stripe. */
     static final java.time.Duration FIRST_ATTEMPT_GRACE = java.time.Duration.ofSeconds(30);
@@ -100,12 +100,11 @@ public class RefundService {
             tx.executeWithoutResult(status -> applyStripeResult(refund.id(), null, "failed", e.getMessage()));
             return;
         } catch (RuntimeException e) {
-            if (refund.attempts() + 1 >= MAX_ATTEMPTS) {
-                log.error("Refund {} of booking {} could not be sent to Stripe after {} attempts: flagged as failed", refund.id(), refund.bookingId(), MAX_ATTEMPTS);
-                tx.executeWithoutResult(status -> applyStripeResult(refund.id(), null, "failed", "Stripe could not be reached after " + MAX_ATTEMPTS + " attempts"));
-                return;
+            if ((refund.attempts() + 1) % LOG_EVERY_ATTEMPTS == 0) {
+                log.error("Refund {} of booking {} could not be sent to Stripe after {} attempts, still trying", refund.id(), refund.bookingId(), refund.attempts() + 1);
             }
-            // Stripe is down, or not configured: the refund stays PENDING and is tried again later (never lost, never doubled).
+            // Stripe is down, or not configured: the refund stays PENDING and is tried again later, every minute at most (never lost, never
+            // doubled, never given up: the passenger's money is owed). Only a refusal of Stripe for good makes it FAILED.
             OffsetDateTime next = now().plusSeconds(Math.min(60, 1L << Math.min(refund.attempts() + 1, 6)));
             tx.executeWithoutResult(status -> refunds.scheduleRetry(refund.id(), next, e.getMessage(), now()));
             if (!(e instanceof StripeCallException)) {

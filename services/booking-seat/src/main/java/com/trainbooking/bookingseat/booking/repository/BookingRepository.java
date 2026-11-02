@@ -113,6 +113,20 @@ public class BookingRepository {
         jdbc.sql("UPDATE booking SET payment_started = :v WHERE id = :b").param("v", started ? 1 : 0).param("b", bookingId).update();
     }
 
+    /** The cancellation of a confirmed booking: who did it, when, and (for an admin) why. The refund starts as REFUND_PENDING. */
+    public void markCancelled(long id, OffsetDateTime now, String cancelledBy, String role, String reason, RefundStatus refundStatus) {
+        jdbc.sql("UPDATE booking SET status = 'CANCELLED', cancelled_at = :now, cancelled_by = :by, cancelled_by_role = :role, cancel_reason = :reason, "
+                        + "refund_status = :refund, next_attempt_at = NULL WHERE id = :id")
+                .param("now", now).param("by", cancelledBy).param("role", role).param("reason", reason).param("refund", refundStatus.name()).param("id", id).update();
+    }
+
+    /** The bookings of a user, newest first: holds, confirmed and cancelled ones, and any that has a refund (an expired hold that was paid). */
+    public List<Booking> findOfUser(String userId, int limit) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND (status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED') OR refund_status <> 'NONE') "
+                        + "ORDER BY created_at DESC, id DESC FETCH FIRST :limit ROWS ONLY")
+                .param("u", userId).param("limit", limit).query((rs, row) -> map(rs)).list();
+    }
+
     public void setRefundStatus(long bookingId, RefundStatus status) {
         jdbc.sql("UPDATE booking SET refund_status = :s WHERE id = :b").param("s", status.name()).param("b", bookingId).update();
     }

@@ -4,6 +4,7 @@ import com.trainbooking.bookingseat.payment.PaymentPort;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import com.trainbooking.bookingseat.payment.RefundPort;
 import java.math.BigDecimal;
 import java.util.function.LongFunction;
 
@@ -12,7 +13,7 @@ import java.util.function.LongFunction;
  * throw), and can look at the database at the very moment of the call, to prove that nothing was released before the payment was
  * cancelled.
  */
-public class FakePaymentPort implements PaymentPort {
+public class FakePaymentPort implements PaymentPort, com.trainbooking.bookingseat.payment.RefundPort {
 
     private volatile LongFunction<CancelOutcome> cancelBehaviour = bookingId -> CancelOutcome.NONE;
     private volatile LongFunction<CancelOutcome> invalidateBehaviour = bookingId -> CancelOutcome.NONE;
@@ -20,6 +21,9 @@ public class FakePaymentPort implements PaymentPort {
     private final List<Long> invalidateCalls = Collections.synchronizedList(new ArrayList<>());
     private final List<String> createCalls = Collections.synchronizedList(new ArrayList<>());
     private volatile RuntimeException createFailure;
+    private final List<String> refundCalls = Collections.synchronizedList(new ArrayList<>());
+    private volatile RefundPort.Result refundResult = RefundPort.Result.REQUESTED;
+    private volatile RuntimeException refundFailure;
     private final List<Boolean> createInTransaction = Collections.synchronizedList(new ArrayList<>());
 
     public void answers(LongFunction<CancelOutcome> behaviour) {
@@ -36,6 +40,21 @@ public class FakePaymentPort implements PaymentPort {
 
     public void alwaysInvalidateAnswers(CancelOutcome outcome) {
         this.invalidateBehaviour = bookingId -> outcome;
+    }
+
+    /** What the refund request answers (default REQUESTED). */
+    public void refundAnswers(RefundPort.Result result) {
+        this.refundResult = result;
+    }
+
+    /** The refund request throws this (Payment is down). */
+    public void refundFails(RuntimeException failure) {
+        this.refundFailure = failure;
+    }
+
+    /** One entry per refund request: "bookingId:reason". */
+    public List<String> refundCalls() {
+        return List.copyOf(refundCalls);
     }
 
     /** The next (and every following) createPayment throws this. */
@@ -65,6 +84,9 @@ public class FakePaymentPort implements PaymentPort {
         cancelCalls.clear();
         invalidateCalls.clear();
         createCalls.clear();
+        refundCalls.clear();
+        refundResult = RefundPort.Result.REQUESTED;
+        refundFailure = null;
         createInTransaction.clear();
         createFailure = null;
         alwaysAnswers(CancelOutcome.NONE);
@@ -81,6 +103,15 @@ public class FakePaymentPort implements PaymentPort {
     public CancelOutcome invalidate(long bookingId) {
         invalidateCalls.add(bookingId);
         return invalidateBehaviour.apply(bookingId);
+    }
+
+    @Override
+    public RefundPort.Result requestRefund(long bookingId, String reason) {
+        if (refundFailure != null) {
+            throw refundFailure;
+        }
+        refundCalls.add(bookingId + ":" + reason);
+        return refundResult;
     }
 
     @Override

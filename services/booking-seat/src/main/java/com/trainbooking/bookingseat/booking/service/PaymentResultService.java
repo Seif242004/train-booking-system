@@ -6,6 +6,8 @@ import com.trainbooking.bookingseat.booking.model.BookingNotFoundException;
 import com.trainbooking.bookingseat.booking.model.BookingStatus;
 import com.trainbooking.bookingseat.booking.model.RefundStatus;
 import com.trainbooking.bookingseat.booking.repository.BookingRepository;
+import com.trainbooking.bookingseat.outbox.model.OutboxMessage;
+import com.trainbooking.bookingseat.outbox.service.OutboxWriter;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -34,12 +36,14 @@ public class PaymentResultService {
     private final ConfirmationService confirmations;
     private final HoldReleaseService releases;
     private final AuditTrail audit;
+    private final OutboxWriter outbox;
 
-    public PaymentResultService(BookingRepository bookings, ConfirmationService confirmations, HoldReleaseService releases, AuditTrail audit) {
+    public PaymentResultService(BookingRepository bookings, ConfirmationService confirmations, HoldReleaseService releases, AuditTrail audit, OutboxWriter outbox) {
         this.bookings = bookings;
         this.confirmations = confirmations;
         this.releases = releases;
         this.audit = audit;
+        this.outbox = outbox;
     }
 
     /**
@@ -75,5 +79,9 @@ public class PaymentResultService {
         }
         bookings.setRefundStatus(bookingId, status);
         audit.record("payment", "booking", bookingId, "REFUND_STATUS", Map.of("from", booking.refundStatus().name(), "to", status.name()));
+        if (status == RefundStatus.REFUNDED) {
+            // The money is back: tell the passenger (queued in this transaction; an email failure changes nothing).
+            outbox.queue(OutboxMessage.Kind.REFUND_EMAIL, bookingId);
+        }
     }
 }

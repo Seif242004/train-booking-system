@@ -22,7 +22,7 @@ import org.springframework.web.client.RestClientResponseException;
  * <p>The read timeout is longer than for other services because Payment calls Stripe before it answers.
  */
 @Component
-class PaymentClient implements PaymentPort {
+class PaymentClient implements PaymentPort, RefundPort {
 
     private final RestClient http;
     private final String apiKey;
@@ -58,6 +58,21 @@ class PaymentClient implements PaymentPort {
         return new PaymentSession(answer.get("clientSecret").toString(), answer.get("publishableKey").toString(), amount, currency);
     }
 
+    @Override
+    public RefundPort.Result requestRefund(long bookingId, String reason) {
+        try {
+            send(() -> http.post().uri("/internal/refunds").header("X-Internal-Api-Key", apiKey).contentType(MediaType.APPLICATION_JSON)
+                    .body(reason == null ? Map.of("bookingId", bookingId) : Map.of("bookingId", bookingId, "reason", reason)).retrieve().body(Map.class));
+            return RefundPort.Result.REQUESTED;
+        } catch (NoPaymentException e) {
+            return RefundPort.Result.NO_PAYMENT;
+        }
+    }
+
+    /** 404 {@code no_payment_to_refund} from Payment. */
+    private static final class NoPaymentException extends RuntimeException {
+    }
+
     private static CancelOutcome outcome(Map<?, ?> answer) {
         try {
             return CancelOutcome.valueOf(String.valueOf(answer == null ? null : answer.get("outcome")));
@@ -72,6 +87,9 @@ class PaymentClient implements PaymentPort {
         } catch (RestClientResponseException e) {
             int status = e.getStatusCode().value();
             String code = errorCode(e);
+            if (status == 404 && "no_payment_to_refund".equals(code)) {
+                throw new NoPaymentException();
+            }
             if (status == 409) {
                 throw new PaymentRejectedException(code, "Payment refused: " + code);
             }

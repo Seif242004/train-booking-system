@@ -30,6 +30,8 @@ import com.trainbooking.bookingseat.booking.model.TripClosedException;
 import com.trainbooking.bookingseat.booking.service.BookingQueryService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.PaymentStartService;
+import com.trainbooking.bookingseat.booking.service.CancellationService;
+import com.trainbooking.bookingseat.booking.model.MyBooking;
 import com.trainbooking.bookingseat.booking.service.TicketResendService;
 import com.trainbooking.bookingseat.booking.model.PaymentStart;
 import com.trainbooking.bookingseat.payment.PaymentRejectedException;
@@ -78,6 +80,9 @@ class BookingControllerTest {
     TicketResendService resends;
 
     @MockitoBean
+    CancellationService cancellations;
+
+    @MockitoBean
     JwtDecoder jwtDecoder;
 
     @Test
@@ -88,7 +93,9 @@ class BookingControllerTest {
         mvc.perform(get("/bookings/31")).andExpect(status().isUnauthorized());
         mvc.perform(post("/bookings/31/payment")).andExpect(status().isUnauthorized());
         mvc.perform(post("/bookings/31/resend-ticket")).andExpect(status().isUnauthorized());
-        verifyNoInteractions(holds, queries, paymentStarts, resends);
+        mvc.perform(post("/bookings/31/cancel")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/bookings")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(holds, queries, paymentStarts, resends, cancellations);
     }
 
     @Test
@@ -256,9 +263,35 @@ class BookingControllerTest {
     }
 
     @Test
+    void cancel_runsTheCancellationAsTheUserOfTheToken_withNoBody() throws Exception {
+        given(cancellations.cancel(org.mockito.ArgumentMatchers.eq(CancellationService.Actor.user("user-sub")), eq(31L), org.mockito.ArgumentMatchers.isNull())).willReturn(BOOKING);
+
+        mvc.perform(post("/bookings/31/cancel").with(passenger())).andExpect(status().isOk()).andExpect(jsonPath("$.reference").value("TB-ABC234"));
+    }
+
+    @Test
+    void cancel_failuresHaveTheirOwnStatus() throws Exception {
+        given(cancellations.cancel(any(), eq(32L), any())).willThrow(new BookingNotFoundException(32));
+        given(cancellations.cancel(any(), eq(33L), any())).willThrow(new BookingConflictException("trip_departed", "The train has already left your boarding stop."));
+        given(cancellations.cancel(any(), eq(34L), any())).willThrow(new BookingConflictException("not_cancellable", "Only a confirmed booking can be cancelled."));
+
+        mvc.perform(post("/bookings/32/cancel").with(passenger())).andExpect(status().isNotFound()).andExpect(jsonPath("$.error.code").value("booking_not_found"));
+        mvc.perform(post("/bookings/33/cancel").with(passenger())).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("trip_departed"));
+        mvc.perform(post("/bookings/34/cancel").with(passenger())).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("not_cancellable"));
+    }
+
+    @Test
+    void myBookings_areThoseOfTheUserOfTheToken() throws Exception {
+        given(queries.listOwn("user-sub")).willReturn(List.of(new MyBooking(BOOKING, true)));
+
+        mvc.perform(get("/bookings").with(passenger())).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].booking.reference").value("TB-ABC234")).andExpect(jsonPath("$[0].cancellable").value(true));
+    }
+
+    @Test
     void theOldConfirmSelectionEndpoint_isGone() throws Exception {
         mvc.perform(post("/bookings").with(passenger()).contentType(MediaType.APPLICATION_JSON).content("{\"tripId\":2,\"fromStop\":0,\"toStop\":2,\"seatIds\":[223]}"))
-                .andExpect(status().isNotFound()); // there is no such route any more
+                .andExpect(status().isMethodNotAllowed()); // POST /bookings does not exist any more; /bookings is only the list (GET)
         verifyNoInteractions(holds);
     }
 }

@@ -47,7 +47,14 @@ public class OutboxDispatcher {
                 }
                 job.run(message);
             } catch (RuntimeException e) {
-                if (message.attempts() + 1 >= MAX_ATTEMPTS) {
+                if (job != null) {
+                    try {
+                        job.onFailure(message, message.attempts() + 1, e);
+                    } catch (RuntimeException hookFailure) {
+                        log.error("The failure hook of outbox job {} failed: {}", message.id(), hookFailure.getMessage());
+                    }
+                }
+                if (message.attempts() + 1 >= MAX_ATTEMPTS && !(job != null && job.retryForever())) {
                     log.error("Outbox job {} ({} for booking {}) failed {} times: giving up. {}", message.id(), message.kind(), message.bookingId(), MAX_ATTEMPTS, e.getMessage());
                     outbox.markFailed(message.id(), e.getMessage());
                 } else {

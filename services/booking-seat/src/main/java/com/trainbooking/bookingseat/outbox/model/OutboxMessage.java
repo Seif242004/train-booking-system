@@ -10,6 +10,8 @@ public record OutboxMessage(long id, Kind kind, long bookingId, String payload, 
         TICKET_EMAIL,
         /** The booking was cancelled: invalidate the QR token of the ticket. */
         TICKET_INVALIDATE,
+        /** Ask Payment for the full refund of the cancelled booking. */
+        REFUND_REQUEST,
         /** Tell the passenger the booking is cancelled. */
         CANCELLATION_EMAIL,
         /** Tell the passenger the refund is done. */

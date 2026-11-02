@@ -1,0 +1,104 @@
+/* Toasts, offline bar, error states, tactile press (brief A7, A8). */
+.toast-region {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  z-index: 90;
+  display: grid;
+  gap: 8px;
+  width: min(32rem, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+@media (max-width: 899px) {
+  /* Above the bottom bar of the seat map. */
+  .toast-region {
+    bottom: 96px;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  margin: 0;
+  font-weight: 600;
+  color: #fff;
+  background: var(--ink);
+  border-radius: var(--r-control);
+  box-shadow: var(--shadow-raised);
+  pointer-events: auto;
+  animation: toast-in 0.2s var(--ease-out);
+}
+
+.toast-error {
+  background: var(--danger-text);
+}
+
+.toast-close {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch);
+  height: var(--touch);
+  color: #fff;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.toast-close:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: -3px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.offline-banner {
+  padding: 6px var(--gutter);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--warn-text);
+  background: var(--warn-bg);
+}
+
+.error-state {
+  max-width: 36rem;
+  padding: 24px;
+  margin: 24px 0;
+  background: var(--danger-tint);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--r-card);
+}
+
+.error-state p {
+  margin: 0 0 8px;
+  color: var(--danger-text);
+}
+
+.error-state-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.crash-page {
+  display: grid;
+  min-height: 60vh;
+  place-items: center;
+  padding: 40px var(--gutter);
+}

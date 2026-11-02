@@ -4,6 +4,7 @@ import type { Booking } from '../bookingTypes';
 import { calendarFile, saveFile } from '../ics';
 import { clock, fullDay } from '../time';
 import { BrandLogo } from './BrandLogo';
+import { useToast } from './Toasts';
 
 interface Props {
   booking: Booking;
@@ -18,6 +19,15 @@ interface Props {
  * e-mail and offers to send it again.
  */
 export function TicketView({ booking, passenger, resend, onResend }: Props) {
+  const toast = useToast();
+  async function copyReference() {
+    try {
+      await navigator.clipboard.writeText(booking.reference);
+      toast.show('Reference copied');
+    } catch {
+      toast.show('Could not copy. Select the reference and copy it by hand.', 'error');
+    }
+  }
   const seats = booking.items.filter((item) => item.type === 'SEAT').map((item) => item.seatNumber);
   const standing = booking.items.filter((item) => item.type === 'STANDING').reduce((sum, item) => sum + item.qty, 0);
   const classes = [...new Set(booking.items.map((item) => CLASS_LABEL[item.coachClass] + ' class'))];
@@ -86,6 +96,7 @@ export function TicketView({ booking, passenger, resend, onResend }: Props) {
             </div>
             <p className="ticket-ref-label">Booking reference</p>
             <p className="ticket-ref">{booking.reference}</p>
+            <button type="button" className="link-button" onClick={() => void copyReference()}>Copy reference</button>
           </div>
         </div>
       </article>

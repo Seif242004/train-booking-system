@@ -7,6 +7,8 @@ import { remainingMs, startCountdown } from '../countdown';
 import { money } from '../format';
 import { clock, dayLabel } from '../time';
 import { useDelayedFlag } from '../useDelayedFlag';
+import { useToast } from '../components/Toasts';
+import { ErrorState } from '../components/ErrorState';
 
 interface MyBooking {
   booking: Booking;
@@ -75,6 +77,7 @@ export function MyBookingsPage() {
   const [busy, setBusy] = useState<number | null>(null);
   const [message, setMessage] = useState<{ bookingId: number; text: string; ok: boolean } | null>(null);
   const [tab, setTab] = useState<Tab>('upcoming');
+  const toast = useToast();
   const showSkeleton = useDelayedFlag(items === null && error === null);
 
   const load = useCallback(async () => {
@@ -99,7 +102,8 @@ export function MyBookingsPage() {
     setBusy(null);
     setConfirming(null);
     if (result.status === 200) {
-      setMessage({ bookingId: id, ok: true, text: 'The booking is cancelled and the seats are free again. The whole amount is being refunded; we will email you.' });
+      // Same words as the button that started it, then what happens next.
+      toast.show('Booking cancelled. Refund started: the whole amount goes back to your card and we will email you.');
     } else {
       const failure = readError(result);
       setMessage({ bookingId: id, ok: false, text: cancelProblem(failure.code, failure.message) });
@@ -112,16 +116,15 @@ export function MyBookingsPage() {
     setMessage(null);
     const result = await gatewayRequest('POST', `/bookings/${id}/resend-ticket`);
     setBusy(null);
-    setMessage(result.status === 202
-      ? { bookingId: id, ok: true, text: 'The ticket is on its way to your email.' }
-      : { bookingId: id, ok: false, text: readError(result).message });
+    if (result.status === 202) toast.show('Ticket email sent. It is on its way to your inbox.');
+    else setMessage({ bookingId: id, ok: false, text: readError(result).message });
   }
 
   if (error) {
     return (
       <section className="bookings-page">
         <h1>My bookings</h1>
-        <p className="notice notice-error" role="alert">{error}</p>
+        <ErrorState message={error} onRetry={() => { setError(null); void load(); }} action={<Link className="button" to="/">Go to the home page</Link>} />
       </section>
     );
   }

@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthContext';
 import { backFor } from '../routes';
 import { BrandLogo } from './BrandLogo';
 import { HoldBanner } from './HoldBanner';
+import { OfflineBanner } from './OfflineBanner';
 import { PageNav } from './PageNav';
 import { RouteEffects } from './RouteEffects';
 import { SessionEnded } from './SessionEnded';
@@ -34,6 +35,7 @@ export function Layout() {
         Skip to the content
       </a>
       <RouteEffects />
+      <OfflineBanner />
       <header className="site-header on-dark">
         <div className="site-header-inner">
           <BrandLogo height={30} />

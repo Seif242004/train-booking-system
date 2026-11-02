@@ -1,5 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider } from './components/Toasts';
 import { RequireAdmin, RequireAuth } from './auth/guards';
 import { AdminLayout } from './components/AdminLayout';
 import { Layout } from './components/Layout';
@@ -23,6 +25,8 @@ import { Trains } from './pages/Trains';
 
 export function App() {
   return (
+    <ErrorBoundary>
+    <ToastProvider>
     <AuthProvider>
       <BrowserRouter>
         <Routes>
@@ -60,5 +64,7 @@ export function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
+    </ToastProvider>
+    </ErrorBoundary>
   );
 }

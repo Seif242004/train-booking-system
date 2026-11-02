@@ -5,12 +5,15 @@ import { useAuth } from '../auth/AuthContext';
 import type { Booking } from '../bookingTypes';
 import { BookingSteps } from '../components/BookingSteps';
 import { TicketView } from '../components/TicketView';
+import { ErrorState } from '../components/ErrorState';
+import { useToast } from '../components/Toasts';
 import { lastSearchQuery } from '../recentSearches';
 
 /** The confirmed booking: boarding pass and next actions (`/bookings/:id/ticket`). A booking that is not confirmed goes back to where it belongs. */
 export function TicketPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const toast = useToast();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   // "Email my ticket again" on the confirmed booking (FR-T4).
@@ -32,7 +35,10 @@ export function TicketPage() {
   async function resendTicket() {
     setResend({ state: 'sending' });
     const result = await gatewayRequest('POST', `/bookings/${id}/resend-ticket`);
-    if (result.status === 202) setResend({ state: 'done' });
+    if (result.status === 202) {
+      setResend({ state: 'done' });
+      toast.show('Ticket email sent. It is on its way to your inbox.');
+    }
     else setResend({ state: 'error', message: readError(result).message });
   }
 
@@ -40,8 +46,7 @@ export function TicketPage() {
     return (
       <section>
         <h1>Your ticket</h1>
-        <p className="notice notice-error" role="alert">{error}</p>
-        <p><Link to="/bookings">Go to my bookings</Link></p>
+        <ErrorState message={error} action={<Link className="button" to="/bookings">Go to my bookings</Link>} />
       </section>
     );
   }

@@ -2,8 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAdmin, RequireAuth } from './auth/guards';
 import { Layout } from './components/Layout';
+import { Landing } from './pages/Landing';
 import { Admin } from './pages/Admin';
-import { Home } from './pages/Home';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { PaymentPage } from './pages/PaymentPage';
 import { Profile } from './pages/Profile';
@@ -23,7 +23,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route index element={<Home />} />
+            <Route index element={<Landing />} />
             {/* Everything below needs a signed-in user; /admin also needs the ADMIN role. */}
             <Route element={<RequireAuth />}>
               <Route path="profile" element={<Profile />} />

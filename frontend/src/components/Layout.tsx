@@ -2,10 +2,13 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { BrandLogo } from './BrandLogo';
 
+// Pages that draw their own full-width sections and their own container.
+const FULL_BLEED = ['/', '/search'];
+
 export function Layout() {
   const { status, authenticated, user, hasRole, login, logout } = useAuth();
-  // The landing page draws its own full-width sections; every other page sits in the 1120px container.
-  const fullBleed = useLocation().pathname === '/';
+  // Every other page sits in the 1120px container.
+  const fullBleed = FULL_BLEED.includes(useLocation().pathname);
 
   return (
     <div className="app">

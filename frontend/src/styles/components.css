@@ -475,3 +475,24 @@ button.chip[aria-selected='true'] {
 .link-list {
   padding-left: 20px;
 }
+
+/* A button that looks like a link ("Change search", "Create an account"). */
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 4px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--red-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  color: var(--red-hover);
+}

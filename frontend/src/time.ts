@@ -35,3 +35,17 @@ export function todayLocal(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
+
+const dayFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/** "2026-11-04" becomes "Wed 4 Nov". */
+export function dayLabel(day: string): string {
+  return dayFormat.format(new Date(`${day}T00:00:00Z`)).replace(',', '');
+}
+
+/** "Today, Mon 2 Nov", "Tomorrow, Tue 3 Nov", or just "Wed 4 Nov" for any other day. */
+export function dayHeading(day: string, today: string): string {
+  if (day === today) return `Today, ${dayLabel(day)}`;
+  if (day === addDays(today, 1)) return `Tomorrow, ${dayLabel(day)}`;
+  return dayLabel(day);
+}

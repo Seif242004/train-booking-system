@@ -6,6 +6,8 @@ import './styles/base.css';
 import './styles/legacy.css';
 import './styles/components.css';
 import './styles/shell.css';
+import './styles/pages/landing.css';
+import './styles/pages/search.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

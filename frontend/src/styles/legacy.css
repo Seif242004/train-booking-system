@@ -1,20 +1,5 @@
 /* Page styles of the original build, kept until each page is rebuilt (docs/design/DESIGN.md). Shared pieces moved to components.css. */
 
-
-.hero {
-  padding: 12vh 0 0;
-  text-align: center;
-}
-
-.hero h1 {
-  font-size: 2.2rem;
-  margin-bottom: 8px;
-}
-
-.hero .actions {
-  margin-top: 28px;
-}
-
 .result pre {
   margin: 0;
   padding: 16px;
@@ -76,122 +61,6 @@
 .problem-list {
   margin: 8px 0 0;
   padding-left: 20px;
-}
-
-/* Passenger trip search: one card per trip, with the times large and the fares as chips. */
-.search-form .field {
-  max-width: 260px;
-}
-
-.results {
-  margin: 0 0 16px;
-  padding: 0;
-  list-style: none;
-}
-
-.result-card {
-  margin-bottom: 12px;
-  padding: 14px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.result-times {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.result-clock {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.result-arrow {
-  color: var(--muted);
-}
-
-.result-duration {
-  margin-left: 8px;
-}
-
-.result-train {
-  margin: 6px 0 4px;
-}
-
-.date-shortcuts {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-/* Previous-day and next-day buttons around the headline of the results. */
-.day-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 12px;
-}
-
-.day-nav h2 {
-  margin: 12px 0;
-  font-size: 1.1rem;
-}
-
-.no-trips .button {
-  margin-left: 4px;
-}
-
-/* The stops of a trip on one line, "08:00 Cairo → 08:45 Giza → 11:30 Alexandria"; those outside the journey are dimmed. */
-.result-stops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 0;
-  margin: 0 0 10px;
-  padding: 0;
-  list-style: none;
-  font-size: 0.9rem;
-}
-
-.result-stops li + li::before {
-  content: '→';
-  margin: 0 8px;
-  color: var(--muted);
-}
-
-.stop-time {
-  font-variant-numeric: tabular-nums;
-}
-
-.result-stops .stop-on {
-  font-weight: 600;
-}
-
-.result-stops .stop-off {
-  color: var(--muted);
-  opacity: 0.6;
-}
-
-.fare-chips li strong {
-  font-variant-numeric: tabular-nums;
-}
-
-/* What is left in a class, written out ("12 seats left", "Full"): the words carry the meaning, the style only supports it. */
-.fare-chips .left {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.fare-chips .left-full {
-  font-weight: 600;
-  color: var(--fail);
-}
-
-.availability-missing {
-  margin-top: 0;
 }
 
 /* Admin trips: the time at every stop, and the one-line summary in the list. */
@@ -310,14 +179,6 @@
   border-radius: 6px;
 }
 
-/* Compact buttons next to the search form and the results. */
-.date-shortcuts .button,
-.day-nav .button,
-.no-trips .button {
-  padding: 4px 12px;
-  font-size: 0.9rem;
-}
-
 /* Seat map (Flow 2): coaches with their seats, the legend and the selection bar. State is shown with a mark and a label as well as a colour. */
 .seatmap-journey {
   margin-top: 0;
@@ -429,10 +290,6 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-}
-
-.result-actions {
-  margin: 8px 0 0;
 }
 
 /* The payment page: the countdown, the lines of the booking and the payment box. */

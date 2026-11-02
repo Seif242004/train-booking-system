@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest(properties = {
         "trainbooking.internal-api-key=" + DatabaseTest.INTERNAL_KEY,
         "trainbooking.sweeper.enabled=false",
+        "trainbooking.outbox.enabled=false",
         // Never contacted: the tests send mock JWTs. The issuer is only looked up when a real token has to be decoded.
         "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:1/not-used"
 })
@@ -54,10 +55,17 @@ public abstract class DatabaseTest {
     @Autowired
     protected CommittedEvents committed;
 
+    @Autowired
+    protected FakeTicketPort tickets;
+
+    @Autowired
+    protected FakeNotificationPort notifications;
+
     @BeforeEach
     void emptyTheTestSchema() {
         String schema = jdbc.sql("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual").query(String.class).single();
         assertThat(schema).as("database tests must run on a *_test schema").endsWithIgnoringCase("_test");
+        jdbc.sql("DELETE FROM outbox").update();
         jdbc.sql("DELETE FROM seat_reservation").update();
         jdbc.sql("DELETE FROM standing_hold").update();
         jdbc.sql("DELETE FROM booking_item").update();
@@ -66,6 +74,8 @@ public abstract class DatabaseTest {
         jdbc.sql("DELETE FROM audit_log").update();
         clock.set(MutableClock.START);
         payment.reset();
+        tickets.reset();
+        notifications.reset();
         committed.clear();
     }
 

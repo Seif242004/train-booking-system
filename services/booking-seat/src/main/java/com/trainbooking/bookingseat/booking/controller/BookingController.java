@@ -8,6 +8,7 @@ import com.trainbooking.bookingseat.booking.model.ReleaseRequest;
 import com.trainbooking.bookingseat.booking.service.BookingQueryService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.PaymentStartService;
+import com.trainbooking.bookingseat.booking.service.TicketResendService;
 import jakarta.validation.Valid;
 import java.net.URI;
 import org.springframework.http.ResponseEntity;
@@ -27,11 +28,13 @@ public class BookingController {
     private final HoldService holds;
     private final BookingQueryService queries;
     private final PaymentStartService paymentStarts;
+    private final TicketResendService resends;
 
-    public BookingController(HoldService holds, BookingQueryService queries, PaymentStartService paymentStarts) {
+    public BookingController(HoldService holds, BookingQueryService queries, PaymentStartService paymentStarts, TicketResendService resends) {
         this.holds = holds;
         this.queries = queries;
         this.paymentStarts = paymentStarts;
+        this.resends = resends;
     }
 
     /**
@@ -70,6 +73,15 @@ public class BookingController {
     @PostMapping("/bookings/{id}/payment")
     public PaymentStart startPayment(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return paymentStarts.start(jwt.getSubject(), id);
+    }
+
+    /**
+     * {@code POST /bookings/{id}/resend-ticket} (FR-T4): emails the ticket again. 202 with {@code queued} (false if an email is already waiting),
+     * 409 {@code not_confirmed} for a booking without a ticket, 404 for another user's booking.
+     */
+    @PostMapping("/bookings/{id}/resend-ticket")
+    public ResponseEntity<java.util.Map<String, Boolean>> resendTicket(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+        return ResponseEntity.accepted().body(java.util.Map.of("queued", resends.resend(jwt.getSubject(), id)));
     }
 
     /** {@code GET /bookings/{id}}: the booking, if it is the caller's (404 otherwise). The payment page also polls it. */

@@ -7,6 +7,8 @@ import com.trainbooking.bookingseat.booking.repository.BookingRepository;
 import com.trainbooking.bookingseat.booking.repository.InventoryRepository;
 import com.trainbooking.bookingseat.live.AvailabilityEvents;
 import com.trainbooking.bookingseat.live.SeatEvent;
+import com.trainbooking.bookingseat.outbox.model.OutboxMessage;
+import com.trainbooking.bookingseat.outbox.service.OutboxWriter;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -18,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Confirms a paid booking (SRS 7.1, step 4): in one transaction, check that the hold still belongs to this booking, set it
  * CONFIRMED and clear the expiry of its reservation rows, so the sweeper never releases them. It is called when Payment reports
- * that the payment succeeded (and by the sweeper when Stripe says the payment won the race with the timeout).
+ * that the payment succeeded (the one path that confirms a booking, SRS 7.1).
  */
 @Service
 public class ConfirmationService {
@@ -39,14 +41,17 @@ public class ConfirmationService {
     private final InventoryRepository inventory;
     private final AvailabilityEvents events;
     private final AuditTrail audit;
+    private final OutboxWriter outbox;
     private final Clock clock;
 
-    public ConfirmationService(BookingRepository bookings, BookingLocks locks, InventoryRepository inventory, AvailabilityEvents events, AuditTrail audit, Clock clock) {
+    public ConfirmationService(BookingRepository bookings, BookingLocks locks, InventoryRepository inventory, AvailabilityEvents events, AuditTrail audit,
+                               OutboxWriter outbox, Clock clock) {
         this.bookings = bookings;
         this.locks = locks;
         this.inventory = inventory;
         this.events = events;
         this.audit = audit;
+        this.outbox = outbox;
         this.clock = clock;
     }
 
@@ -68,6 +73,9 @@ public class ConfirmationService {
         inventory.confirmReservations(bookingId);
         bookings.markConfirmed(bookingId, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
         events.seats(SeatEvent.SEAT_BOOKED, booking.tripId(), seatIds, segments);
+        // The ticket and its email are made afterwards, with retries, from the outbox: queued in THIS transaction, so a confirmed booking
+        // always gets them, and a failure of Ticket or Notification can never undo the confirmation (CLAUDE.md).
+        outbox.queue(OutboxMessage.Kind.TICKET_EMAIL, bookingId);
         audit.record("system", "booking", bookingId, "CONFIRM", Map.of("tripId", booking.tripId(), "amount", booking.amount()));
         return Result.CONFIRMED;
     }

@@ -58,6 +58,7 @@ class ConcurrencyDatabaseTest extends DatabaseTest {
         jdbc.sql("DELETE FROM seat_reservation").update();
         jdbc.sql("DELETE FROM standing_hold").update();
         jdbc.sql("DELETE FROM booking_item").update();
+        jdbc.sql("DELETE FROM outbox").update();
         jdbc.sql("DELETE FROM booking").update();
         jdbc.sql("UPDATE standing_usage SET used = 0").update();
         clock.set(com.trainbooking.bookingseat.testsupport.MutableClock.START);

@@ -30,6 +30,7 @@ import com.trainbooking.bookingseat.booking.model.TripClosedException;
 import com.trainbooking.bookingseat.booking.service.BookingQueryService;
 import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.PaymentStartService;
+import com.trainbooking.bookingseat.booking.service.TicketResendService;
 import com.trainbooking.bookingseat.booking.model.PaymentStart;
 import com.trainbooking.bookingseat.payment.PaymentRejectedException;
 import com.trainbooking.bookingseat.common.ApiError;
@@ -74,6 +75,9 @@ class BookingControllerTest {
     PaymentStartService paymentStarts;
 
     @MockitoBean
+    TicketResendService resends;
+
+    @MockitoBean
     JwtDecoder jwtDecoder;
 
     @Test
@@ -83,7 +87,8 @@ class BookingControllerTest {
         mvc.perform(delete("/bookings/31/hold")).andExpect(status().isUnauthorized());
         mvc.perform(get("/bookings/31")).andExpect(status().isUnauthorized());
         mvc.perform(post("/bookings/31/payment")).andExpect(status().isUnauthorized());
-        verifyNoInteractions(holds, queries, paymentStarts);
+        mvc.perform(post("/bookings/31/resend-ticket")).andExpect(status().isUnauthorized());
+        verifyNoInteractions(holds, queries, paymentStarts, resends);
     }
 
     @Test
@@ -235,6 +240,19 @@ class BookingControllerTest {
         mvc.perform(post("/bookings/33/payment").with(passenger())).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("payment_closed"));
         mvc.perform(post("/bookings/34/payment").with(passenger())).andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("payment_unavailable"));
         mvc.perform(post("/bookings/35/payment").with(passenger())).andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.error.code").value("stripe_not_configured"));
+    }
+
+    @Test
+    void resendTicket_isAcceptedForTheUserOfTheToken_andSaysWhetherAnEmailWasQueued() throws Exception {
+        given(resends.resend("user-sub", 31)).willReturn(true);
+        given(resends.resend("user-sub", 32)).willReturn(false);
+        given(resends.resend("user-sub", 33)).willThrow(new BookingConflictException("not_confirmed", "Only a confirmed booking has a ticket."));
+        given(resends.resend("user-sub", 34)).willThrow(new BookingNotFoundException(34));
+
+        mvc.perform(post("/bookings/31/resend-ticket").with(passenger())).andExpect(status().isAccepted()).andExpect(jsonPath("$.queued").value(true));
+        mvc.perform(post("/bookings/32/resend-ticket").with(passenger())).andExpect(status().isAccepted()).andExpect(jsonPath("$.queued").value(false));
+        mvc.perform(post("/bookings/33/resend-ticket").with(passenger())).andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("not_confirmed"));
+        mvc.perform(post("/bookings/34/resend-ticket").with(passenger())).andExpect(status().isNotFound());
     }
 
     @Test

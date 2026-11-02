@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { AdminHeader } from '../components/AdminHeader';
 import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
+import { ListSkeleton } from '../components/ListSkeleton';
+import { EmptyState } from '../components/EmptyState';
 
 interface Station {
   id: number;
@@ -192,8 +194,8 @@ export function Stations() {
       </SlideOver>
 
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {stations === null && !loadError && <p className="muted">Loading…</p>}
-      {stations?.length === 0 && <p className="muted">No stations yet. Use "Add station" to add the first one.</p>}
+      {stations === null && !loadError && <ListSkeleton />}
+      {stations?.length === 0 && <EmptyState title="No stations yet" text='Use "Add station" to add the first one.' />}
       {stations && stations.length > 0 && (
         <div className="table-wrap"><table className="table">
           <thead>

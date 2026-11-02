@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { CLASS_LABEL, COACH_CLASSES, type CoachClass, type Fare, type Route } from '../adminTypes';
 import { AdminHeader } from '../components/AdminHeader';
 import { gatewayRequest, readError } from '../api';
+import { ListSkeleton } from '../components/ListSkeleton';
 
 /** The grid is keyed by segment and class, for example "0/FIRST". The cell holds the text of the amount box. */
 type Cells = Record<string, string>;
@@ -131,7 +132,7 @@ export function RouteFares() {
       </p>
 
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {route === null && !loadError && <p className="muted">Loading…</p>}
+      {route === null && !loadError && <ListSkeleton />}
 
       {route && (
         <form className="form" onSubmit={submit} noValidate>

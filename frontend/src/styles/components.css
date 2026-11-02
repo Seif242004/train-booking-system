@@ -497,3 +497,63 @@ button.chip[aria-selected='true'] {
 .link-button:hover {
   color: var(--red-hover);
 }
+
+/* ---- Empty, loading and not-found states ------------------------------------------------------------------------------------------ */
+/* An empty list says what is missing and points to the next action. */
+.empty-state {
+  margin-top: 16px;
+  padding: 32px;
+  background: var(--white);
+  border: 1.5px dashed var(--line);
+  border-radius: var(--r-card);
+}
+
+.empty-state h2 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.empty-state p {
+  max-width: 52ch;
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+.empty-state > :last-child {
+  margin-bottom: 0;
+}
+
+.list-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+/* "Loading…" and "Taking you to sign in…" while the page cannot be shown yet. */
+.page-status {
+  max-width: 28rem;
+  margin: 96px auto;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--muted);
+}
+
+.not-found {
+  max-width: 640px;
+  margin: 32px auto 0;
+}
+
+.not-found-code {
+  margin: 0;
+  font-size: clamp(72px, 14vw, 120px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--red);
+}
+
+.not-found .empty-state {
+  margin-top: 8px;
+}

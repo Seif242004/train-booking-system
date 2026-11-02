@@ -13,8 +13,8 @@ export function RequireAuth() {
     if (status === 'ready' && !authenticated) login(window.location.href);
   }, [status, authenticated, login]);
 
-  if (status === 'loading') return <p className="muted">Loading…</p>;
-  if (!authenticated) return <p className="muted">Redirecting to sign in…</p>;
+  if (status === 'loading') return <p className="page-status" role="status">Loading…</p>;
+  if (!authenticated) return <p className="page-status" role="status">Taking you to sign in…</p>;
   return <Outlet />;
 }
 

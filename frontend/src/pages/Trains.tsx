@@ -5,6 +5,8 @@ import { AdminHeader } from '../components/AdminHeader';
 import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
 import { label } from '../format';
+import { ListSkeleton } from '../components/ListSkeleton';
+import { EmptyState } from '../components/EmptyState';
 
 interface TrainForm {
   number: string;
@@ -226,9 +228,9 @@ export function Trains() {
       </form>
 
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {trains === null && !loadError && <p className="muted">Loading…</p>}
+      {trains === null && !loadError && <ListSkeleton />}
       {trains?.length === 0 && (
-        <p className="muted">{filtered ? 'No trains match these filters.' : 'No trains yet. Use "Add train" to add the first one.'}</p>
+        <EmptyState title={filtered ? 'No trains match these filters' : 'No trains yet'} text={filtered ? 'Clear a filter to see more trains.' : 'Use "Add train" to add the first one.'} />
       )}
       {trains && trains.length > 0 && (
         <div className="table-wrap"><table className="table">

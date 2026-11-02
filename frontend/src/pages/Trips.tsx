@@ -7,6 +7,8 @@ import { gatewayRequest, readError, type ApiErrorDetail } from '../api';
 import { TripCancellation } from '../components/TripCancellation';
 import { clock, daysLater, todayLocal } from '../time';
 import { label } from '../format';
+import { ListSkeleton } from '../components/ListSkeleton';
+import { EmptyState } from '../components/EmptyState';
 
 interface StopTimes {
   arrival: string; // "HH:mm" or ""
@@ -316,8 +318,8 @@ export function Trips() {
       </SlideOver>
 
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {trips === null && !loadError && <p className="muted">Loading…</p>}
-      {trips?.length === 0 && <p className="muted">No trips yet. Use "Add trip" to add the first one.</p>}
+      {trips === null && !loadError && <ListSkeleton />}
+      {trips?.length === 0 && <EmptyState title="No trips yet" text='Use "Add trip" to add the first one.' />}
       {trips && trips.length > 0 && (
         <div className="table-wrap"><table className="table">
           <thead>

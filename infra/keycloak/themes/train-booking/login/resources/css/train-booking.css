@@ -546,3 +546,14 @@ hr {
   line-height: 1.6;
   color: var(--tb-ink-2);
 }
+
+/* The focus ring of the web app: the red border and tint above, plus a 3px ink outline around the whole field. */
+.pf-v5-c-form-control:focus-within,
+.pf-v5-c-input-group:focus-within {
+  outline: 3px solid var(--tb-ink);
+  outline-offset: 2px;
+}
+
+.pf-v5-c-input-group .pf-v5-c-form-control:focus-within {
+  outline: none;
+}

@@ -5,6 +5,7 @@ import { gatewayGet, gatewayRequest, readError } from '../api';
 import type { Booking, BookingStatus, RefundStatus } from '../bookingTypes';
 import { clock } from '../time';
 import { label } from '../format';
+import { EmptyState } from '../components/EmptyState';
 
 interface AdminBooking {
   booking: Booking;
@@ -105,7 +106,7 @@ export function SupportPage() {
       </form>
 
       {error && <p className="notice notice-error" role="alert">{error}</p>}
-      {results && results.length === 0 && <p className="muted">No booking matches.</p>}
+      {results && results.length === 0 && <EmptyState title="No booking matches" text='Check the reference or the email, or clear a filter and search again.' />}
       {results && results.length > 0 && (
         <div className="table-wrap"><table className="table">
           <thead>

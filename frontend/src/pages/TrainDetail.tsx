@@ -6,6 +6,8 @@ import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
 import { CoachSeats } from '../components/CoachSeats';
 import { label } from '../format';
+import { ListSkeleton } from '../components/ListSkeleton';
+import { EmptyState } from '../components/EmptyState';
 
 interface CoachForm {
   code: string;
@@ -225,8 +227,8 @@ export function TrainDetail() {
 
       <h2>Coaches</h2>
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {coaches === null && !loadError && <p className="muted">Loading…</p>}
-      {coaches?.length === 0 && <p className="muted">This train has no coaches yet. Use "Add coach" to add the first one.</p>}
+      {coaches === null && !loadError && <ListSkeleton />}
+      {coaches?.length === 0 && <EmptyState title="This train has no coaches yet" text='Use "Add coach" to add the first one.' />}
       {coaches && coaches.length > 0 && (
         <>
           <p className="muted">In train order. Total standing capacity: {totalStanding}.</p>

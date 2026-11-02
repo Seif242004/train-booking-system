@@ -4,6 +4,8 @@ import type { Route, Station } from '../adminTypes';
 import { AdminHeader } from '../components/AdminHeader';
 import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError, type ApiErrorDetail } from '../api';
+import { ListSkeleton } from '../components/ListSkeleton';
+import { EmptyState } from '../components/EmptyState';
 
 /** Admin page for routes (FR-A8): a name and an ordered list of stations. Fares are set on their own page. */
 export function RouteList() {
@@ -267,8 +269,8 @@ export function RouteList() {
       </SlideOver>
 
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {routes === null && !loadError && <p className="muted">Loading…</p>}
-      {routes?.length === 0 && <p className="muted">No routes yet. Use "Add route" to add the first one.</p>}
+      {routes === null && !loadError && <ListSkeleton />}
+      {routes?.length === 0 && <EmptyState title="No routes yet" text='Use "Add route" to add the first one.' />}
       {routes && routes.length > 0 && (
         <div className="table-wrap"><table className="table">
           <thead>

@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { gatewayGet, type GatewayResult } from '../api';
 import { useAuth } from '../auth/AuthContext';
 import { GatewayResultView } from '../components/GatewayResultView';
+import { label } from '../format';
 
 type Check = { label: string; path: string; withToken: boolean };
 
@@ -53,7 +54,7 @@ export function Profile() {
           {user?.roles.length ? (
             <ul className="chips">
               {user.roles.map((role) => (
-                <li key={role}>{role}</li>
+                <li key={role}>{label(role)}</li>
               ))}
             </ul>
           ) : (

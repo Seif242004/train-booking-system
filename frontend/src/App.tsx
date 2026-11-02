@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAdmin, RequireAuth } from './auth/guards';
 import { AdminLayout } from './components/AdminLayout';
@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { Landing } from './pages/Landing';
 import { Admin } from './pages/Admin';
 import { MyBookingsPage } from './pages/MyBookingsPage';
+import { NotFound } from './pages/NotFound';
 import { PaymentPage } from './pages/PaymentPage';
 import { Profile } from './pages/Profile';
 import { RouteFares } from './pages/RouteFares';
@@ -45,7 +46,7 @@ export function App() {
                 </Route>
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </BrowserRouter>

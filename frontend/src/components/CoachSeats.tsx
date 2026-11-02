@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CLASS_LABEL, type Coach, type Seat } from '../adminTypes';
 import { gatewayRequest, readError, type ApiErrorDetail } from '../api';
+import { ListSkeleton } from './ListSkeleton';
+import { EmptyState } from './EmptyState';
 
 interface NewSeat {
   seatNumber: string;
@@ -159,8 +161,8 @@ export function CoachSeats({ coach }: { coach: Coach }) {
       </p>
 
       {loadError && <p className="notice notice-error">{loadError}</p>}
-      {seats === null && !loadError && <p className="muted">Loading…</p>}
-      {seats?.length === 0 && <p className="muted">This coach has no seats yet. Generate a layout below.</p>}
+      {seats === null && !loadError && <ListSkeleton />}
+      {seats?.length === 0 && <EmptyState title="This coach has no seats yet" text="Generate a layout below." />}
 
       {seats && seats.length > 0 && (
         <>

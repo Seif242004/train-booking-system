@@ -374,26 +374,6 @@ a.fare-tile:hover {
   font-size: 14px;
 }
 
-/* Empty states point to the next action. */
-.empty-state {
-  margin-top: 16px;
-  padding: 32px;
-  background: var(--white);
-  border: 1.5px dashed var(--line);
-  border-radius: var(--r-card);
-}
-
-.empty-state h2 {
-  margin: 0 0 8px;
-  font-size: 22px;
-}
-
-.empty-state p {
-  max-width: 52ch;
-  margin: 0 0 16px;
-  color: var(--muted);
-}
-
 .next-day-card {
   display: flex;
   flex-wrap: wrap;

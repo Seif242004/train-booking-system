@@ -61,6 +61,11 @@ public class PaymentRepository {
                 .param("amount", amount).param("currency", currency).param("now", now).param("id", id).update();
     }
 
+    /** Removes a row that never got an intent and was not cancelled meanwhile (a creation Stripe refused for good). */
+    public void deleteIfCreating(long id) {
+        jdbc.sql("DELETE FROM payment WHERE id = :id AND status = 'CREATING' AND stripe_payment_intent_id IS NULL").param("id", id).update();
+    }
+
     public void touch(long id, OffsetDateTime now) {
         jdbc.sql("UPDATE payment SET updated_at = :now WHERE id = :id").param("now", now).param("id", id).update();
     }

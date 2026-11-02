@@ -35,10 +35,10 @@ public class RefundRepository {
     }
 
     /** The unique key on the booking makes a second refund for the same booking impossible (ORA-00001). */
-    public Refund insert(long bookingId, long paymentId, BigDecimal amount, String reason, OffsetDateTime now) {
+    public Refund insert(long bookingId, long paymentId, BigDecimal amount, String reason, OffsetDateTime now, OffsetDateTime nextAttemptAt) {
         jdbc.sql("INSERT INTO refund (booking_id, payment_id, amount, status, reason, attempts, next_attempt_at, created_at, updated_at) "
-                        + "VALUES (:b, :p, :amount, 'PENDING', :reason, 0, :now, :now, :now)")
-                .param("b", bookingId).param("p", paymentId).param("amount", amount).param("reason", reason).param("now", now).update();
+                        + "VALUES (:b, :p, :amount, 'PENDING', :reason, 0, :next, :now, :now)")
+                .param("b", bookingId).param("p", paymentId).param("amount", amount).param("reason", reason).param("now", now).param("next", nextAttemptAt).update();
         return findByBooking(bookingId).orElseThrow();
     }
 

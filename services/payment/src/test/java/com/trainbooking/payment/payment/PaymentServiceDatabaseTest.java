@@ -92,6 +92,17 @@ class PaymentServiceDatabaseTest extends DatabaseTest {
     }
 
     @Test
+    void create_belowStripesMinimum_saysSo_andLeavesNoRowBehind() {
+        stripe.createFails(new com.trainbooking.payment.stripe.StripeRejectedException("too small", new com.stripe.exception.InvalidRequestException(
+                "Amount must convert to at least 50 cents", "amount", "req_1", "amount_too_small", 400, null)));
+
+        assertThatThrownBy(() -> payments.create(request(BOOKING, "5.00")))
+                .isInstanceOf(PaymentConflictException.class).extracting("code").isEqualTo("amount_too_small");
+
+        assertThat(rows("payment")).isZero();
+    }
+
+    @Test
     void create_withoutAStripeKey_failsBeforeAnyRowIsWritten() {
         stripe.configured(false);
 

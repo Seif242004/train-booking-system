@@ -40,6 +40,9 @@ public class RefundService {
     /** About an hour of retries (the backoff is capped at a minute); then the refund is flagged REFUND_FAILED for an admin to look at. */
     static final int MAX_ATTEMPTS = 60;
 
+    /** How long the retrier leaves a new refund alone, while the request that created it is talking to Stripe. */
+    static final java.time.Duration FIRST_ATTEMPT_GRACE = java.time.Duration.ofSeconds(30);
+
     private final RefundRepository refunds;
     private final PaymentRepository payments;
     private final StripeGateway stripe;
@@ -70,7 +73,10 @@ public class RefundService {
             if (existing.isPresent()) {
                 return new Created(existing.get(), false); // a repeated request: the same refund, nothing new
             }
-            Refund refund = refunds.insert(bookingId, payment.id(), payment.amount(), reason, now());
+            // The request that creates the refund sends it to Stripe itself, right after this transaction. The retrier must not pick it up
+            // meanwhile (two calls with the same idempotency key at once make Stripe answer "key in use"), so it is not due for a while;
+            // if the first attempt fails, scheduleRetry sets the real time of the next one.
+            Refund refund = refunds.insert(bookingId, payment.id(), payment.amount(), reason, now(), now().plus(FIRST_ATTEMPT_GRACE));
             outbox.refundChanged(bookingId, "REFUND_PENDING");
             audit.record("booking-service", "refund", refund.id(), "REQUEST", Map.of("bookingId", bookingId, "amount", refund.amount(), "reason", String.valueOf(reason)));
             return new Created(refund, true);

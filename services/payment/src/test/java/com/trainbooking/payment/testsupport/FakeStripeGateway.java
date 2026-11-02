@@ -36,6 +36,9 @@ public class FakeStripeGateway implements StripeGateway {
     private volatile boolean down;
     private volatile boolean configured = true;
     private volatile boolean rejectRefunds;
+    private volatile RuntimeException createFailure;
+    private volatile Runnable whileSendingRefund = () -> {
+    };
     private volatile String refundStatus = "succeeded";
     private volatile Consumer<IntentCall> afterIntentCreated = call -> {
     };
@@ -53,11 +56,24 @@ public class FakeStripeGateway implements StripeGateway {
         down = false;
         configured = true;
         rejectRefunds = false;
+        createFailure = null;
+        whileSendingRefund = () -> {
+        };
         refundStatus = "succeeded";
         afterIntentCreated = call -> {
         };
         beforeCancel = intentId -> {
         };
+    }
+
+    /** Runs while a refund is being sent to Stripe (the call is in flight). */
+    public void whileSendingRefund(Runnable action) {
+        this.whileSendingRefund = action;
+    }
+
+    /** The next creations of an intent fail with this. */
+    public void createFails(RuntimeException failure) {
+        this.createFailure = failure;
     }
 
     /** Stripe refuses every refund for good (a 4xx such as "already refunded"). */
@@ -125,6 +141,9 @@ public class FakeStripeGateway implements StripeGateway {
         checkUp();
         IntentCall call = new IntentCall(amount, currency, bookingId, idempotencyKey);
         createCalls.add(call);
+        if (createFailure != null) {
+            throw createFailure;
+        }
         String existing = intentByKey.get(idempotencyKey);
         if (existing != null) {
             return intents.get(existing);
@@ -160,6 +179,7 @@ public class FakeStripeGateway implements StripeGateway {
     public RefundResult createRefund(String intentId, BigDecimal amount, String currency, String idempotencyKey) {
         checkUp();
         refundCalls.add(new RefundCall(intentId, amount, currency, idempotencyKey));
+        whileSendingRefund.run();
         if (rejectRefunds) {
             throw new com.trainbooking.payment.stripe.StripeRejectedException("charge_already_refunded (test)", null);
         }

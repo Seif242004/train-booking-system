@@ -130,6 +130,20 @@ class RefundDatabaseTest extends DatabaseTest {
     }
 
     @Test
+    void aRefundThatIsBeingSent_isNotPickedUpAndSentAgainByTheRetrier() throws Exception {
+        paidBooking();
+        int[] retried = {-1};
+        // While the request is talking to Stripe, the retrier runs (it runs every second in the real service).
+        stripe.whileSendingRefund(() -> retried[0] = retrier.retryDue());
+
+        refunds.request(BOOKING, "Cancelled");
+
+        assertThat(retried[0]).isZero();
+        assertThat(stripe.refundCalls()).hasSize(1); // one call with the idempotency key, not two at once
+        assertThat(jdbc.sql("SELECT status FROM refund").query(String.class).single()).isEqualTo("SUCCEEDED");
+    }
+
+    @Test
     void aRefundStripeRefusesForGood_isFlaggedFailedAtOnce_notRetriedForever() throws Exception {
         paidBooking();
         stripe.rejectRefunds(true); // for example charge_already_refunded

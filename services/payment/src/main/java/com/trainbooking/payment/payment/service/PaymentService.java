@@ -11,6 +11,7 @@ import com.trainbooking.payment.payment.model.PaymentStatus;
 import com.trainbooking.payment.payment.repository.PaymentRepository;
 import com.trainbooking.payment.stripe.StripeGateway;
 import com.trainbooking.payment.stripe.StripeNotConfiguredException;
+import com.trainbooking.payment.stripe.StripeRejectedException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -92,7 +93,17 @@ public class PaymentService {
         if (claim.needsIntent()) {
             // If this throws, the row stays CREATING: the next request takes it over after the timeout, and the idempotency key then
             // returns the intent if Stripe did create it after all.
-            StripeGateway.Intent intent = stripe.createIntent(payment.amount(), payment.currency(), payment.bookingId(), idempotencyKey(payment));
+            StripeGateway.Intent intent;
+            try {
+                intent = stripe.createIntent(payment.amount(), payment.currency(), payment.bookingId(), idempotencyKey(payment));
+            } catch (StripeRejectedException e) {
+                // Stripe has a minimum charge (about US$0.50, roughly EGP 27). Nothing was created: free the row and say so plainly.
+                if (e.getCause() instanceof com.stripe.exception.StripeException se && "amount_too_small".equals(se.getCode())) {
+                    tx.executeWithoutResult(status -> payments.deleteIfCreating(payment.id()));
+                    throw new PaymentConflictException("amount_too_small", "This amount is below the minimum that the card payment accepts.");
+                }
+                throw e;
+            }
             Attach attached = tx.execute(status -> attachIntent(payment, intent));
             if (attached == Attach.LOST) {
                 // The hold ended, or the booking changed, while Stripe was creating the intent. Nobody has its client secret.

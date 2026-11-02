@@ -33,7 +33,7 @@ public class StripeApiGateway implements StripeGateway {
                 .setCurrency(currency.toLowerCase())
                 // Cards only (CLAUDE.md, SRS 4.2): a card is confirmed at once or declined, while delayed methods (bank debits, vouchers)
                 // leave an intent in "processing" for days, where it cannot be cancelled and would keep seats held.
-                .putExtraParam("payment_method_types", java.util.List.of("card")) // this library version has no typed setter for it
+                .addAllowedPaymentMethodType(PaymentIntentCreateParams.AllowedPaymentMethodType.CARD)
                 .putMetadata("bookingId", Long.toString(bookingId))
                 .build();
         return call("create a payment intent", () -> toIntent(client.v1().paymentIntents()
@@ -90,7 +90,8 @@ public class StripeApiGateway implements StripeGateway {
         } catch (StripeException e) {
             // A 4xx other than rate limiting (429) is Stripe saying "no" to this request: trying again cannot help.
             Integer status = e.getStatusCode();
-            if (status != null && status >= 400 && status < 500 && status != 429) {
+            // "idempotency_key_in_use" means the same request is still being processed: not a refusal, just try again.
+            if (status != null && status >= 400 && status < 500 && status != 429 && !"idempotency_key_in_use".equals(e.getCode())) {
                 throw new StripeRejectedException("Stripe refused to " + what + ": " + e.getMessage(), e);
             }
             throw new StripeCallException("Stripe failed to " + what + ": " + e.getMessage(), e);

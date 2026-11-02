@@ -62,3 +62,9 @@ test; a guard refuses any schema not ending in `_test`): one ticket per booking 
 no resurrection, a 300 KB BLOB round trip, the security of the internal endpoints and the validation of the input. Without
 `TICKET_TEST_DB_PASSWORD` they are **skipped, not passed** (Gradle prints each as SKIPPED). The schema is optional: the Oracle init script creates
 it on a fresh volume if the password is set in the root `.env`; for an existing volume create it once as SYS, like `booking_seat_test`.
+
+## Logs, audit and traces (OpenObserve)
+
+- **Structured logs.** With `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` (set by Compose) every log line is one JSON object. `RequestLogContext` writes one `access` line per request with the method, the **path** (never the query string, a header or a body), the status and the duration, and puts the booking id and the trip id of the path into the logging context, so every line of that request carries them as fields.
+- **Audit.** `AuditTrail.record` writes the `audit_log` row and, **after the transaction commits** (never for a change that rolls back), a log line from the logger `audit` with the fields `actor`, `entity`, `entityId`, `action`, `bookingId` / `tripId` and the `diff`, so every admin action and booking state change reaches OpenObserve with its timestamp and actor.
+- **Traces and shipping.** The Docker image starts the service with the OpenTelemetry Java agent (`infra/docker/entrypoint-java.sh`). With `OTEL_EXPORTER_OTLP_ENDPOINT` and the OpenObserve login set (Compose does), the agent sends traces and the logs, with the logging-context fields as attributes, to OpenObserve. A call from the Gateway continues the Gateway's trace. Run on the host with Gradle, the service just logs to the console.

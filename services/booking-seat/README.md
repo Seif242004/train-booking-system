@@ -113,6 +113,7 @@ Set in `services/booking-seat/.env` (git-ignored; copy `.env.example`), or in th
 | `BOOKING_SEAT_DB_PASSWORD` | none, required | Password of the `booking_seat` Oracle user (same as in the root `.env`) |
 | `PAYMENT_URL` | `http://localhost:8083` | Where the Payment service runs |
 | `TRAIN_SCHEDULE_URL` | `http://localhost:8081` | Where Train & Schedule runs (to tell it a trip is cancelled) |
+| `TIMEZONE` | `Africa/Cairo` | The railway's own time zone: the stop times in the API (`trip.from.departureTime`, ...) carry its offset, whatever zone the JVM or the database session runs in. The web app shows the clock part of them as it is |
 | `TICKET_URL`, `NOTIFICATION_URL` | `http://localhost:8084`, `http://localhost:8085` | Where the Ticket and Notification services run |
 | `TRAINBOOKING_OUTBOX_FIXED_DELAY_MS` | `1000` | Delay between two runs of the outbox |
 | `INTERNAL_API_KEY` | none, required | Shared key for service-to-service calls (the same value in Train & Schedule's `.env`); the service does not start without it |
@@ -166,3 +167,9 @@ CREATE USER booking_seat_test IDENTIFIED BY "<password>" DEFAULT TABLESPACE ts_b
 GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE VIEW TO booking_seat_test;
 SQL
 ```
+
+## Logs, audit and traces (OpenObserve)
+
+- **Structured logs.** With `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` (set by Compose) every log line is one JSON object. `RequestLogContext` writes one `access` line per request with the method, the **path** (never the query string, a header or a body), the status and the duration, and puts the user id (the token's `sub`), the booking id and the trip id of the path into the logging context, so every line of that request carries them as fields.
+- **Audit.** `AuditTrail.record` writes the `audit_log` row and, **after the transaction commits** (never for a change that rolls back), a log line from the logger `audit` with the fields `actor`, `entity`, `entityId`, `action`, `bookingId` / `tripId` and the `diff`, so every admin action and booking state change reaches OpenObserve with its timestamp and actor.
+- **Traces and shipping.** The Docker image starts the service with the OpenTelemetry Java agent (`infra/docker/entrypoint-java.sh`). With `OTEL_EXPORTER_OTLP_ENDPOINT` and the OpenObserve login set (Compose does), the agent sends traces and the logs, with the logging-context fields as attributes, to OpenObserve. A call from the Gateway continues the Gateway's trace. Run on the host with Gradle, the service just logs to the console.

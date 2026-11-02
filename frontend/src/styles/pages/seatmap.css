@@ -1,0 +1,447 @@
+/* Seat map: the train strip, the coach drawn as a car, real seat shapes, legend and tooltips (brief A5). Motion: transform and opacity only,
+   switched off globally under prefers-reduced-motion (base.css). */
+
+/* ---- The whole train as small cars ---- */
+.train-strip {
+  margin-top: 20px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.train-strip-list {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  min-width: min-content;
+}
+
+.train-engine {
+  display: flex;
+  align-items: center;
+  padding-right: 4px;
+  color: var(--ink-2);
+}
+
+.train-car {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-width: 76px;
+  min-height: var(--touch);
+  padding: 8px 10px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.train-car:hover {
+  border-color: var(--ink-2);
+}
+
+.train-car:active {
+  transform: scale(0.97);
+}
+
+.train-car.is-current {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px var(--red) inset;
+}
+
+.train-car-body {
+  display: flex;
+  gap: 3px;
+  width: 52px;
+  padding: 5px 6px;
+  background: var(--paper);
+  border: 2px solid var(--ink-2);
+  border-radius: 8px 8px 4px 4px;
+}
+
+.train-car-body i {
+  flex: 1;
+  height: 8px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.train-car.is-current .train-car-body {
+  border-color: var(--red);
+}
+
+.train-car-code {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.train-car-left {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ok-text);
+}
+
+.train-car-class {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---- The coach drawn as a car ---- */
+.car-wrap {
+  max-width: 420px;
+  margin: 20px auto 0;
+}
+
+.car-front {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.car {
+  padding: 0 14px 20px;
+  background: #faf9fb;
+  border: 3px solid var(--ink-2);
+  border-radius: 96px 96px 24px 24px;
+}
+
+/* The nose: a windscreen under the rounded front. */
+.car-nose {
+  display: flex;
+  justify-content: center;
+  padding: 18px 0 14px;
+}
+
+.car-nose span {
+  width: 46%;
+  height: 22px;
+  background: var(--line);
+  border: 2px solid var(--ink-2);
+  border-radius: 14px 14px 6px 6px;
+}
+
+.plan-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-row {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+/* A window in the wall beside every row. */
+.car-window {
+  justify-self: stretch;
+  height: 34px;
+  background: var(--line);
+  border: 2px solid var(--ink-2);
+  border-radius: 4px;
+}
+
+.plan-rownum {
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ---- A seat ---- */
+.plan-seat,
+.plan-seat-empty {
+  width: 100%;
+  min-width: 44px;
+  height: 52px;
+  justify-self: center;
+}
+
+.plan-seat {
+  position: relative;
+  padding: 0;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform var(--t-fast) var(--ease);
+  --seat-body: var(--white);
+  --seat-line: #6d6680;
+  --seat-top: #ece9f0;
+}
+
+.plan-seat:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.seat-shape {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.seat-shape rect {
+  stroke: var(--seat-line);
+  stroke-width: 1.6;
+  transition: fill var(--t-fast) var(--ease), stroke var(--t-fast) var(--ease);
+}
+
+.s-back,
+.s-cushion {
+  fill: var(--seat-body);
+}
+
+.s-head,
+.s-arm {
+  fill: var(--seat-top);
+}
+
+.s-mark {
+  fill: none;
+  stroke: var(--seat-mark, var(--ink-2));
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.plan-seat-number {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  left: 0;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+.plan-seat:not(:disabled):hover {
+  --seat-line: var(--red);
+  transform: translateY(-2px);
+}
+
+.plan-seat:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.plan-seat:disabled {
+  cursor: not-allowed;
+}
+
+/* Selected (and held by me): brand red with a check. The pop runs once when the class is applied. */
+.plan-seat.is-mine {
+  --seat-body: var(--red);
+  --seat-line: var(--red-hover);
+  --seat-top: #ff8a85;
+  --seat-mark: #fff;
+  color: #fff;
+}
+
+.plan-seat.is-mine .seat-shape {
+  animation: seat-pop 0.28s var(--ease-out);
+}
+
+.plan-seat.is-mine .plan-seat-number {
+  color: #fff;
+}
+
+/* Held by someone else: warm tint, dashed outline and a clock. */
+.plan-seat.is-held {
+  --seat-body: var(--warn-bg);
+  --seat-line: #a07a2e;
+  --seat-top: #f6e3b4;
+  --seat-mark: var(--warn-text);
+  color: var(--warn-text);
+}
+
+.plan-seat.is-held rect {
+  stroke-dasharray: 3 2.5;
+}
+
+/* Taken: dimmed with a cross, not clickable. */
+.plan-seat.is-booked {
+  --seat-body: #e4e0ea;
+  --seat-line: #8d86a0;
+  --seat-top: #d3cedc;
+  --seat-mark: #4a4360;
+  color: #4a4360;
+}
+
+.plan-seat.is-booked .seat-shape {
+  opacity: 0.75;
+}
+
+/* A seat someone else just took: a brief ring, no movement of the layout. */
+.plan-seat.is-flash::after {
+  position: absolute;
+  inset: -3px;
+  content: '';
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  animation: seat-flash 1.6s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes seat-pop {
+  0% {
+    transform: scale(0.8);
+  }
+
+  60% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes seat-flash {
+  0% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+/* Tooltip: seat number, position, class, price. Shown on hover and keyboard focus. */
+.seat-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 6;
+  width: max-content;
+  max-width: 220px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #fff;
+  text-align: center;
+  background: var(--ink);
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.plan-seat:hover .seat-tip,
+.plan-seat:focus-visible .seat-tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (hover: none) {
+  .plan-seat:hover .seat-tip {
+    opacity: 0;
+  }
+}
+
+/* ---- Legend ---- */
+.plan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  padding: 0;
+  margin: 20px 0 0;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.plan-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend-seat {
+  display: inline-block;
+  width: 24px;
+  height: 26px;
+}
+
+.legend-seat .seat-shape-available {
+  --seat-body: var(--white);
+}
+
+.legend-seat .seat-shape rect {
+  stroke: #6d6680;
+}
+
+.legend-seat .seat-shape-mine rect {
+  fill: var(--red);
+  stroke: var(--red-hover);
+}
+
+.legend-seat .seat-shape-mine .s-mark {
+  stroke: #fff;
+}
+
+.legend-seat .seat-shape-held rect {
+  fill: var(--warn-bg);
+  stroke-dasharray: 3 2.5;
+}
+
+.legend-seat .seat-shape-booked rect {
+  fill: #e4e0ea;
+}
+
+.legend-seat .seat-shape-available rect {
+  fill: var(--white);
+}
+
+.legend-seat .s-mark {
+  stroke-width: 3.4;
+}
+
+/* ---- Standing zone, inside the car at its rear ---- */
+.standing-zone {
+  margin: 16px 4px 0;
+  padding: 16px;
+  background: var(--white);
+  border: 2px dashed var(--ink-2);
+  border-radius: 16px;
+}
+
+.standing-zone h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.standing-zone p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .car {
+    padding: 0 8px 16px;
+    border-radius: 72px 72px 20px 20px;
+  }
+
+  .train-car {
+    min-width: 68px;
+  }
+}

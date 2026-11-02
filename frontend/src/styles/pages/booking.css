@@ -180,26 +180,6 @@
   animation: pop 0.35s var(--ease-out) backwards;
 }
 
-.coach-chips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.coach-chips-label {
-  margin-right: 4px;
-  font-size: 13px;
-  font-weight: 700;
-  color: #5f5873;
-}
-
-.coach-chips .chip {
-  min-width: 48px;
-  justify-content: center;
-}
-
 .plan-legend {
   display: flex;
   flex-wrap: wrap;
@@ -218,58 +198,6 @@
   gap: 8px;
 }
 
-.legend-swatch {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--disabled);
-  background: var(--white);
-  border: 1.5px solid #cfc9d8;
-  border-radius: 6px;
-}
-
-.legend-swatch.is-mine,
-.plan-seat.is-mine {
-  color: #fff;
-  background: var(--red);
-  border-color: var(--red);
-}
-
-.legend-swatch.is-held,
-.plan-seat.is-held {
-  color: var(--warn-text);
-  background: var(--warn-bg);
-  border: 1.5px dashed #d4b96a;
-}
-
-.legend-swatch.is-booked,
-.plan-seat.is-booked {
-  color: var(--disabled);
-  background: #ece9f0;
-  border-color: #ece9f0;
-}
-
-.coach-plan {
-  max-width: 420px;
-  margin: 24px auto 0;
-  padding: 20px 24px 28px;
-  background: #faf9fb;
-  border: 1.5px solid #e6e2ec;
-  border-radius: 28px;
-}
-
-.plan-label {
-  margin: 0 0 16px;
-  font-size: 13px;
-  font-weight: 700;
-  text-align: center;
-  color: var(--disabled);
-}
-
 .plan-rows {
   display: grid;
   gap: 10px;
@@ -286,50 +214,6 @@
   font-weight: 700;
   text-align: center;
   color: var(--disabled);
-}
-
-.plan-seat,
-.plan-seat-empty {
-  width: 100%;
-  max-width: 48px;
-  min-width: 0;
-  min-height: var(--touch);
-  aspect-ratio: 1 / 1;
-  justify-self: center;
-}
-
-.plan-seat {
-  padding: 0;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--ink);
-  background: var(--white);
-  border: 1.5px solid #cfc9d8;
-  border-radius: var(--r-seat);
-  cursor: pointer;
-  transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
-}
-
-.plan-seat:not(:disabled):hover {
-  border-color: var(--red);
-  transform: translateY(-1px);
-}
-
-.plan-seat:not(:disabled):active {
-  transform: scale(0.94);
-}
-
-.plan-seat:disabled {
-  cursor: not-allowed;
-}
-
-.plan-seat:disabled:not(.is-booked):not(.is-held):not(.is-mine) {
-  opacity: 0.6;
-}
-
-.plan-seat.is-mine:disabled {
-  opacity: 0.85;
 }
 
 /* ---- Standing places ------------------------------------------------------------------------------------------------------------- */
@@ -967,9 +851,6 @@
     padding: 20px 16px;
   }
 
-  .coach-plan {
-    padding: 16px 12px 20px;
-  }
 
   .ticket-body,
   .ticket-top {

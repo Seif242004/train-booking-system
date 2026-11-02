@@ -205,7 +205,7 @@ class TripServiceTest {
 
     @Test
     void update_keepingTheSameTrain_stillWorksForAnInactiveTrain_soTimesCanBeCorrected() {
-        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11)), Optional.of(savedTrip(11)));
+        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11))).willReturn(Optional.of(savedTrip(11)));
         given(trains.get(7)).willReturn(INACTIVE_TRAIN);
         given(routes.get(4)).willReturn(ROUTE);
         given(coaches.listByTrain(7)).willReturn(FIRST_AND_SECOND);
@@ -263,7 +263,7 @@ class TripServiceTest {
 
     @Test
     void update_whenBookingRefuses_theConflictReachesTheCaller() {
-        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11)), Optional.of(savedTrip(11)));
+        given(trips.findById(11)).willReturn(Optional.of(savedTrip(11))).willReturn(Optional.of(savedTrip(11)));
         given(trains.get(7)).willReturn(ACTIVE_TRAIN);
         given(routes.get(4)).willReturn(ROUTE);
         given(coaches.listByTrain(7)).willReturn(FIRST_AND_SECOND);
@@ -289,7 +289,7 @@ class TripServiceTest {
     void markCancelled_setsTheStatus_andWritesAnAuditRow_butNeverPushesASnapshotBack() {
         Trip active = savedTrip(11);
         Trip cancelled = new Trip(11, 7, "T100", "Express", 4, "Cairo-Alexandria", DAY, TripStatus.CANCELLED, active.stops());
-        given(trips.findById(11)).willReturn(Optional.of(active), Optional.of(cancelled));
+        given(trips.findById(11)).willReturn(Optional.of(active)).willReturn(Optional.of(cancelled));
         given(trips.markCancelled(11)).willReturn(true);
 
         Trip result = service.markCancelled(11, "admin-sub");

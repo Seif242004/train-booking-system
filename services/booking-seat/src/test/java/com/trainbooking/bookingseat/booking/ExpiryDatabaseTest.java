@@ -8,7 +8,6 @@ import com.trainbooking.bookingseat.booking.model.BookingView;
 import com.trainbooking.bookingseat.booking.model.HoldConflictException;
 import com.trainbooking.bookingseat.booking.model.HoldRequest;
 import com.trainbooking.bookingseat.booking.service.ExpiryService;
-import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.PaymentResultService;
 import com.trainbooking.bookingseat.live.SeatEvent;
 import com.trainbooking.bookingseat.live.UserEvent;

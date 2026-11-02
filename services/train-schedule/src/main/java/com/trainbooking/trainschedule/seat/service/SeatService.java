@@ -122,8 +122,8 @@ public class SeatService {
     @Transactional
     public void delete(long id, String adminId) {
         Seat before = seats.findById(id).orElseThrow(() -> new SeatNotFoundException(id));
-        // TODO(FR-A9): once trips and bookings exist, reject removing a seat that has active holds or confirmed bookings
-        // on future trips. There are no trips yet, so the delete always goes through.
+        // FR-A9: removing a seat that has holds or confirmed bookings on a future trip is refused by Booking & Seat when the changed
+        // trips are pushed to it (trainChanged below, before the commit), which rolls this delete back.
         if (!seats.delete(id)) {
             throw new SeatNotFoundException(id);
         }

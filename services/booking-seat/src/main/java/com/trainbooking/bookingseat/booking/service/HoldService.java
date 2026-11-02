@@ -4,7 +4,6 @@ import com.trainbooking.bookingseat.audit.AuditTrail;
 import com.trainbooking.bookingseat.availability.model.Journey;
 import com.trainbooking.bookingseat.availability.model.TripHeader;
 import com.trainbooking.bookingseat.availability.repository.AvailabilityRepository;
-import com.trainbooking.bookingseat.availability.service.AvailabilityService;
 import com.trainbooking.bookingseat.booking.model.AuthenticatedUser;
 import com.trainbooking.bookingseat.booking.model.Booking;
 import com.trainbooking.bookingseat.booking.model.BookingConflictException;
@@ -37,8 +36,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.dao.DeadlockLoserDataAccessException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -87,30 +85,26 @@ public class HoldService {
     private final BookingRepository bookings;
     private final InventoryRepository inventory;
     private final AvailabilityRepository availabilityRepository;
-    private final AvailabilityService availability;
     private final AvailabilityEvents events;
     private final BookingQueryService views;
     private final BookingLocks locks;
     private final HoldReleaseService releases;
-    private final ConfirmationService confirmations;
     private final PaymentPort payments;
     private final AuditTrail audit;
     private final Clock clock;
 
     public HoldService(TransactionTemplate tx, BookingRepository bookings, InventoryRepository inventory, AvailabilityRepository availabilityRepository,
-                       AvailabilityService availability, AvailabilityEvents events, BookingQueryService views, BookingLocks locks,
-                       HoldReleaseService releases, ConfirmationService confirmations, PaymentPort payments,
+                       AvailabilityEvents events, BookingQueryService views, BookingLocks locks,
+                       HoldReleaseService releases, PaymentPort payments,
                        AuditTrail audit, Clock clock) {
         this.tx = tx;
         this.bookings = bookings;
         this.inventory = inventory;
         this.availabilityRepository = availabilityRepository;
-        this.availability = availability;
         this.events = events;
         this.views = views;
         this.locks = locks;
         this.releases = releases;
-        this.confirmations = confirmations;
         this.payments = payments;
         this.audit = audit;
         this.clock = clock;
@@ -141,7 +135,7 @@ public class HoldService {
                 if (attempt >= SETTLE_ATTEMPTS) {
                     throw new BookingConflictException("payment_in_progress", "A payment was just started for this booking. Try again in a moment.");
                 }
-            } catch (DuplicateKeyException | StandingUnavailableException | DeadlockLoserDataAccessException | CannotAcquireLockException e) {
+            } catch (DuplicateKeyException | StandingUnavailableException | PessimisticLockingFailureException e) {
                 // The transaction of this pick was rolled back: this pick changed nothing. Say what was lost (FR-H2).
                 log.info("Pick refused for trip {}: {}", request.tripId(), e.getClass().getSimpleName());
                 throw new HoldConflictException(lostItems(prepared));
@@ -437,7 +431,6 @@ public class HoldService {
 
     /** After a refused pick: which item was lost (the pick itself failed alone and changed nothing). */
     private List<HoldConflictException.Lost> lostItems(Prepared p) {
-        var now = availability.availability(p.request().tripId(), p.request().fromStop(), p.request().toStop()).availability();
         if (p.request().isSeat()) {
             return List.of(new HoldConflictException.Lost("SEAT", p.request().seatId(), "seat " + p.seat().seatNumber() + " of coach " + p.seat().coachCode()));
         }

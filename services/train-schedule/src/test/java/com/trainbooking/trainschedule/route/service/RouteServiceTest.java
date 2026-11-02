@@ -92,7 +92,7 @@ class RouteServiceTest {
 
     @Test
     void update_renamingOnly_leavesStopsAndFaresAlone() {
-        given(routes.findById(4)).willReturn(Optional.of(route(4, "Old", 1, 2, 3)), Optional.of(route(4, "New", 1, 2, 3)));
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "Old", 1, 2, 3))).willReturn(Optional.of(route(4, "New", 1, 2, 3)));
         given(routes.updateName(4, "New")).willReturn(true);
 
         Route updated = service.update(4, new RouteRequest("New", List.of(1L, 2L, 3L)), false, "admin-1");
@@ -120,7 +120,7 @@ class RouteServiceTest {
 
     @Test
     void update_changingTheStopsWithClearFares_removesTheFares_andAuditsHowMany() {
-        given(routes.findById(4)).willReturn(Optional.of(route(4, "R", 1, 2, 3)), Optional.of(route(4, "R", 1, 2, 4)));
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "R", 1, 2, 3))).willReturn(Optional.of(route(4, "R", 1, 2, 4)));
         given(stations.existingIds(any())).willReturn(Set.of(1L, 2L, 4L));
         given(fares.countByRoute(4)).willReturn(6);
         given(fares.deleteByRoute(4)).willReturn(6);
@@ -136,7 +136,7 @@ class RouteServiceTest {
 
     @Test
     void update_changingTheStopsOfARouteWithoutFares_justWorks() {
-        given(routes.findById(4)).willReturn(Optional.of(route(4, "R", 1, 2)), Optional.of(route(4, "R", 1, 3)));
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "R", 1, 2))).willReturn(Optional.of(route(4, "R", 1, 3)));
         given(stations.existingIds(any())).willReturn(Set.of(1L, 3L));
         given(fares.countByRoute(4)).willReturn(0);
         given(routes.updateName(4, "R")).willReturn(true);
@@ -160,7 +160,7 @@ class RouteServiceTest {
 
     @Test
     void update_renamingARouteThatTripsUse_isFine() {
-        given(routes.findById(4)).willReturn(Optional.of(route(4, "Old", 1, 2, 3)), Optional.of(route(4, "New", 1, 2, 3)));
+        given(routes.findById(4)).willReturn(Optional.of(route(4, "Old", 1, 2, 3))).willReturn(Optional.of(route(4, "New", 1, 2, 3)));
         given(routes.updateName(4, "New")).willReturn(true);
         given(trips.countByRoute(4)).willReturn(2);
 

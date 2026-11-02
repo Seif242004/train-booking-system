@@ -8,7 +8,7 @@ import java.util.List;
  * One trip that makes the searched journey. {@code fromStopIndex} and {@code toStopIndex} are the stops of the journey on
  * the trip's route (the journey uses segments fromStopIndex to toStopIndex - 1). {@code stops} are all the stops of the
  * trip with their times, so a client can show the stops inside and outside the journey. {@code fares} has the price per class.
- * TODO(slice 6): add the seats and standing places left for this journey, which Booking & Seat owns (FR-S2).
+ * The seats and standing places left are not here: Booking & Seat owns them and the Gateway adds them to the search result.
  */
 public record TripSearchResult(
         long tripId,

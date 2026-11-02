@@ -5,7 +5,6 @@ import com.trainbooking.bookingseat.live.UserEvent;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 

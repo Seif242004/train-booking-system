@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.trainbooking.bookingseat.booking.model.AuthenticatedUser;
 import com.trainbooking.bookingseat.booking.model.BookingView;
 import com.trainbooking.bookingseat.booking.model.HoldRequest;
-import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.HoldSweeper;
 import com.trainbooking.bookingseat.testsupport.DatabaseTest;
 import java.time.Duration;

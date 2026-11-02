@@ -56,7 +56,7 @@ class FareServiceTest {
     @Test
     void replaceAll_savesTheWholeSetInEgp_withTwoDecimals_andAuditsBeforeAndAfter() {
         given(routes.get(4)).willReturn(THREE_STOPS);
-        given(fares.findByRoute(4)).willReturn(List.of(), List.of(new Fare(0, CoachClass.FIRST, new BigDecimal("100.50"), "EGP")));
+        given(fares.findByRoute(4)).willReturn(List.of()).willReturn(List.of(new Fare(0, CoachClass.FIRST, new BigDecimal("100.50"), "EGP")));
 
         List<Fare> saved = service.replaceAll(4, List.of(fare(0, "FIRST", "100.5"), fare(1, "THIRD", "40")), "admin-1");
 

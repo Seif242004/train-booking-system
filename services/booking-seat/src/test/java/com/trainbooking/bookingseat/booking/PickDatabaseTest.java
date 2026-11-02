@@ -86,10 +86,6 @@ class PickDatabaseTest extends DatabaseTest {
         return new HoldRequest(TRIP, from, to, List.of(seatIds), List.of());
     }
 
-    private static HoldRequest standingOnly(int from, int to, long coachId, int qty) {
-        return new HoldRequest(TRIP, from, to, List.of(), List.of(new HoldRequest.StandingRequest(coachId, qty)));
-    }
-
     private int usedStanding(long coachId, int segment) {
         return jdbc.sql("SELECT used FROM standing_usage WHERE trip_id = :t AND coach_id = :c AND segment_index = :s")
                 .param("t", TRIP).param("c", coachId).param("s", segment).query(Integer.class).single();

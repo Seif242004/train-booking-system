@@ -3,7 +3,6 @@ package com.trainbooking.bookingseat.snapshot.service;
 import com.trainbooking.bookingseat.common.ApiError;
 import com.trainbooking.bookingseat.common.CoachClass;
 import com.trainbooking.bookingseat.snapshot.model.TripSnapshot;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;

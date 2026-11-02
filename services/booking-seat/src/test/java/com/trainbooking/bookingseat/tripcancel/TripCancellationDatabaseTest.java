@@ -15,7 +15,6 @@ import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.booking.service.PaymentResultService;
 import com.trainbooking.bookingseat.common.TripNotFoundException;
 import com.trainbooking.bookingseat.live.SeatEvent;
-import com.trainbooking.bookingseat.live.UserEvent;
 import com.trainbooking.bookingseat.outbox.service.OutboxDispatcher;
 import com.trainbooking.bookingseat.payment.PaymentPort.CancelOutcome;
 import com.trainbooking.bookingseat.payment.PaymentUnavailableException;

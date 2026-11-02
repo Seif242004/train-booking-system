@@ -8,7 +8,6 @@ import com.trainbooking.bookingseat.booking.model.HoldConflictException;
 import com.trainbooking.bookingseat.booking.model.HoldRequest;
 import com.trainbooking.bookingseat.booking.service.ConfirmationService;
 import com.trainbooking.bookingseat.booking.service.ExpiryService;
-import com.trainbooking.bookingseat.booking.service.HoldService;
 import com.trainbooking.bookingseat.payment.PaymentPort.CancelOutcome;
 import com.trainbooking.bookingseat.testsupport.DatabaseTest;
 import java.time.Duration;

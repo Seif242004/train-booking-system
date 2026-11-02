@@ -12,7 +12,6 @@ import com.trainbooking.trainschedule.fare.repository.FareRepository;
 import com.trainbooking.trainschedule.route.model.Route;
 import com.trainbooking.trainschedule.route.service.RouteService;
 import jakarta.validation.Validator;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -54,8 +53,7 @@ public class FareService {
      * valid, every segment on this route (0 to stops-2), and each segment and class only once. Any problem rejects the
      * request and the existing fares are left as they were. An empty list is not allowed; to remove fares, change the
      * route's stops with clearFares or delete the route.
-     * A segment or class may be left without a fare for now.
-     * TODO(slice 4): when a trip is created, require a fare for every segment and every class of the train's coaches.
+     * A segment or class may be left without a fare here; creating a trip requires a fare for every segment and every class the train has.
      */
     @Transactional
     public List<Fare> replaceAll(long routeId, List<FareRequest> requests, String adminId) {

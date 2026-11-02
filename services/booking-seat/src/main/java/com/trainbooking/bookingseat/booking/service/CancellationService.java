@@ -91,7 +91,7 @@ public class CancellationService {
     private BookingView cancel(Actor actor, long bookingId, String reason, boolean enforceCutoff) {
         try {
             tx.executeWithoutResult(status -> cancelInTransaction(actor, bookingId, reason, enforceCutoff));
-        } catch (org.springframework.dao.DeadlockLoserDataAccessException | org.springframework.dao.CannotAcquireLockException e) {
+        } catch (org.springframework.dao.PessimisticLockingFailureException e) {
             // ORA-00060 or a lock timeout: treated as a conflict (CLAUDE.md). Nothing was changed; trying again works.
             throw new BookingConflictException("busy", "Another change to this booking is in progress. Try again in a moment.");
         }

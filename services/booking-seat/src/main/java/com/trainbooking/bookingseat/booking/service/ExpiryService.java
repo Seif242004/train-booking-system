@@ -42,14 +42,12 @@ public class ExpiryService {
     private final BookingRepository bookings;
     private final PaymentPort payments;
     private final HoldReleaseService releases;
-    private final ConfirmationService confirmations;
     private final Clock clock;
 
-    public ExpiryService(BookingRepository bookings, PaymentPort payments, HoldReleaseService releases, ConfirmationService confirmations, Clock clock) {
+    public ExpiryService(BookingRepository bookings, PaymentPort payments, HoldReleaseService releases, Clock clock) {
         this.bookings = bookings;
         this.payments = payments;
         this.releases = releases;
-        this.confirmations = confirmations;
         this.clock = clock;
     }
 

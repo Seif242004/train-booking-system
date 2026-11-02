@@ -49,7 +49,7 @@ public class TripSearchService {
      * origin comes before the destination on its route. Results are ordered by departure time.
      * <p>When {@code date} is today (in the service zone), trips that have already left the origin are not returned. When
      * nothing is found, the response carries the next date that has a trip for this origin and destination, if there is one.
-     * TODO(slice 6): add the seats and standing places left for each journey, which Booking & Seat owns.
+     * The seats and standing places left are added by the Gateway, from Booking & Seat.
      */
     @Transactional(readOnly = true)
     public TripSearchResponse search(String fromCode, String toCode, LocalDate date) {

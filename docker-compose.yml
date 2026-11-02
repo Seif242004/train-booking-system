@@ -19,7 +19,11 @@ services:
       # Optional: the payment_test schema (for the Payment database tests) is created only if this is set.
       PAYMENT_TEST_DB_PASSWORD: ${PAYMENT_TEST_DB_PASSWORD:-}
       TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD:?set TICKET_DB_PASSWORD in .env}
+      # Optional: the ticket_test schema (for the Ticket database tests) is created only if this is set.
+      TICKET_TEST_DB_PASSWORD: ${TICKET_TEST_DB_PASSWORD:-}
       NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD in .env}
+      # Optional: the notification_test schema (for the Notification database tests) is created only if this is set.
+      NOTIFICATION_TEST_DB_PASSWORD: ${NOTIFICATION_TEST_DB_PASSWORD:-}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
     volumes:
       - oracle-data:/opt/oracle/oradata
@@ -99,6 +103,16 @@ services:
       listen
       --forward-to http://host.docker.internal:8080/webhooks/payment
       --events payment_intent.succeeded,payment_intent.processing,payment_intent.payment_failed,payment_intent.canceled,refund.updated,refund.failed
+
+  # Catches every email the Notification service sends, so development never sends a real one. SMTP on localhost:1025, web UI and API on
+  # http://localhost:8025 (the ticket PDF is an attachment of the message).
+  mailpit:
+    profiles: ["dev"]
+    image: axllent/mailpit:latest
+    container_name: tbs-mailpit
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   oracle-data:

@@ -1,0 +1,548 @@
+/* Login theme "train-booking": the same look as the web app (docs/design/DESIGN.md), on top of the built-in keycloak.v2 theme.
+   CSS only. The page is split: a photo panel on the left (the realm's header element) and the form on the right (the main card). */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --tb-red: #e10801;
+  --tb-red-hover: #b80600;
+  --tb-red-text: #c20700;
+  --tb-ink: #191329;
+  --tb-ink-2: #3b3450;
+  --tb-muted: #4a4360;
+  --tb-line: #dcd8e2;
+  --tb-line-soft: #eeebf2;
+  --tb-ok-bg: #d9f3e3;
+  --tb-ok-text: #006b2b;
+  --tb-warn-bg: #fff4dc;
+  --tb-warn-text: #7a4b00;
+  --tb-danger-tint: #fff4f3;
+  --tb-danger-border: #f3c9c7;
+  --tb-danger-text: #8c0500;
+  --tb-font: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* PatternFly's own variables, so every component of the parent theme takes the colours and the font. */
+  --pf-v5-global--FontFamily--text: var(--tb-font);
+  --pf-v5-global--FontFamily--heading: var(--tb-font);
+  --pf-v5-global--primary-color--100: var(--tb-red);
+  --pf-v5-global--primary-color--200: var(--tb-red-hover);
+  --pf-v5-global--link--Color: var(--tb-red-text);
+  --pf-v5-global--link--Color--hover: var(--tb-red-hover);
+  --pf-v5-global--active-color--100: var(--tb-red);
+  --pf-v5-global--BorderColor--100: var(--tb-line);
+  --keycloak-bg-logo-url: none;
+}
+
+html.login-pf body,
+body#keycloak-bg {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--tb-font);
+  font-size: 16px;
+  color: var(--tb-ink);
+  background: #fff;
+}
+
+:focus-visible {
+  outline: 3px solid var(--tb-ink);
+  outline-offset: 2px;
+}
+
+.pf-v5-c-login {
+  display: block; /* the parent theme centres its page vertically; ours starts at the top */
+  min-height: 100vh;
+  padding: 0;
+  background: #fff;
+}
+
+/* ---- Split layout ------------------------------------------------------------------------------------------------------------------ */
+.pf-v5-c-login__container {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: 'header main';
+  gap: 0;
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* Left: the header element is the photo panel. Its ::before is the picture (with the slow drift) and ::after the dark scrim. */
+#kc-header {
+  position: relative;
+  margin: 0;
+  display: flex;
+  grid-area: header;
+  min-width: 0;
+  padding: 48px;
+  overflow: hidden;
+  color: #fff;
+  background: var(--tb-ink);
+}
+
+#kc-header::before {
+  content: '';
+  position: absolute;
+  inset: -6%;
+  background: var(--tb-ink) url('../img/hero.jpg') 88% center / cover no-repeat;
+  animation: tb-drift 30s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+#kc-header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(25, 19, 41, 0.62) 0%, rgba(25, 19, 41, 0.18) 38%, rgba(25, 19, 41, 0.88) 100%);
+}
+
+/* The wordmark on top, the headline at the bottom. The realm's text (for screen readers) stays in the page, only its size is 0. */
+#kc-header-wrapper {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 48px;
+  padding: 0;
+  font-size: 0;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  color: #fff !important;
+}
+
+#kc-header-wrapper::before {
+  content: '';
+  display: block;
+  width: 144px;
+  height: 34px;
+  background: url('../img/logo-etisalat-white.png') no-repeat left center / contain;
+}
+
+#kc-header-wrapper::after {
+  content: 'Your train is one sign-in away.';
+  display: block;
+  max-width: 440px;
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+body[data-page-id='login-register'] #kc-header-wrapper::after {
+  content: 'Create your account in under a minute.';
+}
+
+body[data-page-id='login-login-reset-password'] #kc-header-wrapper::after,
+body[data-page-id='login-login-update-password'] #kc-header-wrapper::after {
+  content: 'Get back to your tickets.';
+}
+
+body[data-page-id='login-error'] #kc-header-wrapper::after,
+body[data-page-id='login-info'] #kc-header-wrapper::after {
+  content: 'Train Booking';
+}
+
+@keyframes tb-drift {
+  from {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.1) translate3d(-2%, 1.5%, 0);
+  }
+}
+
+/* Right: the form card, centred. */
+.pf-v5-c-login__main {
+  grid-area: main;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+  max-width: 472px;
+  margin: 0;
+  padding: 48px 24px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  animation: tb-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+@keyframes tb-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pf-v5-c-login__main-header {
+  display: block;
+  padding: 0;
+  border: 0;
+}
+
+.pf-v5-c-login__main-header .pf-v5-c-title,
+#kc-page-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--tb-ink);
+}
+
+.pf-v5-c-login__main-header-utilities {
+  margin-top: 12px;
+}
+
+.pf-v5-c-login__main-body {
+  padding: 24px 0 0;
+}
+
+.pf-v5-c-login__main-footer {
+  padding: 0;
+}
+
+/* ---- Fields ----------------------------------------------------------------------------------------------------------------------- */
+.pf-v5-c-form {
+  gap: 18px;
+}
+
+.pf-v5-c-form__label-text,
+.pf-v5-c-form__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tb-ink-2);
+}
+
+.pf-v5-c-form-control {
+  --pf-v5-c-form-control--BorderColor: transparent;
+  --pf-v5-c-form-control--hover--BorderBottomColor: transparent;
+  --pf-v5-c-form-control--focus--BorderBottomColor: transparent;
+  min-height: 54px;
+  background: #fff;
+  border: 1.5px solid var(--tb-line);
+  border-radius: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pf-v5-c-form-control::before,
+.pf-v5-c-form-control::after {
+  display: none;
+}
+
+.pf-v5-c-form-control:focus-within {
+  border-color: var(--tb-red);
+  box-shadow: 0 0 0 4px rgba(225, 8, 1, 0.12);
+}
+
+.pf-v5-c-input-group {
+  align-items: stretch;
+  background: #fff;
+  border: 1.5px solid var(--tb-line);
+  border-radius: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pf-v5-c-input-group:focus-within {
+  border-color: var(--tb-red);
+  box-shadow: 0 0 0 4px rgba(225, 8, 1, 0.12);
+}
+
+.pf-v5-c-input-group .pf-v5-c-form-control,
+.pf-v5-c-input-group .pf-v5-c-form-control:focus-within {
+  min-height: 0;
+  border: 0;
+  border-radius: 12px 0 0 12px;
+  box-shadow: none;
+}
+
+.pf-v5-c-input-group__item .pf-v5-c-button.pf-m-control {
+  height: 100%;
+  min-height: 0;
+  padding: 0 16px;
+  border-radius: 0 12px 12px 0;
+}
+
+.pf-v5-c-form-control:has(input[aria-invalid='true']),
+.pf-v5-c-form-control.pf-m-error {
+  border-color: var(--tb-danger-text);
+}
+
+.pf-v5-c-form-control input,
+.pf-v5-c-form-control select {
+  min-height: 52px;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tb-ink);
+  background: transparent;
+}
+
+.pf-v5-c-form-control input:focus-visible,
+.pf-v5-c-form-control select:focus-visible {
+  outline: none;
+}
+
+.pf-v5-c-form__helper-text,
+.pf-v5-c-helper-text__item-text {
+  font-size: 14px;
+  color: var(--tb-muted);
+}
+
+.pf-v5-c-helper-text__item-text.pf-m-error,
+.kc-feedback-text.pf-m-error {
+  color: var(--tb-danger-text);
+}
+
+/* Checkbox ("Remember me"): 44px target, red when checked. */
+.pf-v5-c-check {
+  align-items: center;
+  min-height: 44px;
+}
+
+.pf-v5-c-check__input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--tb-red);
+}
+
+.pf-v5-c-check__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tb-ink-2);
+}
+
+/* ---- Buttons ---------------------------------------------------------------------------------------------------------------------- */
+.pf-v5-c-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  font-family: var(--tb-font);
+  font-weight: 700;
+  border-radius: 14px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.pf-v5-c-button.pf-m-block {
+  display: flex;
+  width: 100%;
+}
+
+.pf-v5-c-button::before,
+.pf-v5-c-button::after {
+  display: none;
+}
+
+.pf-v5-c-button:active {
+  transform: scale(0.98);
+}
+
+.pf-v5-c-button.pf-m-primary {
+  min-height: 56px;
+  font-size: 17px;
+  color: #fff;
+  background: var(--tb-red);
+  border: 0;
+}
+
+.pf-v5-c-button.pf-m-primary:hover,
+.pf-v5-c-button.pf-m-primary:focus {
+  background: var(--tb-red-hover);
+}
+
+.pf-v5-c-button.pf-m-secondary,
+.pf-v5-c-button.pf-m-tertiary {
+  min-height: 54px;
+  color: var(--tb-ink);
+  background: #fff;
+  border: 1.5px solid var(--tb-line);
+}
+
+.pf-v5-c-button.pf-m-secondary:hover,
+.pf-v5-c-button.pf-m-tertiary:hover {
+  background: var(--tb-danger-tint);
+  border-color: var(--tb-red);
+}
+
+.pf-v5-c-button.pf-m-link {
+  color: var(--tb-red-text);
+}
+
+.pf-v5-c-button.pf-m-control {
+  min-height: 52px;
+  color: var(--tb-ink-2);
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+}
+
+.pf-v5-c-form__actions {
+  margin-top: 6px;
+}
+
+a {
+  color: var(--tb-red-text);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  color: var(--tb-red-hover);
+}
+
+#kc-form-options,
+.pf-v5-c-form__group.pf-m-action {
+  margin-top: 0;
+}
+
+#kc-form-options a,
+#kc-forgot-password a,
+.kc-forgot-password a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ---- Messages: errors say what happened, success and info are calm --------------------------------------------------------------- */
+.pf-v5-c-alert {
+  margin: 20px 0 0;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--tb-ink-2);
+  background: var(--tb-line-soft);
+  border: 1.5px solid var(--tb-line);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.pf-v5-c-alert::before {
+  display: none;
+}
+
+.pf-v5-c-alert.pf-m-danger {
+  color: var(--tb-danger-text);
+  background: var(--tb-danger-tint);
+  border-color: var(--tb-danger-border);
+}
+
+.pf-v5-c-alert.pf-m-success {
+  color: var(--tb-ok-text);
+  background: var(--tb-ok-bg);
+  border-color: #b4e2c6;
+}
+
+.pf-v5-c-alert.pf-m-warning {
+  color: var(--tb-warn-text);
+  background: var(--tb-warn-bg);
+  border-color: #f0d9a4;
+}
+
+.pf-v5-c-alert__title {
+  font-weight: 600;
+  color: inherit;
+}
+
+/* ---- "New here? Create an account" band ----------------------------------------------------------------------------------------- */
+.pf-v5-c-login__main-footer-band {
+  padding: 0;
+  margin-top: 28px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--tb-muted);
+  background: transparent;
+  border: 0;
+}
+
+.pf-v5-c-login__main-footer-band-item {
+  padding: 0;
+}
+
+.pf-v5-c-login__main-footer-band-item a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+}
+
+/* Language chooser, if the realm has more than one language. */
+#login-select-toggle {
+  min-height: 44px;
+  font-family: var(--tb-font);
+  font-weight: 600;
+}
+
+.kc-login-divider {
+  color: var(--tb-muted);
+}
+
+hr {
+  border-color: var(--tb-line-soft);
+}
+
+/* The footer ("Powered by") of the parent theme stays quiet. */
+.pf-v5-c-login__main-footer .pf-v5-c-login__main-footer-links,
+#kc-footer {
+  display: none;
+}
+
+/* ---- Phones and tablets: the photo becomes a band above the form -------------------------------------------------------------------- */
+@media (max-width: 899px) {
+  .pf-v5-c-login__container {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'header'
+      'main';
+    min-height: 0;
+  }
+
+  #kc-header {
+    min-height: 200px;
+    padding: 24px;
+  }
+
+  #kc-header-wrapper {
+    gap: 24px;
+  }
+
+  #kc-header-wrapper::after {
+    max-width: 320px;
+    font-size: 26px;
+  }
+
+  .pf-v5-c-login__main {
+    padding: 32px 16px 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #kc-header::before {
+    inset: 0;
+    animation: none;
+  }
+
+  .pf-v5-c-login__main {
+    animation: none;
+  }
+
+  .pf-v5-c-form-control,
+  .pf-v5-c-button {
+    transition: none;
+  }
+}
+
+/* "Do you want to sign out?" and other one-line questions sit clear of the button below them. */
+.instruction,
+#kc-info-message p {
+  margin: 0 0 20px;
+  line-height: 1.6;
+  color: var(--tb-ink-2);
+}

@@ -92,6 +92,8 @@ services:
       KEYCLOAK_DEV_ADMIN_PASSWORD: ${KEYCLOAK_DEV_ADMIN_PASSWORD:?set KEYCLOAK_DEV_ADMIN_PASSWORD in .env}
     volumes:
       - ./infra/keycloak/realm-dev.json:/opt/keycloak/data/import/realm-dev.json:ro
+      # The login theme "train-booking" (CSS on top of keycloak.v2). start-dev does not cache themes, so edits show after a reload.
+      - ./infra/keycloak/themes:/opt/keycloak/themes:ro
     healthcheck:
       # The image has no curl; bash can open the TCP connection itself.
       test:

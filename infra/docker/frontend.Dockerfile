@@ -7,7 +7,8 @@ COPY frontend .
 # These are compiled into the app and are public by nature (the browser needs them): the defaults are the local Compose addresses.
 ARG VITE_KEYCLOAK_URL=http://localhost:8180
 ARG VITE_GATEWAY_URL=http://localhost:8080
-ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL VITE_GATEWAY_URL=$VITE_GATEWAY_URL
+ARG VITE_SUPPORT_EMAIL=support@example.invalid
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL VITE_GATEWAY_URL=$VITE_GATEWAY_URL VITE_SUPPORT_EMAIL=$VITE_SUPPORT_EMAIL
 RUN npm run build
 
 FROM nginx:1.27-alpine

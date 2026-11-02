@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { RequireAdmin, RequireAuth } from './auth/guards';
 import { AdminLayout } from './components/AdminLayout';
 import { Layout } from './components/Layout';
+import { ContactPage, HelpPage, PrivacyPage, RefundsPage, TermsPage } from './pages/InfoPages';
 import { Landing } from './pages/Landing';
 import { Admin } from './pages/Admin';
 import { MyBookingsPage } from './pages/MyBookingsPage';
@@ -27,6 +28,11 @@ export function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<Landing />} />
+            <Route path="help" element={<HelpPage />} />
+            <Route path="refunds" element={<RefundsPage />} />
+            <Route path="terms" element={<TermsPage />} />
+            <Route path="privacy" element={<PrivacyPage />} />
+            <Route path="contact" element={<ContactPage />} />
             {/* Everything below needs a signed-in user; /admin also needs the ADMIN role. */}
             <Route element={<RequireAuth />}>
               <Route path="account" element={<AccountPage />} />

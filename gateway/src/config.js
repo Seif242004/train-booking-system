@@ -16,6 +16,9 @@ export const config = {
   trainScheduleUrl: process.env.TRAIN_SCHEDULE_URL ?? 'http://localhost:8081',
   bookingSeatUrl: process.env.BOOKING_SEAT_URL ?? 'http://localhost:8082',
   paymentUrl: process.env.PAYMENT_URL ?? 'http://localhost:8083',
+  // The Ticket service is internal-only: the Gateway reaches it with the shared internal key, only to serve GET /bookings/{id}/ticket.
+  ticketUrl: process.env.TICKET_URL ?? 'http://localhost:8084',
+  internalApiKey: process.env.INTERNAL_API_KEY ?? '',
   // OpenObserve: structured logs are shipped here when OPENOBSERVE_URL is set (for example http://openobserve:5080/api/default).
   openobserve: {
     url: (process.env.OPENOBSERVE_URL ?? '').replace(/\/+$/, ''),

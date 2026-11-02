@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { gatewayGet, gatewayRequest, readError } from '../api';
+import { gatewayDownload, gatewayGet, gatewayRequest, readError } from '../api';
+import { saveFile } from '../ics';
 import { useAuth } from '../auth/AuthContext';
 import type { Booking } from '../bookingTypes';
 import { BookingSteps } from '../components/BookingSteps';
@@ -31,6 +32,19 @@ export function TicketPage() {
       cancelled = true;
     };
   }, [id]);
+
+  const [downloading, setDownloading] = useState(false);
+  async function download() {
+    setDownloading(true);
+    const result = await gatewayDownload(`/bookings/${id}/ticket`);
+    setDownloading(false);
+    if (result.ok) {
+      saveFile(`ticket-${booking?.reference ?? id}.pdf`, 'application/pdf', result.blob);
+      toast.show('Ticket downloaded');
+    } else {
+      toast.show(`${result.message}`, 'error');
+    }
+  }
 
   async function resendTicket() {
     setResend({ state: 'sending' });
@@ -64,7 +78,7 @@ export function TicketPage() {
   return (
     <section>
       <BookingSteps current="ticket" links={{ search: `/search${lastSearchQuery() ? `?${lastSearchQuery()}` : ''}` }} />
-      <TicketView booking={booking} passenger={user?.name ?? user?.email ?? null} resend={resend} onResend={() => void resendTicket()} />
+      <TicketView booking={booking} passenger={user?.name ?? user?.email ?? null} resend={resend} onResend={() => void resendTicket()} onDownload={() => void download()} downloading={downloading} />
     </section>
   );
 }

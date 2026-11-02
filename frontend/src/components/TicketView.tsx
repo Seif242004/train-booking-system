@@ -11,6 +11,9 @@ interface Props {
   passenger: string | null;
   resend: { state: 'idle' | 'sending' | 'done' | 'error'; message?: string };
   onResend: () => void;
+  /** Downloads the PDF; `downloading` disables the button meanwhile. */
+  onDownload: () => void;
+  downloading: boolean;
 }
 
 /**
@@ -18,7 +21,7 @@ interface Props {
  * code and PDF are made by the Ticket service and sent by e-mail: nothing in the Gateway serves them to the browser, so this page points to the
  * e-mail and offers to send it again.
  */
-export function TicketView({ booking, passenger, resend, onResend }: Props) {
+export function TicketView({ booking, passenger, resend, onResend, onDownload, downloading }: Props) {
   const toast = useToast();
   async function copyReference() {
     try {
@@ -92,7 +95,7 @@ export function TicketView({ booking, passenger, resend, onResend }: Props) {
                 <rect x="3" y="5" width="18" height="14" rx="3" />
                 <path d="M4 7l8 6 8-6" />
               </svg>
-              <p>Your QR code is in the PDF we emailed you.</p>
+              <p>Your QR code is in the PDF. Download it here or find it in your email.</p>
             </div>
             <p className="ticket-ref-label">Booking reference</p>
             <p className="ticket-ref">{booking.reference}</p>
@@ -102,7 +105,13 @@ export function TicketView({ booking, passenger, resend, onResend }: Props) {
       </article>
 
       <div className="ticket-actions">
-        <button type="button" className="button button-primary" disabled={resend.state === 'sending'} onClick={onResend}>
+        <button type="button" className="button button-primary" disabled={downloading} onClick={onDownload}>
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+          </svg>
+          {downloading ? 'Preparing PDF…' : 'Download PDF'}
+        </button>
+        <button type="button" className="button" disabled={resend.state === 'sending'} onClick={onResend}>
           <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="5" width="18" height="14" rx="3" />
             <path d="M4 7l8 6 8-6" />

@@ -251,6 +251,8 @@ services:
       TRAIN_SCHEDULE_URL: http://train-schedule:8081
       BOOKING_SEAT_URL: http://booking-seat:8082
       PAYMENT_URL: http://payment:8083
+      TICKET_URL: http://ticket:8084
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in .env}
       OTEL_SERVICE_NAME: gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://openobserve:5080/api/default
       OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf

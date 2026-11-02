@@ -41,6 +41,18 @@ export async function gatewayRequest(method: string, path: string, { body, withT
   }
 }
 
+/** Downloads a binary answer (the ticket PDF). On a failure the error body is read like any other Gateway error. */
+export async function gatewayDownload(path: string): Promise<{ ok: true; blob: Blob } | { ok: false; message: string }> {
+  try {
+    const response = await fetch(`${config.gatewayUrl}${path}`, { headers: { Authorization: `Bearer ${await getFreshToken()}` } });
+    if (response.ok) return { ok: true, blob: await response.blob() };
+    const body: unknown = await response.json().catch(() => null);
+    return { ok: false, message: readError({ status: response.status, body }).message };
+  } catch {
+    return { ok: false, message: 'Cannot reach the server. Check your connection and try again.' };
+  }
+}
+
 export function gatewayGet(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<GatewayResult> {
   return gatewayRequest('GET', path, options);
 }

@@ -88,8 +88,15 @@ All are optional; the defaults are for local development. See `.env.example`.
 | `CORS_ORIGIN` | `http://localhost:5173` | The one allowed browser origin |
 | `TRAIN_SCHEDULE_URL` | `http://localhost:8081` | Where the stations, trains, coaches, seats, routes, fares and trips routes are forwarded |
 | `BOOKING_SEAT_URL` | `http://localhost:8082` | Where Booking & Seat is asked for the availability in the search results |
+| `KEYCLOAK_JWKS_URI` | the issuer + `/protocol/openid-connect/certs` | Where the signing keys are fetched. In Docker this is `http://keycloak:8080/...` while the issuer stays the address the browser used |
+| `OPENOBSERVE_URL`, `OPENOBSERVE_USER`, `OPENOBSERVE_PASSWORD` | none | When set, the structured logs are also shipped to OpenObserve (`<url>/gateway/_json`) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` | none, `gateway` | When the endpoint is set, OpenTelemetry traces go to OpenObserve (with the `OPENOBSERVE_*` login) |
 | `UPSTREAM_TIMEOUT_MS` | `10000` | How long to wait for a service before answering 504 |
 | `AVAILABILITY_TIMEOUT_MS` | `3000` | How long to wait for Booking & Seat per trip before showing the trip without its availability |
+
+## Logs and traces
+
+Every log line is one JSON object on the console (`level`, `service`, `msg` and fields). Each request writes a `request` line with the method, the **path**, the status, the duration, the user id (the token's `sub`), the booking id and the trip id when the path has them, and the trace id. The query string, headers and bodies are never logged, and tokens cannot reach the log. With `OPENOBSERVE_URL` set, the records are shipped in batches to the `gateway` stream of OpenObserve (a failure is retried and never slows a request; the oldest records are dropped when OpenObserve stays down). With `OTEL_EXPORTER_OTLP_ENDPOINT` set, `src/telemetry.js` sends OpenTelemetry traces: the incoming request is a span, every call to a service is a child span carrying the W3C `traceparent` header, so one trace runs from the Gateway into the Spring service. Span attributes that hold a URL are cut at the `?` before export.
 
 ## Run
 

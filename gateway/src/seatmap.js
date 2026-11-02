@@ -3,6 +3,7 @@
 // availability of Booking & Seat (the state of every seat and the standing places left for the journey).
 // `from` and `to` are stop indexes of the trip (the boarding stop and the destination stop).
 import { config } from './config.js';
+import { log } from './log.js';
 import { sendError } from './errors.js';
 
 /** Puts the two answers together. Pure: no network, so it is tested on its own. */
@@ -87,7 +88,7 @@ export function seatMap(options = {}) {
       ]);
     } catch (err) {
       if (err?.name === 'TimeoutError') return sendError(res, 504, 'upstream_timeout', 'The service took too long to answer.');
-      console.error(JSON.stringify({ level: 'error', msg: 'Service unreachable', cause: String(err?.cause?.code ?? err) }));
+      log('error', 'Service unreachable', { cause: String(err?.cause?.code ?? err) });
       return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
     }
 

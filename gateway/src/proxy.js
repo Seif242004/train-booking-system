@@ -2,6 +2,7 @@
 // no extra library. It handles plain request/response traffic (JSON APIs). The WebSocket proxy comes with the
 // live-updates step.
 import { config } from './config.js';
+import { log } from './log.js';
 import { sendError } from './errors.js';
 
 // Only these request headers are passed on. Cookies, the Host header and anything else the client sent stay behind.
@@ -54,7 +55,7 @@ export function forwardTo(baseUrl, pathPrefix, { requestHeaders = FORWARDED_REQU
         return sendError(res, 504, 'upstream_timeout', 'The service took too long to answer.');
       }
       // Connection refused, DNS failure, reset: the service is down or unreachable. No request details are logged.
-      console.error(JSON.stringify({ level: 'error', msg: 'Service unreachable', target: target.origin, cause: String(err?.cause?.code ?? err) }));
+      log('error', 'Service unreachable', { target: target.origin, cause: String(err?.cause?.code ?? err) });
       sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
     }
   };

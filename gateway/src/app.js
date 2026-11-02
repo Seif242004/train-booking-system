@@ -1,8 +1,10 @@
 import cors from 'cors';
 import express from 'express';
 import { requireAuth, requireRole } from './auth.js';
+import { accessLog } from './accesslog.js';
 import { config } from './config.js';
 import { HttpError, sendError } from './errors.js';
+import { log } from './log.js';
 import { forwardTo } from './proxy.js';
 import { tripSearch } from './search.js';
 import { seatMap } from './seatmap.js';
@@ -21,6 +23,8 @@ export function createApp() {
       maxAge: 600,
     }),
   );
+
+  app.use(accessLog);
 
   // Public: used by humans and health checks. No token needed.
   app.get('/health', (_req, res) => {
@@ -90,7 +94,7 @@ export function createApp() {
     if (err instanceof HttpError) {
       return sendError(res, err.status, err.code, err.message, err.headers);
     }
-    console.error(JSON.stringify({ level: 'error', msg: 'Unhandled error', cause: String(err?.stack ?? err) }));
+    log('error', 'Unhandled error', { cause: String(err?.stack ?? err) });
     sendError(res, 500, 'internal_error', 'Something went wrong.');
   });
 

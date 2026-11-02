@@ -3,6 +3,7 @@
 import { createRemoteJWKSet, errors, jwtVerify } from 'jose';
 import { config } from './config.js';
 import { HttpError } from './errors.js';
+import { log } from './log.js';
 
 // Keycloak's public keys (JWKS). createRemoteJWKSet downloads them lazily on the first token and caches them.
 // - cacheMaxAge: keys are re-downloaded at most every 10 minutes, so most requests need no call to Keycloak.
@@ -68,7 +69,7 @@ export async function authenticate(authorizationHeader) {
       throw new HttpError(401, 'invalid_token', reason, bearerChallenge(', error="invalid_token"'));
     }
     if (KEY_SET_UNAVAILABLE_ERRORS.some((type) => err instanceof type)) {
-      console.error(JSON.stringify({ level: 'error', msg: 'Cannot fetch the Keycloak signing keys', cause: String(err) }));
+      log('error', 'Cannot fetch the Keycloak signing keys', { cause: String(err) });
       throw new HttpError(503, 'auth_unavailable', 'The authentication service is unavailable. Try again shortly.');
     }
     throw err; // unexpected: let the error handler answer 500

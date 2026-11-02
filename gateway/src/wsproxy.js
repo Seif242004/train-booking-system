@@ -11,6 +11,7 @@
 import net from 'node:net';
 import { authenticate } from './auth.js';
 import { config } from './config.js';
+import { log } from './log.js';
 
 const TOKEN_PREFIX = 'access_token.';
 
@@ -73,7 +74,7 @@ export function attachWebSocketProxy(server, options = {}) {
       if (head?.length) upstream.write(head);
       upstream.pipe(socket);
       socket.pipe(upstream);
-      console.log(JSON.stringify({ level: 'info', msg: 'WebSocket opened', sub: user.sub }));
+      log('info', 'WebSocket opened', { userId: user.sub });
     });
     socket.on('close', () => upstream.destroy());
     upstream.on('close', () => socket.destroy());

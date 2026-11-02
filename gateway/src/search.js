@@ -4,6 +4,7 @@
 // Booking & Seat is optional for the search: if it is down or slow, the trips are still returned, each with
 // `availability: null`, and the page says that availability is not available. A booking outage must not hide the timetable.
 import { config } from './config.js';
+import { log } from './log.js';
 import { sendError } from './errors.js';
 
 /**
@@ -22,14 +23,14 @@ export async function fetchAvailabilitySummary(trip, authorization, { bookingSea
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
-      console.error(JSON.stringify({ level: 'warn', msg: 'Availability not available', tripId, status: res.status }));
+      log('warn', 'Availability not available', { tripId, status: res.status });
       return null;
     }
     const { summary } = await res.json();
     if (!summary || typeof summary.seatsLeft !== 'object' || typeof summary.standingLeft !== 'object') return null;
     return { seatsLeft: summary.seatsLeft, standingLeft: summary.standingLeft };
   } catch (err) {
-    console.error(JSON.stringify({ level: 'warn', msg: 'Availability not available', tripId, cause: String(err?.cause?.code ?? err?.name ?? err) }));
+    log('warn', 'Availability not available', { tripId, cause: String(err?.cause?.code ?? err?.name ?? err) });
     return null;
   }
 }
@@ -63,7 +64,7 @@ export function tripSearch(options = {}) {
       payload = Buffer.from(await upstream.arrayBuffer());
     } catch (err) {
       if (err?.name === 'TimeoutError') return sendError(res, 504, 'upstream_timeout', 'The service took too long to answer.');
-      console.error(JSON.stringify({ level: 'error', msg: 'Service unreachable', target: target.origin, cause: String(err?.cause?.code ?? err) }));
+      log('error', 'Service unreachable', { target: target.origin, cause: String(err?.cause?.code ?? err) });
       return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
     }
 

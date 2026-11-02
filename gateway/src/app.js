@@ -45,6 +45,10 @@ export function createApp() {
   // Train & Schedule owns stations, trains, coaches, seats, routes, fares and trips (SRS 9.2). Note that
   // /admin/trains/{id}/coaches is under /admin/trains, the seats of a coach are under /admin/coaches/{id}/seats, and
   // the fares of a route are under /admin/routes/{id}/fares.
+  // Cancelling a whole trip is Booking & Seat's job (Flow 8), not Train & Schedule's: these two exact paths are routed there BEFORE the
+  // generic /admin/trips rules below, which send the trip CRUD to Train & Schedule. Booking & Seat tells Train & Schedule to mark the trip cancelled.
+  app.post('/admin/trips/:id/cancel', requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.bookingSeatUrl, '/admin/trips'));
+  app.get('/admin/trips/:id/cancellation', requireAuth, requireRole('ADMIN'), forwardTo(config.bookingSeatUrl, '/admin/trips'));
   for (const prefix of ['/admin/stations', '/admin/trains', '/admin/coaches', '/admin/seats', '/admin/routes', '/admin/trips']) {
     app.use(prefix, requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.trainScheduleUrl, prefix));
   }

@@ -24,6 +24,14 @@ describe('the admin bookings route', () => {
     assert.equal((await res.json()).error.code, 'unauthenticated');
   });
 
+  test('cancelling a whole trip and reading its progress need a token too', async () => {
+    const cancel = await fetch(`${base}/admin/trips/5/cancel`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"reason":"x"}' });
+    const progress = await fetch(`${base}/admin/trips/5/cancellation`);
+
+    assert.equal(cancel.status, 401);
+    assert.equal(progress.status, 401);
+  });
+
   test('a garbage token: 401', async () => {
     const res = await fetch(`${base}/admin/bookings/5/cancel`, { method: 'POST', headers: { authorization: 'Bearer not.a.token', 'content-type': 'application/json' }, body: '{}' });
 

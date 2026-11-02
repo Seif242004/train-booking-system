@@ -1,0 +1,202 @@
+/* Account page and the help and policy pages. */
+.account-page {
+  max-width: 44rem;
+  padding-bottom: 24px;
+}
+
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  background: var(--white);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+}
+
+.avatar-large {
+  width: 72px;
+  height: 72px;
+  font-size: 26px;
+  color: #fff;
+  background: var(--red);
+}
+
+.account-who p {
+  margin: 0;
+}
+
+.account-name {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.account-sub {
+  color: var(--muted);
+}
+
+.account-chips {
+  margin-top: 8px !important;
+}
+
+.account-details {
+  display: grid;
+  gap: 0;
+  margin: 20px 0 0;
+  background: var(--white);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-card);
+}
+
+.account-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 16px 24px;
+}
+
+.account-details > div + div {
+  border-top: 1px solid var(--line-soft);
+}
+
+.account-details dt {
+  color: var(--muted);
+}
+
+.account-details dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account-h2 {
+  margin: 32px 0 12px;
+  font-size: 20px;
+}
+
+.account-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.shortcut {
+  display: grid;
+  gap: 4px;
+  min-height: var(--touch);
+  padding: 18px 20px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--white);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.shortcut span {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.shortcut:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.shortcut:active {
+  transform: scale(0.98);
+}
+
+.account-actions {
+  margin-top: 28px;
+}
+
+.account-note {
+  font-size: 14px;
+}
+
+/* Help and policy pages */
+.doc-page {
+  max-width: 46rem;
+  padding-bottom: 24px;
+}
+
+.doc-page h1 {
+  margin-bottom: 8px;
+}
+
+.doc-lead {
+  margin: 0 0 24px;
+  font-size: 18px;
+  color: var(--ink-2);
+}
+
+.doc-page h2 {
+  margin: 32px 0 8px;
+  font-size: 22px;
+}
+
+.doc-page p,
+.doc-page li {
+  line-height: 1.65;
+}
+
+.doc-draft {
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: var(--warn-text);
+  background: var(--warn-bg);
+  border-radius: var(--r-control);
+}
+
+.faq {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.faq details {
+  background: var(--white);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-control);
+}
+
+.faq summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 8px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.faq details[open] summary {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.faq details > :not(summary) {
+  margin: 0;
+  padding: 14px 18px;
+}
+
+.doc-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 32px;
+}
+
+.doc-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  font-weight: 600;
+}

@@ -9,7 +9,7 @@ import { MyBookingsPage } from './pages/MyBookingsPage';
 import { NotFound } from './pages/NotFound';
 import { PaymentPage } from './pages/PaymentPage';
 import { TicketPage } from './pages/TicketPage';
-import { Profile } from './pages/Profile';
+import { AccountPage } from './pages/AccountPage';
 import { RouteFares } from './pages/RouteFares';
 import { RouteList } from './pages/RouteList';
 import { SearchTrips } from './pages/SearchTrips';
@@ -29,7 +29,7 @@ export function App() {
             <Route index element={<Landing />} />
             {/* Everything below needs a signed-in user; /admin also needs the ADMIN role. */}
             <Route element={<RequireAuth />}>
-              <Route path="account" element={<Profile />} />
+              <Route path="account" element={<AccountPage />} />
               <Route path="profile" element={<Navigate to="/account" replace />} />
               <Route path="search" element={<SearchTrips />} />
               <Route path="trips/:id/seats" element={<SeatMapPage />} />

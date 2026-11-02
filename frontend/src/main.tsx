@@ -11,6 +11,7 @@ import './styles/pages/search.css';
 import './styles/pages/booking.css';
 import './styles/pages/bookings.css';
 import './styles/pages/admin.css';
+import './styles/pages/account.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

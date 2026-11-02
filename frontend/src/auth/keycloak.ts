@@ -12,6 +12,7 @@ export const keycloak = new Keycloak({
 export interface AuthUser {
   sub: string;
   name: string | null;
+  username: string | null;
   email: string | null;
   roles: string[];
 }
@@ -31,6 +32,7 @@ export function userFromToken(): AuthUser | null {
   return {
     sub: claims.sub,
     name: claims.name ?? claims.preferred_username ?? null,
+    username: claims.preferred_username ?? null,
     email: claims.email ?? null,
     roles: claims.realm_access?.roles ?? [],
   };

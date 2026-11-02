@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { RequireAdmin, RequireAuth } from './auth/guards';
 import { AdminLayout } from './components/AdminLayout';
@@ -8,6 +8,7 @@ import { Admin } from './pages/Admin';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { NotFound } from './pages/NotFound';
 import { PaymentPage } from './pages/PaymentPage';
+import { TicketPage } from './pages/TicketPage';
 import { Profile } from './pages/Profile';
 import { RouteFares } from './pages/RouteFares';
 import { RouteList } from './pages/RouteList';
@@ -28,11 +29,13 @@ export function App() {
             <Route index element={<Landing />} />
             {/* Everything below needs a signed-in user; /admin also needs the ADMIN role. */}
             <Route element={<RequireAuth />}>
-              <Route path="profile" element={<Profile />} />
+              <Route path="account" element={<Profile />} />
+              <Route path="profile" element={<Navigate to="/account" replace />} />
               <Route path="search" element={<SearchTrips />} />
               <Route path="trips/:id/seats" element={<SeatMapPage />} />
               <Route path="bookings" element={<MyBookingsPage />} />
               <Route path="bookings/:id/pay" element={<PaymentPage />} />
+              <Route path="bookings/:id/ticket" element={<TicketPage />} />
               <Route element={<RequireAdmin />}>
                 <Route element={<AdminLayout />}>
                 <Route path="admin" element={<Admin />} />

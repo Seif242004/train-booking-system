@@ -18,11 +18,11 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
-/** Use inside RequireAuth. Signed-in users without the ADMIN role are sent to their profile. */
+/** Use inside RequireAuth. Signed-in users without the ADMIN role are sent to their account page. */
 export function RequireAdmin() {
   const { hasRole } = useAuth();
   if (!hasRole('ADMIN')) {
-    return <Navigate to="/profile" replace state={{ notice: 'The admin area is only for administrators.' }} />;
+    return <Navigate to="/account" replace state={{ notice: 'The admin area is only for administrators.' }} />;
   }
   return <Outlet />;
 }

@@ -222,7 +222,7 @@ export function MyBookingsPage() {
 
                 {booking.status === 'CONFIRMED' && (
                   <div className="booking-actions">
-                    <Link className="button" to={`/bookings/${booking.id}/pay`}>View ticket</Link>
+                    <Link className="button" to={`/bookings/${booking.id}/ticket`}>View ticket</Link>
                     <button type="button" className="button" disabled={busy === booking.id} onClick={() => void resend(booking.id)}>Email my ticket again</button>
                     {cancellable && confirming !== booking.id && (
                       <button type="button" className="button button-danger" disabled={busy === booking.id} onClick={() => setConfirming(booking.id)}>Cancel booking</button>

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { initKeycloak, keycloak, userFromToken, type AuthUser } from './keycloak';
+import { initKeycloak, keycloak, notifySessionEnded, onSessionEnded, userFromToken, type AuthUser } from './keycloak';
 
 interface AuthState {
   /** `loading` until Keycloak has answered the first session check. */
@@ -7,6 +7,8 @@ interface AuthState {
   authenticated: boolean;
   user: AuthUser | null;
   error: string | null;
+  /** The token can no longer be refreshed: the UI asks the user to sign in again. */
+  sessionEnded: boolean;
   login: (redirectUri?: string) => void;
   register: () => void;
   logout: () => void;
@@ -24,6 +26,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthState['status']>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionEnded, setSessionEnded] = useState(false);
+
+  useEffect(() => onSessionEnded(() => setSessionEnded(true)), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,8 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (refreshed) setUser(userFromToken());
         })
         .catch(() => {
-          // The refresh token is no longer valid (session ended in Keycloak): sign in again.
-          void keycloak.login({ redirectUri: window.location.href });
+          // The refresh token is no longer valid (session ended in Keycloak): ask the user to sign in again.
+          notifySessionEnded();
         });
     }, REFRESH_CHECK_EVERY_MS);
     return () => window.clearInterval(timer);
@@ -67,12 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authenticated: user !== null,
       user,
       error,
-      login: (redirectUri) => void keycloak.login({ redirectUri: redirectUri ?? `${window.location.origin}/profile` }),
-      register: () => void keycloak.register({ redirectUri: `${window.location.origin}/profile` }),
+      sessionEnded,
+      // After Keycloak's page the user returns to where they were (or tried to go): the current address, deep links included.
+      login: (redirectUri) => void keycloak.login({ redirectUri: redirectUri ?? window.location.href }),
+      register: () => void keycloak.register({ redirectUri: window.location.href }),
       logout: () => void keycloak.logout({ redirectUri: `${window.location.origin}/` }),
       hasRole: (role) => user?.roles.includes(role) ?? false,
     }),
-    [status, user, error],
+    [status, user, error, sessionEnded],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

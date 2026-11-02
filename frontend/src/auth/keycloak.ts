@@ -49,17 +49,28 @@ export function initKeycloak(): Promise<boolean> {
   return initPromise;
 }
 
+// The session can no longer be refreshed (ended in Keycloak, or expired offline). The app shows a "Your session ended" panel instead of
+// redirecting at once, so nothing the user is reading disappears without an explanation.
+const sessionListeners = new Set<() => void>();
+export function onSessionEnded(listener: () => void): () => void {
+  sessionListeners.add(listener);
+  return () => sessionListeners.delete(listener);
+}
+export function notifySessionEnded(): void {
+  sessionListeners.forEach((listener) => listener());
+}
+
 /**
  * Returns a token that is valid for at least 30 more seconds, refreshing it first when needed (updateToken).
- * Call this right before every request to the Gateway. If the session can no longer be refreshed, the user is
- * sent to Keycloak to sign in again.
+ * Call this right before every request to the Gateway. If the session can no longer be refreshed, the app
+ * asks the user to sign in again (notifySessionEnded).
  */
 export async function getFreshToken(): Promise<string> {
   try {
     await keycloak.updateToken(30);
   } catch {
-    void keycloak.login({ redirectUri: window.location.href });
-    throw new Error('Your session has expired. Redirecting to sign in.');
+    notifySessionEnded();
+    throw new Error('Your session ended. Sign in again to continue.');
   }
   if (!keycloak.token) throw new Error('Not signed in.');
   return keycloak.token;

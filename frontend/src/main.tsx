@@ -5,6 +5,7 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/components.css';
 import './styles/shell.css';
+import './styles/nav.css';
 import './styles/pages/landing.css';
 import './styles/pages/search.css';
 import './styles/pages/booking.css';

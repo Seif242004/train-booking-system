@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
-import { useAuth } from '../auth/AuthContext';
 import { BookingSteps } from '../components/BookingSteps';
 import { HoldCard } from '../components/HoldCard';
 import { StripeCheckout } from '../components/StripeCheckout';
-import { TicketView } from '../components/TicketView';
+import { PageNav } from '../components/PageNav';
 import { gatewayGet, gatewayRequest, readError } from '../api';
 import type { Booking, PaymentStart } from '../bookingTypes';
 import { connectLive } from '../live/connectLive';
 import { remainingMs, startCountdown, type Countdown } from '../countdown';
 import { money } from '../format';
 import { clock, dayLabel } from '../time';
+import { lastSearchQuery } from '../recentSearches';
 
 /** What the seat map says when the five minutes ran out (SRS FR-H5). */
 export const EXPIRED_MESSAGE = 'Your 5 minutes ran out. The seats were released, please select again.';
@@ -21,7 +21,6 @@ export const TRIP_CANCELLED_MESSAGE = 'This trip was cancelled.';
 export function PaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [left, setLeft] = useState<number | null>(null);
@@ -32,8 +31,6 @@ export function PaymentPage() {
   // processed) and the page waits for the server's confirmation, which comes from Stripe's signed webhook.
   const [payment, setPayment] = useState<{ state: 'idle' | 'loading' | 'ready' | 'waiting' | 'unavailable'; start?: PaymentStart; message?: string }>({ state: 'idle' });
   const paymentAsked = useRef(false);
-  // "Email my ticket again" on the confirmed booking (FR-T4).
-  const [resend, setResend] = useState<{ state: 'idle' | 'sending' | 'done' | 'error'; message?: string }>({ state: 'idle' });
 
   const load = useCallback(async () => {
     const result = await gatewayGet(`/bookings/${id}`);
@@ -109,6 +106,11 @@ export function PaymentPage() {
 
   useEffect(() => {
     if (!booking) return;
+    // Paid: the ticket page replaces this one, so Back from the ticket does not return to a finished payment.
+    if (booking.status === 'CONFIRMED') {
+      navigate(`/bookings/${booking.id}/ticket`, { replace: true });
+      return;
+    }
     if (booking.status === 'EXPIRED' || booking.status === 'ABANDONED') {
       navigate(`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`, {
         replace: true,
@@ -117,20 +119,13 @@ export function PaymentPage() {
     }
   }, [booking, navigate]);
 
-  async function resendTicket() {
-    setResend({ state: 'sending' });
-    const result = await gatewayRequest('POST', `/bookings/${id}/resend-ticket`);
-    if (result.status === 202) setResend({ state: 'done' });
-    else setResend({ state: 'error', message: readError(result).message });
-  }
-
   if (error) {
     return (
       <section>
         <BookingSteps current="payment" />
         <h1>Payment</h1>
         <p className="notice notice-error" role="alert">{error}</p>
-        <p><Link to="/search">Back to the search</Link></p>
+        <p><Link to="/bookings">Go to my bookings</Link></p>
       </section>
     );
   }
@@ -143,22 +138,17 @@ export function PaymentPage() {
     );
   }
 
-  if (booking.status === 'CONFIRMED') {
-    return (
-      <section>
-        <BookingSteps current="ticket" />
-        <TicketView booking={booking} passenger={user?.name ?? user?.email ?? null} resend={resend} onResend={() => void resendTicket()} />
-      </section>
-    );
-  }
 
+  const seatsHref = `/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`;
+  const searchHref = `/search${lastSearchQuery() ? `?${lastSearchQuery()}` : ''}`;
   const timeIsUp = left !== null && left <= 0;
   const holding = booking.status === 'PENDING_PAYMENT';
   const testMode = payment.start?.publishableKey?.startsWith('pk_test_') ?? false;
 
   return (
     <section className="payment-page">
-      <BookingSteps current="payment" />
+      {holding && <PageNav back={{ to: seatsHref, label: 'Back to seats' }} />}
+      <BookingSteps current="payment" links={{ search: searchHref, seats: seatsHref }} />
       <h1>Pay for your trip</h1>
 
       <div className="pay-layout">
@@ -231,7 +221,7 @@ export function PaymentPage() {
             </p>
           </div>
           {holding && (
-            <Link className="link-button summary-back" to={`/trips/${booking.tripId}/seats?from=${booking.fromStop}&to=${booking.toStop}`}>
+            <Link className="link-button summary-back" to={seatsHref}>
               Back to seats <span className="muted">(your seats stay held)</span>
             </Link>
           )}

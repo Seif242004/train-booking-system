@@ -12,6 +12,7 @@ import { connectLive } from '../live/connectLive';
 import type { SeatMap, SeatMapCoach, SeatMapSeat, SeatState } from '../seatMapTypes';
 import { clock, dayLabel, duration } from '../time';
 import { useDelayedFlag } from '../useDelayedFlag';
+import { lastSearchQuery } from '../recentSearches';
 import { EXPIRED_MESSAGE, TRIP_CANCELLED_MESSAGE } from './PaymentPage';
 
 const STATE_LABEL: Record<SeatState, string> = { AVAILABLE: 'Available', HELD: 'Held by someone', BOOKED: 'Booked' };
@@ -50,6 +51,7 @@ export function SeatMapPage() {
   const to = query.get('to') ?? '';
   const classFromAddress = query.get('class');
   const navigate = useNavigate();
+  const searchHref = `/search${lastSearchQuery() ? `?${lastSearchQuery()}` : ''}`;
   // The payment page sends the user back here with a message when the hold ran out or the trip was cancelled (SRS FR-H5).
   const redirectMessage = (useLocation().state as { message?: string } | null)?.message ?? null;
 
@@ -241,7 +243,7 @@ export function SeatMapPage() {
   if (error) {
     return (
       <section>
-        <BookingSteps current="seats" />
+        <BookingSteps current="seats" links={{ search: searchHref }} />
         <h1>Choose your seats</h1>
         <p className="notice notice-error" role="alert">{error}</p>
         <p><Link to="/search">Back to the search</Link></p>
@@ -251,7 +253,7 @@ export function SeatMapPage() {
   if (!map) {
     return (
       <section aria-busy="true">
-        <BookingSteps current="seats" />
+        <BookingSteps current="seats" links={{ search: searchHref }} />
         <p className="sr-only">Loading the seat map…</p>
         {showSkeleton && (
           <>
@@ -322,7 +324,7 @@ export function SeatMapPage() {
 
   return (
     <section className="seatmap-page">
-      <BookingSteps current="seats" />
+      <BookingSteps current="seats" links={{ search: searchHref }} />
 
       <div className="trip-summary" aria-label="Trip">
         <div className="trip-summary-route">

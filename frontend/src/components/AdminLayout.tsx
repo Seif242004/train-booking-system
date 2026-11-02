@@ -1,5 +1,6 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { BrandLogo } from './BrandLogo';
 
 const SECTIONS = [
   { to: '/admin', label: 'Overview', end: true },
@@ -10,15 +11,24 @@ const SECTIONS = [
   { to: '/admin/support', label: 'Support', end: false },
 ];
 
-/** Every admin page: a dark sidebar on the left (a scrolling bar on phones), a thin top line, and the page. */
+/**
+ * Every admin page: a dark sidebar on the left (a scrolling bar on phones) with the logo home and a way back to the site, a breadcrumb
+ * line on top, and the page.
+ */
 export function AdminLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const section = SECTIONS.filter((s) => !s.end && pathname.startsWith(s.to)).at(0)?.label ?? 'Overview';
+  const section = SECTIONS.find((s) => !s.end && pathname.startsWith(s.to));
+  // Admin / Trains / Details: a page below a section's list (one train, the fares of one route).
+  const deeper = section && pathname !== section.to;
 
   return (
     <div className="admin-shell">
       <aside className="admin-side on-dark">
+        <BrandLogo height={26} />
+        <Link className="admin-back-site" to="/">
+          ← Back to site
+        </Link>
         <p className="admin-side-title">Admin</p>
         <nav aria-label="Admin" className="admin-nav">
           {SECTIONS.map((s) => (
@@ -30,7 +40,19 @@ export function AdminLayout() {
       </aside>
       <div className="admin-main">
         <div className="admin-topbar">
-          <p>Admin / {section}</p>
+          <nav aria-label="Breadcrumb">
+            <ol className="breadcrumb">
+              <li>{section ? <Link to="/admin">Admin</Link> : <span aria-current="page">Admin</span>}</li>
+              {section && (
+                <li>{deeper ? <Link to={section.to}>{section.label}</Link> : <span aria-current="page">{section.label}</span>}</li>
+              )}
+              {deeper && (
+                <li>
+                  <span aria-current="page">{pathname.endsWith('/fares') ? 'Fares' : 'Details'}</span>
+                </li>
+              )}
+            </ol>
+          </nav>
           <span>{user?.name ?? user?.email} · Admin</span>
         </div>
         <div className="admin-content">

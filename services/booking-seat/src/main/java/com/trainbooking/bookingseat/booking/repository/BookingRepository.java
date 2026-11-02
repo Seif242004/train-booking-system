@@ -12,8 +12,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -30,10 +32,12 @@ public class BookingRepository {
 
     private final JdbcClient jdbc;
     private final NamedParameterJdbcTemplate batch;
+    private final ZoneId railwayZone;
 
-    public BookingRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batch) {
+    public BookingRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batch, @Value("${trainbooking.timezone:Africa/Cairo}") String timezone) {
         this.jdbc = jdbc;
         this.batch = batch;
+        this.railwayZone = ZoneId.of(timezone);
     }
 
     /** Inserts a PENDING_PAYMENT booking and returns its id. A clash of the reference (unique) is a DuplicateKeyException. */
@@ -229,8 +233,16 @@ public class BookingRepository {
         return jdbc.sql("SELECT stop_index, station_code, station_name, arrival_time, departure_time FROM trip_stop WHERE trip_id = :t AND stop_index = :i")
                 .param("t", tripId).param("i", index)
                 .query((rs, row) -> new BookingView.StopInfo(rs.getInt("stop_index"), rs.getString("station_code"), rs.getString("station_name"),
-                        rs.getObject("arrival_time", OffsetDateTime.class), rs.getObject("departure_time", OffsetDateTime.class)))
+                        railway(rs.getObject("arrival_time", OffsetDateTime.class)), railway(rs.getObject("departure_time", OffsetDateTime.class))))
                 .optional().orElse(new BookingView.StopInfo(index, "?", "?", null, null));
+    }
+
+    /**
+     * The same instant with the offset of the railway's own time zone. The driver returns the offset of its session (the JVM's zone), so
+     * without this the web app, which shows the clock part of the text as it is, would show UTC in a container and local time elsewhere.
+     */
+    private OffsetDateTime railway(OffsetDateTime time) {
+        return time == null ? null : time.atZoneSameInstant(railwayZone).toOffsetDateTime();
     }
 
     /** Money is always shown with two decimals (Oracle returns 30 for 30.00). */

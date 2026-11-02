@@ -63,6 +63,9 @@ export function createApp() {
   // The bookings of the passenger (SRS 9.1): holds, the booking, payment, cancellation. Booking & Seat checks that a booking belongs
   // to the caller (the token is forwarded), and answers 404 for anyone else's.
   app.use('/bookings', requireAuth, passThroughBody, forwardTo(config.bookingSeatUrl, '/bookings'));
+  // Support (Flow 6 way B, Flow 7): an admin cancels a booking on the passenger's request. The Gateway checks the ADMIN role first; Booking & Seat
+  // checks it again.
+  app.use('/admin/bookings', requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.bookingSeatUrl, '/admin/bookings'));
 
   // Stripe's webhook (Flow 4, SRS 9.3): no token (Stripe has none), the signature is what authenticates it, and Payment verifies it. The body
   // must reach Payment byte for byte, because the signature is computed over the exact bytes: express.raw, never a JSON parser. Only the

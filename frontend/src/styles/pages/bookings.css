@@ -1,0 +1,177 @@
+/* My bookings: tabs, booking cards with status chips, the inline cancel confirmation. */
+.bookings-page {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.booking-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.booking-tabs .chip[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.tab-count {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.booking-card {
+  padding: 24px;
+  background: var(--white);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-rest);
+  animation: rise 0.5s var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 70ms);
+  transition: box-shadow 0.2s var(--ease);
+}
+
+.booking-card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.booking-card-skeleton {
+  animation: none;
+}
+
+.booking-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.booking-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.booking-ref {
+  font-size: 13px;
+  font-weight: 700;
+  color: #5f5873;
+}
+
+.booking-card-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-top: 16px;
+}
+
+.booking-card h2 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+.booking-when {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.booking-items-line {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #5f5873;
+}
+
+.booking-price {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.booking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+
+/* Cancelling is confirmed inside the card, never in a pop-up, and says plainly that the whole amount comes back. */
+.cancel-confirm {
+  margin-top: 20px;
+  padding: 20px 22px;
+  background: var(--danger-tint);
+  border: 1.5px solid var(--danger-border);
+  border-radius: 16px;
+  animation: slide 0.3s var(--ease-out) backwards;
+}
+
+.cancel-confirm p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.cancel-confirm .cancel-confirm-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--danger-text);
+}
+
+.cancel-confirm .booking-actions {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.booking-message {
+  margin: 18px 0 0;
+  animation: slide 0.3s var(--ease-out) backwards;
+}
+
+@keyframes slide {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .booking-card {
+    padding: 20px 16px;
+  }
+
+  .booking-card h2,
+  .booking-price {
+    font-size: 21px;
+  }
+
+  .booking-actions .button {
+    flex: 1 1 140px;
+  }
+}

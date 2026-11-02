@@ -144,7 +144,7 @@
   box-shadow: var(--shadow-rest);
   /* Cards rise in turn, 70 ms apart; the end state is the card's own, so the hover lift still works afterwards. */
   animation: rise 0.5s var(--ease-out) backwards;
-  animation-delay: calc(var(--i, 0) * 70ms);
+  animation-delay: calc(min(var(--i, 0), 8) * 70ms);
   transition: box-shadow 0.2s var(--ease), transform 0.2s var(--ease);
 }
 

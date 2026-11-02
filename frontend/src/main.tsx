@@ -9,6 +9,7 @@ import './styles/shell.css';
 import './styles/pages/landing.css';
 import './styles/pages/search.css';
 import './styles/pages/booking.css';
+import './styles/pages/bookings.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

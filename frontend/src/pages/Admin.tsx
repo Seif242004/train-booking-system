@@ -20,7 +20,7 @@ export function Admin() {
   return (
     <section>
       <h1>Admin</h1>
-      <p>Train management and support tools will live here.</p>
+      <p>Train management and support tools.</p>
       <ul className="link-list">
         <li>
           <Link to="/admin/stations">Stations</Link>
@@ -33,6 +33,9 @@ export function Admin() {
         </li>
         <li>
           <Link to="/admin/trips">Trips</Link>
+        </li>
+        <li>
+          <Link to="/admin/support">Support: find and cancel bookings</Link>
         </li>
       </ul>
       <h2>Gateway check for the admin role</h2>

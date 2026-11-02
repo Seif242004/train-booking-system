@@ -12,6 +12,7 @@ import { RouteList } from './pages/RouteList';
 import { SearchTrips } from './pages/SearchTrips';
 import { SeatMapPage } from './pages/SeatMapPage';
 import { Stations } from './pages/Stations';
+import { SupportPage } from './pages/SupportPage';
 import { TrainDetail } from './pages/TrainDetail';
 import { Trips } from './pages/Trips';
 import { Trains } from './pages/Trains';
@@ -37,6 +38,7 @@ export function App() {
                 <Route path="admin/trains/:id" element={<TrainDetail />} />
                 <Route path="admin/routes" element={<RouteList />} />
                 <Route path="admin/trips" element={<Trips />} />
+                <Route path="admin/support" element={<SupportPage />} />
                 <Route path="admin/routes/:id/fares" element={<RouteFares />} />
               </Route>
             </Route>

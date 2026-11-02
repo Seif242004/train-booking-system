@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link } from 'react-router-dom';
 import type { Route, Train, Trip } from '../adminTypes';
 import { gatewayRequest, readError, type ApiErrorDetail } from '../api';
+import { TripCancellation } from '../components/TripCancellation';
 import { clock, daysLater, todayLocal } from '../time';
 
 interface StopTimes {
@@ -342,6 +343,7 @@ export function Trips() {
                       <button type="button" className="button" onClick={() => setConfirmingId(trip.id)}>Delete</button>
                     </>
                   )}
+                  <TripCancellation tripId={trip.id} tripStatus={trip.status} onChanged={() => void load()} />
                 </td>
               </tr>
             ))}

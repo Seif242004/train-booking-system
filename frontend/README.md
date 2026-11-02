@@ -6,9 +6,12 @@ registration or account screens: Login and Register send the browser to Keycloak
 
 ## What it does
 
-- **Login / Register:** two buttons in the middle of the home page (shown while logged out), each a full-page
-  redirect to Keycloak (authorization code flow with PKCE, `keycloak-js`). **Logout** is in the header once signed
-  in; it ends the Keycloak session and returns to the home page.
+- **Home / landing page** (`/`): the hero photo with the search card (From, To, date, quick-date chips), the three steps and what you get.
+  Signed in, the card lists the real stations; signed out, the names are typed and **Search trains** sends the visitor to Keycloak first,
+  then to `/search?from=&to=&date=`, where the search runs by itself (a typed name is matched to a station by its code or name).
+  **Sign in** (header) and **Create an account** (hero) are full-page redirects to Keycloak (authorization code flow with PKCE,
+  `keycloak-js`). **Logout** is in the header once signed in; it ends the Keycloak session and returns to the home page.
+  An address the app does not know shows a 404 page (`NotFound`) instead of redirecting home.
 - **Profile** (`/profile`): name, email and roles read from the access token, plus the live response of
   `GET /me` through the Gateway. Buttons also try `GET /admin/ping` (403 for a normal user) and `GET /me` without a
   token (401).
@@ -48,6 +51,27 @@ registration or account screens: Login and Register send the browser to Keycloak
   are sent back to their profile. The guards only shape the UI: the Gateway enforces the token and the role.
 - **Token refresh:** `updateToken` runs before every Gateway call and in the background (every 20 s, renewing when
   less than 60 s are left). If the session can no longer be renewed, the user is sent to sign in again.
+
+## Design system
+
+The look is defined in `docs/design/DESIGN.md` (tokens, type, motion, accessibility floor); the mockups there are visual references only. Plain CSS with
+custom properties, no UI library, no animation library, no font package (Plus Jakarta Sans comes from the Google Fonts link in `index.html`).
+
+- `src/styles/tokens.css`: colours, radii, shadows, spacing and motion as CSS custom properties. Red is for the brand header, the main action of a screen
+  and selection.
+- `src/styles/base.css`: reset, type, the 3px ink focus ring, the container, the skeleton shimmer, and the global `prefers-reduced-motion` rule.
+- `src/styles/components.css` and `shell.css`: buttons, fields, chips, status chips, cards, notices, tables (they scroll inside `.table-wrap`), empty
+  states, and the header and footer. `src/styles/pages/`: the rules that belong to one area (landing, search, booking flow, bookings, admin).
+- Motion is CSS only and uses transform, opacity, colours, shadows and `stroke-dashoffset`; an entrance animation keeps its hidden start only in its keyframes,
+  so with reduced motion every element is simply there.
+- Shared components: `BrandLogo` (the ONE place that names the logo file), `HeroPhoto` (the ONE place that names the hero photo), `SearchForm`,
+  `BookingSteps`, `HoldCard` (the countdown), `TicketView`, `SlideOver` (the admin edit panel: modal, focus trap, Escape, focus returns), `AdminLayout`,
+  `AdminHeader`, `EmptyState`, `ListSkeleton`.
+- **Brand assets** are placeholders in `public/brand/`: `hero.jpg` (an AI-generated picture; replace it with a licensed photo) and `logo-etisalat-white.png` (a cropped
+  PNG; replace it with the official SVG). Each is named in one file only (`HeroPhoto.tsx`, `BrandLogo.tsx`); the Keycloak theme has its own copies in
+  `infra/keycloak/themes/train-booking/login/resources/img/`.
+- The ticket page shows the real booking data. The ticket's QR code and PDF are made by the Ticket service and e-mailed: nothing in the Gateway serves them
+  to the browser, so the page points to the e-mail and offers **Email my ticket again**.
 
 ## Environment variables
 

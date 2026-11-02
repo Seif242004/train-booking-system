@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#fff}
+a{color:inherit}
+button,input{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+.field input[type="text"],.field input[type="password"]{transition:border-color .15s ease,box-shadow .15s ease}
+.field input[type="text"]:focus,.field input[type="password"]:focus{border-color:#e10801;box-shadow:0 0 0 4px rgba(225,8,1,.12);outline:none}
+.go{transition:background .15s ease,transform .15s ease}
+.go:hover{background:#b80600}
+.go:active{transform:scale(.98)}
+.lnk{transition:color .15s ease}
+.lnk:hover{color:#8c0500}
+.photo{position:absolute;inset:-6%;background:#191329 url(/_blob/0311d08e7f1e86b564aff965ad5d7bc5) 88% center/cover no-repeat;animation:drift 30s ease-in-out infinite alternate;will-change:transform}
+@keyframes drift{from{transform:scale(1) translate3d(0,0,0)}to{transform:scale(1.1) translate3d(-2%,1.5%,0)}}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(25,19,41,.62) 0%,rgba(25,19,41,.18) 38%,rgba(25,19,41,.88) 100%)}
+.in{animation:in .6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.photo{animation:none;inset:0}.in{animation:none}.go,.lnk,.field input{transition:none}}
+</style>
+</helmet>
+
+<div style="min-height:800px;display:flex;flex-wrap:wrap;background:#fff;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <!-- Brand panel -->
+  <section aria-label="Welcome" style="flex:1 1 440px;min-width:0;background:#191329;color:#fff;padding:48px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:48px;position:relative;overflow:hidden">
+    <div class="photo" role="img" aria-label="A passenger train beside palm trees and farmland along the Nile at sunset"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:38px;width:auto;align-self:flex-start;display:block;position:relative">
+
+    <div style="position:relative;max-width:440px">
+      <h1 style="margin:0;font-size:44px;line-height:1.1;font-weight:800;letter-spacing:-.02em">Your train is one sign-in away.</h1>
+      <p style="margin:16px 0 0;font-size:17px;line-height:1.6;color:#ffe6e5">Book seats, pay securely and keep every ticket in one place.</p>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#f1eef7;position:relative">Train Booking</p>
+  </section>
+
+  <!-- Form -->
+  <section style="flex:1 1 440px;min-width:0;display:flex;align-items:center;justify-content:center;padding:48px 24px;box-sizing:border-box">
+    <div class="in" style="width:100%;max-width:400px">
+      <h2 style="margin:0;font-size:32px;font-weight:800;letter-spacing:-.02em">Sign in</h2>
+      <p style="margin:8px 0 0;font-size:16px;color:#5f5873">Welcome back. Enter your details to continue.</p>
+
+      <sc-if value="{{showError}}" hint-placeholder-val="{{ false }}">
+        <div role="alert" style="margin-top:20px;background:#fff4f3;border:1.5px solid #f3c9c7;border-radius:14px;padding:14px 16px;font-size:14px;line-height:1.5;color:#8c0500;font-weight:600">That username or password did not match. Check them and try again.</div>
+      </sc-if>
+
+      <form onSubmit="{{submit}}" style="margin-top:28px;display:flex;flex-direction:column;gap:18px">
+        <div class="field" style="display:flex;flex-direction:column;gap:6px">
+          <label for="u" style="font-size:13px;font-weight:700;color:#3b3450">Username or email</label>
+          <input id="u" type="text" autocomplete="username" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+        </div>
+        <div class="field" style="display:flex;flex-direction:column;gap:6px">
+          <label for="p" style="font-size:13px;font-weight:700;color:#3b3450">Password</label>
+          <input id="p" type="password" autocomplete="current-password" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px">
+          <label for="r" style="display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;font-weight:600;color:#3b3450;cursor:pointer">
+            <input id="r" type="checkbox" style="width:20px;height:20px;margin:0;accent-color:#e10801">Remember me
+          </label>
+          <a class="lnk" href="Login.dc.html" style="min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#c20700">Forgot password?</a>
+        </div>
+        <button class="go" type="submit" style="min-height:56px;border:0;border-radius:14px;background:{{accent}};color:#fff;font-size:17px;font-weight:700;cursor:pointer">Sign in</button>
+      </form>
+
+      <p style="margin:28px 0 0;text-align:center;font-size:15px;color:#5f5873">New here?
+        <a class="lnk" href="Register.dc.html" style="display:inline-block;padding:12px 4px;font-weight:700;color:#c20700">Create an account</a>
+      </p>
+    </div>
+  </section>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"showError":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#e10801',
+      showError: !!this.props.showError,
+      submit: (e) => { if (e && e.preventDefault) e.preventDefault(); }
+    };
+  }
+}
+</script>
+</body>
+</html>

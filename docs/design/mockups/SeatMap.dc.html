@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose seats</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#f4f3f5}
+a{color:inherit;text-decoration:none}
+button,input{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+.seat{transition:background .15s ease,transform .15s ease,border-color .15s ease}
+.seat:not(:disabled):hover{border-color:#e10801;transform:translateY(-1px)}
+.seat:not(:disabled):active{transform:scale(.94)}
+.tab,.coach{transition:background .15s ease,color .15s ease,border-color .15s ease}
+.tab:hover,.coach:hover{border-color:#e10801}
+.go{transition:background .15s ease,transform .15s ease}
+.go:not([aria-disabled="true"]):hover{background:#b80600}
+.go:not([aria-disabled="true"]):active{transform:scale(.98)}
+.nav a{transition:opacity .15s ease}
+.nav a:hover{opacity:.8}
+.pop{animation:pop .35s cubic-bezier(.2,.7,.2,1) both}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.bar{transition:width 1s linear,background .3s ease}
+@media (prefers-reduced-motion:reduce){
+.seat,.tab,.coach,.go,.nav a,.bar{transition:none}
+.pop{animation:none}
+.seat:not(:disabled):hover{transform:none}
+}
+</style>
+</helmet>
+
+<div style="min-height:1300px;background:#f4f3f5;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <header style="background:{{accent}}">
+    <div style="max-width:1120px;margin:0 auto;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+      <a href="Main.dc.html" aria-label="etisalat, home" style="display:block">
+        <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:30px;width:auto;display:block">
+      </a>
+      <nav class="nav" aria-label="Main" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;color:#fff;font-size:15px;font-weight:600">
+        <a href="Main.dc.html" style="padding:12px 0">Search trains</a>
+        <a href="MyBookings.dc.html" style="padding:12px 0">My bookings</a>
+        <a href="MyBookings.dc.html" style="padding:12px 20px;background:#fff;color:#c20700;border-radius:999px;font-weight:700">Seif T.</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width:1120px;margin:0 auto;padding:28px 24px 96px">
+
+    <!-- Progress -->
+    <ol aria-label="Booking steps" style="list-style:none;margin:0 0 28px;padding:0;display:flex;flex-wrap:wrap;gap:8px 12px;font-size:14px;font-weight:700">
+      <li style="display:flex;align-items:center;gap:8px;color:#5f5873"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:#d9f3e3;color:#006b2b;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>Search</li>
+      <li aria-hidden="true" style="color:#b7b1c4">—</li>
+      <li aria-current="step" style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:{{accent}};color:#fff;display:flex;align-items:center;justify-content:center">2</span>Seats</li>
+      <li aria-hidden="true" style="color:#b7b1c4">—</li>
+      <li style="display:flex;align-items:center;gap:8px;color:#5f5873"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:#e9e6ee;color:#5f5873;display:flex;align-items:center;justify-content:center">3</span>Payment</li>
+      <li aria-hidden="true" style="color:#b7b1c4">—</li>
+      <li style="display:flex;align-items:center;gap:8px;color:#5f5873"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:#e9e6ee;color:#5f5873;display:flex;align-items:center;justify-content:center">4</span>Ticket</li>
+    </ol>
+
+    <!-- Trip summary -->
+    <section aria-label="Trip" style="background:#fff;border-radius:20px;padding:20px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:16px 40px;box-shadow:0 2px 8px rgba(25,19,41,.05)">
+      <div style="display:flex;align-items:baseline;gap:12px">
+        <span style="font-size:28px;font-weight:800;letter-spacing:-.02em">05:30</span>
+        <span style="font-size:17px;font-weight:700">Cairo</span>
+        <span aria-hidden="true" style="color:#8a8399">→</span>
+        <span style="font-size:28px;font-weight:800;letter-spacing:-.02em">09:55</span>
+        <span style="font-size:17px;font-weight:700">Assiut</span>
+      </div>
+      <p style="margin:0;font-size:14px;font-weight:600;color:#5f5873">Tue 3 Nov · Train 981 · 4h 25m · 5 stops</p>
+      <a href="Main.dc.html" style="margin-left:auto;min-height:44px;display:flex;align-items:center;font-size:14px;font-weight:700;color:#c20700;text-decoration:underline;text-underline-offset:3px">Change trip</a>
+    </section>
+
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;margin-top:24px">
+
+      <!-- Seat picker -->
+      <section aria-label="Seat selection" style="flex:1 1 520px;min-width:0;background:#fff;border-radius:24px;padding:28px;box-shadow:0 2px 8px rgba(25,19,41,.05)">
+
+        <div role="group" aria-label="Class" style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{classTabs}}" as="c" hint-placeholder-count="3">
+            <button class="tab" type="button" onClick="{{c.pick}}" aria-pressed="{{c.selected}}" style="min-height:48px;padding:0 20px;border-radius:14px;border:1.5px solid {{c.border}};background:{{c.bg}};color:{{c.fg}};font-size:15px;font-weight:700;cursor:pointer;display:flex;gap:10px;align-items:baseline">{{c.name}}<span style="font-size:13px;font-weight:600;opacity:.9">EGP {{c.price}}</span></button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{showSeats}}" hint-placeholder-val="{{ true }}">
+          <div class="pop">
+            <div role="group" aria-label="Coach" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:20px">
+              <span style="font-size:13px;font-weight:700;color:#5f5873;margin-right:4px">Coach</span>
+              <sc-for list="{{coaches}}" as="k" hint-placeholder-count="4">
+                <button class="coach" type="button" onClick="{{k.pick}}" aria-pressed="{{k.selected}}" style="min-width:48px;min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid {{k.border}};background:{{k.bg}};color:{{k.fg}};font-size:14px;font-weight:700;cursor:pointer">{{k.n}}</button>
+              </sc-for>
+            </div>
+
+            <!-- Legend -->
+            <ul style="list-style:none;margin:20px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:8px 22px;font-size:13px;font-weight:600;color:#3b3450">
+              <li style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:20px;height:20px;border-radius:6px;border:1.5px solid #cfc9d8;background:#fff"></span>Available</li>
+              <li style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:20px;height:20px;border-radius:6px;background:{{accent}}"></span>Your seat</li>
+              <li style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:20px;height:20px;border-radius:6px;background:#ece9f0;color:#6d6680;font-size:12px;line-height:20px;text-align:center">×</span>Taken on this route</li>
+            </ul>
+
+            <!-- Coach plan -->
+            <div style="margin:24px auto 0;max-width:420px;background:#faf9fb;border:1.5px solid #e6e2ec;border-radius:28px;padding:20px 24px 28px">
+              <p style="margin:0 0 16px;text-align:center;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6d6680">Front of train</p>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+                  <div style="display:flex;align-items:center;justify-content:center;gap:8px">
+                    <div style="display:flex;gap:8px">
+                      <sc-for list="{{r.left}}" as="s" hint-placeholder-count="2">
+                        <button class="seat" type="button" onClick="{{s.toggle}}" disabled="{{s.taken}}" aria-pressed="{{s.pressed}}" aria-label="{{s.aria}}" style="width:48px;height:48px;border-radius:12px;border:1.5px solid {{s.border}};background:{{s.bg}};color:{{s.fg}};font-size:14px;font-weight:700;cursor:{{s.cursor}}">{{s.glyph}}</button>
+                      </sc-for>
+                    </div>
+                    <span aria-hidden="true" style="width:32px;text-align:center;font-size:12px;font-weight:700;color:#6d6680">{{r.n}}</span>
+                    <div style="display:flex;gap:8px">
+                      <sc-for list="{{r.right}}" as="s" hint-placeholder-count="2">
+                        <button class="seat" type="button" onClick="{{s.toggle}}" disabled="{{s.taken}}" aria-pressed="{{s.pressed}}" aria-label="{{s.aria}}" style="width:48px;height:48px;border-radius:12px;border:1.5px solid {{s.border}};background:{{s.bg}};color:{{s.fg}};font-size:14px;font-weight:700;cursor:{{s.cursor}}">{{s.glyph}}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showStanding}}" hint-placeholder-val="{{ false }}">
+          <div class="pop" style="margin-top:24px;background:#faf9fb;border:1.5px solid #e6e2ec;border-radius:20px;padding:28px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px">
+            <div style="max-width:340px">
+              <h2 style="margin:0;font-size:20px;font-weight:800">Standing places</h2>
+              <p style="margin:6px 0 0;font-size:14px;line-height:1.5;color:#5f5873">No seat is assigned. 30 places are available on this route.</p>
+            </div>
+            <div role="group" aria-label="Number of standing places" style="display:flex;align-items:center;gap:16px">
+              <button type="button" onClick="{{standingMinus}}" aria-label="Remove one standing place" style="width:48px;height:48px;border-radius:999px;border:1.5px solid #cfc9d8;background:#fff;font-size:22px;font-weight:700;cursor:pointer;color:#191329">−</button>
+              <span aria-live="polite" style="min-width:32px;text-align:center;font-size:28px;font-weight:800">{{standing}}</span>
+              <button type="button" onClick="{{standingPlus}}" aria-label="Add one standing place" style="width:48px;height:48px;border-radius:999px;border:0;background:{{accent}};font-size:22px;font-weight:700;cursor:pointer;color:#fff">+</button>
+            </div>
+          </div>
+        </sc-if>
+      </section>
+
+      <!-- Summary + hold -->
+      <aside aria-label="Your selection" style="flex:1 1 320px;max-width:420px;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+        <sc-if value="{{expired}}" hint-placeholder-val="{{ false }}">
+          <div class="pop" role="alert" style="background:#fff4f3;border:1.5px solid #f3c9c7;border-radius:20px;padding:18px 20px">
+            <p style="margin:0;font-size:15px;font-weight:800;color:#8c0500">Your hold ended</p>
+            <p style="margin:4px 0 0;font-size:14px;line-height:1.5;color:#3b3450">We released your seats. Pick again to start a new 5-minute hold.</p>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{holding}}" hint-placeholder-val="{{ true }}">
+          <div class="pop" style="background:#191329;color:#fff;border-radius:20px;padding:20px 22px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+              <span style="font-size:14px;font-weight:600;color:#e4e0ee">Seats held for you</span>
+              <span role="timer" aria-live="off" style="font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums">{{timeLeft}}</span>
+            </div>
+            <div aria-hidden="true" style="margin-top:14px;height:6px;border-radius:999px;background:#3b3450;overflow:hidden">
+              <div class="bar" style="height:100%;width:{{holdPct}}%;border-radius:999px;background:{{holdColor}}"></div>
+            </div>
+            <p style="margin:12px 0 0;font-size:13px;line-height:1.5;color:#e4e0ee">The hold started when you picked your first seat. Adding seats does not extend it.</p>
+          </div>
+        </sc-if>
+
+        <div style="background:#fff;border-radius:20px;padding:22px;box-shadow:0 2px 8px rgba(25,19,41,.05)">
+          <h2 style="margin:0 0 14px;font-size:18px;font-weight:800">Your selection</h2>
+
+          <sc-if value="{{hasItems}}" hint-placeholder-val="{{ true }}">
+            <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column">
+              <sc-for list="{{items}}" as="it" hint-placeholder-count="2">
+                <li class="pop" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eeebf2">
+                  <div style="flex:1 1 auto;min-width:0">
+                    <p style="margin:0;font-size:15px;font-weight:700">{{it.title}}</p>
+                    <p style="margin:2px 0 0;font-size:13px;color:#5f5873">{{it.sub}}</p>
+                  </div>
+                  <span style="font-size:15px;font-weight:700">EGP {{it.price}}</span>
+                  <button type="button" onClick="{{it.remove}}" aria-label="{{it.removeLabel}}" style="width:44px;height:44px;border-radius:999px;border:0;background:transparent;cursor:pointer;color:#5f5873;display:flex;align-items:center;justify-content:center">
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                  </button>
+                </li>
+              </sc-for>
+            </ul>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:18px">
+              <span style="font-size:15px;font-weight:600;color:#5f5873">Total</span>
+              <span style="font-size:28px;font-weight:800;letter-spacing:-.02em">EGP {{total}}</span>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{noItems}}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0;font-size:14px;line-height:1.5;color:#5f5873">Pick a seat on the plan. Your 5-minute hold starts with your first pick.</p>
+          </sc-if>
+
+          <a class="go" href="{{payHref}}" aria-disabled="{{payDisabled}}" style="margin-top:20px;min-height:54px;border-radius:14px;background:{{payBg}};color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;pointer-events:{{payEvents}}">
+            Continue to payment
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <sc-if value="{{hasItems}}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{releaseAll}}" style="margin:8px auto 0;min-height:44px;padding:0 12px;border:0;background:transparent;color:#5f5873;font-size:14px;font-weight:700;cursor:pointer;display:block;text-decoration:underline;text-underline-offset:3px">Release all seats</button>
+          </sc-if>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const t = Date.now();
+    // Start with two seats already picked so the hold is visible.
+    this.state = {
+      klass: 'second',
+      coach: 3,
+      selected: ['second|3|5C', 'second|3|5D'],
+      standing: 0,
+      holdEnd: t + 277000,
+      now: t,
+      expired: false
+    };
+  }
+
+  componentDidMount() {
+    this.timer = setInterval(() => this.tick(), 1000);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.timer);
+  }
+
+  tick() {
+    const now = Date.now();
+    const s = this.state;
+    if (s.holdEnd && now >= s.holdEnd) {
+      // Hold ran out: release everything.
+      this.setState({ selected: [], standing: 0, holdEnd: null, expired: true, now });
+    } else {
+      this.setState({ now });
+    }
+  }
+
+  // Start the hold on the first pick; drop it when nothing is left.
+  withHold(selected, standing) {
+    const count = selected.length + standing;
+    let holdEnd = this.state.holdEnd;
+    if (count === 0) holdEnd = null;
+    else if (!holdEnd) holdEnd = Date.now() + 300000;
+    this.setState({ selected, standing, holdEnd, expired: false, now: Date.now() });
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#e10801';
+    const s = this.state;
+    const prices = { first: 420, second: 260, standing: 120 };
+    const names = { first: 'First class', second: 'Second class', standing: 'Standing' };
+    const layouts = {
+      first: { left: ['A', 'B'], right: ['C'], rows: 8 },
+      second: { left: ['A', 'B'], right: ['C', 'D'], rows: 12 }
+    };
+
+    const classTabs = ['first', 'second', 'standing'].map((k) => ({
+      name: names[k],
+      price: prices[k],
+      selected: s.klass === k,
+      bg: s.klass === k ? '#191329' : '#fff',
+      fg: s.klass === k ? '#fff' : '#191329',
+      border: s.klass === k ? '#191329' : '#dcd8e2',
+      pick: () => this.setState({ klass: k })
+    }));
+
+    const coaches = [1, 2, 3, 4].map((n) => ({
+      n,
+      selected: s.coach === n,
+      bg: s.coach === n ? accent : '#fff',
+      fg: s.coach === n ? '#fff' : '#191329',
+      border: s.coach === n ? accent : '#dcd8e2',
+      pick: () => this.setState({ coach: n })
+    }));
+
+    const showSeats = s.klass !== 'standing';
+    const rows = [];
+    if (showSeats) {
+      const lay = layouts[s.klass];
+      const all = lay.left.concat(lay.right);
+      const makeSeat = (r, letter) => {
+        const c = all.indexOf(letter);
+        const id = r + letter;
+        const key = s.klass + '|' + s.coach + '|' + id;
+        const picked = s.selected.indexOf(key) >= 0;
+        // Deterministic sample pattern for seats taken on this route
+        const taken = !picked && (((r * 3 + c * 5 + s.coach * 7) % 6 === 0) || ((r + c * 2 + s.coach) % 8 === 0));
+        const state = picked ? 'selected' : (taken ? 'taken' : 'available');
+        return {
+          taken,
+          pressed: picked,
+          aria: 'Seat ' + id + ', coach ' + s.coach + ', ' + state,
+          glyph: taken ? '×' : letter,
+          bg: picked ? accent : (taken ? '#ece9f0' : '#fff'),
+          fg: picked ? '#fff' : (taken ? '#6d6680' : '#191329'),
+          border: picked ? accent : (taken ? '#ece9f0' : '#cfc9d8'),
+          cursor: taken ? 'not-allowed' : 'pointer',
+          toggle: () => {
+            if (taken) return;
+            const cur = this.state.selected.slice();
+            const at = cur.indexOf(key);
+            if (at >= 0) cur.splice(at, 1);
+            else if (cur.length + this.state.standing < 6) cur.push(key);
+            this.withHold(cur, this.state.standing);
+          }
+        };
+      };
+      for (let r = 1; r <= lay.rows; r++) {
+        rows.push({ n: r, left: lay.left.map((l) => makeSeat(r, l)), right: lay.right.map((l) => makeSeat(r, l)) });
+      }
+    }
+
+    // Selection summary
+    const items = s.selected.map((key) => {
+      const p = key.split('|');
+      return {
+        title: 'Seat ' + p[2],
+        sub: names[p[0]] + ' · Coach ' + p[1],
+        price: prices[p[0]],
+        removeLabel: 'Remove seat ' + p[2],
+        remove: () => this.withHold(this.state.selected.filter((x) => x !== key), this.state.standing)
+      };
+    });
+    if (s.standing > 0) {
+      items.push({
+        title: 'Standing × ' + s.standing,
+        sub: 'No assigned seat',
+        price: s.standing * prices.standing,
+        removeLabel: 'Remove standing places',
+        remove: () => this.withHold(this.state.selected, 0)
+      });
+    }
+    const total = items.reduce((sum, it) => sum + it.price, 0);
+    const hasItems = items.length > 0;
+
+    // Countdown
+    const remaining = s.holdEnd ? Math.max(0, s.holdEnd - s.now) : 0;
+    const secs = Math.ceil(remaining / 1000);
+    const mm = Math.floor(secs / 60);
+    const ss = secs % 60;
+    const timeLeft = mm + ':' + (ss < 10 ? '0' : '') + ss;
+
+    return {
+      accent, classTabs, coaches, showSeats, rows, items, total, hasItems,
+      noItems: !hasItems,
+      showStanding: s.klass === 'standing',
+      standing: s.standing,
+      standingPlus: () => {
+        if (this.state.selected.length + this.state.standing < 6) this.withHold(this.state.selected, this.state.standing + 1);
+      },
+      standingMinus: () => {
+        if (this.state.standing > 0) this.withHold(this.state.selected, this.state.standing - 1);
+      },
+      holding: !!s.holdEnd && hasItems,
+      expired: s.expired && !hasItems,
+      timeLeft,
+      holdPct: Math.round((remaining / 300000) * 100),
+      holdColor: remaining < 60000 ? '#ff6b64' : '#00b64c',
+      payHref: hasItems ? 'Payment.dc.html' : '#',
+      payDisabled: !hasItems,
+      payBg: hasItems ? accent : '#6d6680',
+      payEvents: hasItems ? 'auto' : 'none',
+      releaseAll: () => this.withHold([], 0)
+    };
+  }
+}
+</script>
+</body>
+</html>

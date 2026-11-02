@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Search results</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#f4f3f5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+header :focus-visible{outline-color:#fff}
+.rise{opacity:0;animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.card{transition:box-shadow .2s ease,transform .2s ease}
+.card:hover{box-shadow:0 14px 36px rgba(25,19,41,.12);transform:translateY(-2px)}
+.fare{transition:border-color .15s ease,background .15s ease,transform .15s ease}
+a.fare:hover{border-color:#e10801;background:#fff4f3;transform:translateY(-1px)}
+.chip{transition:background .15s ease,color .15s ease,border-color .15s ease}
+.chip:hover{border-color:#e10801}
+.go{transition:background .15s ease,transform .15s ease}
+.go:hover{background:#b80600}
+.go:active{transform:scale(.98)}
+.nav a{transition:opacity .15s ease}
+.nav a:hover{opacity:.8}
+.sk{background:linear-gradient(100deg,#ece9f0 30%,#f7f5fa 50%,#ece9f0 70%);background-size:300% 100%;animation:shine 1.3s linear infinite;border-radius:10px}
+@keyframes shine{from{background-position:100% 0}to{background-position:0 0}}
+@media (prefers-reduced-motion:reduce){
+.rise{animation:none;opacity:1}
+.sk{animation:none}
+.card,.fare,.chip,.go,.nav a{transition:none}
+.card:hover,a.fare:hover{transform:none}
+}
+</style>
+</helmet>
+
+<div style="min-height:1240px;background:#f4f3f5;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <header style="background:{{accent}};color:#fff">
+    <div style="max-width:1120px;margin:0 auto;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+      <a href="Main.dc.html" aria-label="etisalat, home" style="display:block">
+        <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:30px;width:auto;display:block">
+      </a>
+      <nav class="nav" aria-label="Main" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;font-size:15px;font-weight:600">
+        <a href="Results.dc.html" aria-current="page" style="padding:12px 0;border-bottom:2px solid #fff">Search trains</a>
+        <a href="MyBookings.dc.html" style="padding:12px 0">My bookings</a>
+        <a href="MyBookings.dc.html" style="padding:12px 20px;background:#fff;color:#c20700;border-radius:999px;font-weight:700">Seif T.</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Search summary -->
+  <div style="background:#fff;border-bottom:1px solid #e6e2ec">
+    <div style="max-width:1120px;margin:0 auto;padding:20px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Cairo → Assiut</h1>
+        <a href="Main.dc.html" style="min-height:44px;display:flex;align-items:center;padding:0 4px;font-size:14px;font-weight:700;color:#c20700;text-decoration:underline;text-underline-offset:3px">Change search</a>
+      </div>
+      <div role="group" aria-label="Choose a day" style="display:flex;flex-wrap:wrap;gap:8px">
+        <sc-for list="{{days}}" as="d" hint-placeholder-count="4">
+          <button class="chip" type="button" onClick="{{d.pick}}" aria-pressed="{{d.selected}}" style="min-height:44px;padding:0 18px;border-radius:999px;border:1.5px solid {{d.border}};background:{{d.bg}};color:{{d.fg}};font-size:14px;font-weight:700;cursor:pointer">{{d.label}}</button>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <main style="max-width:1120px;margin:0 auto;padding:32px 24px 96px">
+
+    <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 16px;margin-bottom:20px">
+      <h2 style="margin:0;font-size:20px;font-weight:800">{{dayLabel}}</h2>
+      <p style="margin:0;font-size:15px;font-weight:600;color:#4a4360" aria-live="polite">{{countText}}</p>
+    </div>
+
+    <!-- Loading skeleton -->
+    <sc-if value="{{loading}}" hint-placeholder-val="{{ false }}">
+      <div aria-busy="true" aria-label="Loading trains" style="display:flex;flex-direction:column;gap:16px">
+        <sc-for list="{{skeletons}}" as="k" hint-placeholder-count="3">
+          <div style="background:#fff;border-radius:20px;padding:24px;display:flex;flex-wrap:wrap;gap:24px 32px;align-items:center">
+            <div style="flex:0 0 190px;display:flex;flex-direction:column;gap:10px"><div class="sk" style="height:32px;width:160px"></div><div class="sk" style="height:14px;width:120px"></div></div>
+            <div style="flex:1 1 320px;display:flex;flex-direction:column;gap:12px"><div class="sk" style="height:12px;width:80px"></div><div class="sk" style="height:14px;width:100%"></div></div>
+            <div style="display:flex;gap:10px"><div class="sk" style="height:76px;width:112px;border-radius:14px"></div><div class="sk" style="height:76px;width:112px;border-radius:14px"></div><div class="sk" style="height:76px;width:112px;border-radius:14px"></div></div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- Trips -->
+    <sc-if value="{{ready}}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <sc-for list="{{trips}}" as="t" hint-placeholder-count="4">
+          <article class="card rise" style="animation-delay:{{t.delay}};background:#fff;border-radius:20px;padding:24px;display:flex;flex-wrap:wrap;gap:24px 32px;align-items:center;box-shadow:0 2px 8px rgba(25,19,41,.05)">
+
+            <div style="flex:0 0 190px;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-size:30px;font-weight:800;letter-spacing:-.02em">{{t.dep}}</span>
+                <span aria-hidden="true" style="font-size:18px;color:#8a8399">→</span>
+                <span style="font-size:30px;font-weight:800;letter-spacing:-.02em">{{t.arr}}</span>
+              </div>
+              <span style="font-size:14px;font-weight:600;color:#4a4360">{{t.duration}} · Train {{t.number}}</span>
+            </div>
+
+            <div style="flex:1 1 320px;min-width:0">
+              <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#4a4360">{{t.stopCount}} stops</p>
+              <div style="display:flex;align-items:flex-start">
+                <sc-for list="{{t.stops}}" as="s" hint-placeholder-count="5">
+                  <div style="flex:{{s.grow}};min-width:0;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center">
+                      <sc-if value="{{s.isEnd}}" hint-placeholder-val="{{ true }}">
+                        <span aria-hidden="true" style="flex:0 0 14px;width:14px;height:14px;border-radius:999px;background:#e10801"></span>
+                      </sc-if>
+                      <sc-if value="{{s.isMid}}" hint-placeholder-val="{{ false }}">
+                        <span aria-hidden="true" style="flex:0 0 12px;width:8px;height:8px;border-radius:999px;background:#fff;border:2px solid #e10801"></span>
+                      </sc-if>
+                      <sc-if value="{{s.hasBar}}" hint-placeholder-val="{{ true }}">
+                        <span aria-hidden="true" style="flex:1 1 auto;height:2px;background:#e4c3c1;margin:0 4px"></span>
+                      </sc-if>
+                    </div>
+                    <span style="font-size:13px;font-weight:600;color:#3b3450;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.name}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="flex:0 1 auto;display:flex;flex-wrap:wrap;gap:10px">
+              <sc-for list="{{t.fares}}" as="f" hint-placeholder-count="3">
+                <sc-if value="{{f.available}}" hint-placeholder-val="{{ true }}">
+                  <a class="fare" href="SeatMap.dc.html" style="min-width:112px;box-sizing:border-box;border:1.5px solid #dcd8e2;border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;background:#fff">
+                    <span style="font-size:13px;font-weight:600;color:#4a4360">{{f.name}}</span>
+                    <span style="font-size:18px;font-weight:800">EGP {{f.price}}</span>
+                    <span style="font-size:12px;font-weight:700;color:#006b2b">{{f.left}}</span>
+                  </a>
+                </sc-if>
+                <sc-if value="{{f.soldOut}}" hint-placeholder-val="{{ false }}">
+                  <div style="min-width:112px;box-sizing:border-box;border:1.5px dashed #dcd8e2;border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;background:#faf9fb">
+                    <span style="font-size:13px;font-weight:600;color:#6d6680">{{f.name}}</span>
+                    <span style="font-size:18px;font-weight:800;color:#6d6680;text-decoration:line-through">EGP {{f.price}}</span>
+                    <span style="font-size:12px;font-weight:700;color:#6d6680">Sold out</span>
+                  </div>
+                </sc-if>
+              </sc-for>
+            </div>
+          </article>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- Last train of the day: suggest the next day -->
+    <sc-if value="{{showNext}}" hint-placeholder-val="{{ false }}">
+      <div class="rise" style="animation-delay:.25s;margin-top:20px;background:#fff;border-radius:20px;padding:20px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;border:1.5px solid #f3c9c7">
+        <div>
+          <p style="margin:0;font-size:16px;font-weight:700">That is the last train today.</p>
+          <p style="margin:2px 0 0;font-size:14px;color:#4a4360">Tomorrow's first departure is 05:30.</p>
+        </div>
+        <button class="go" type="button" onClick="{{goTomorrow}}" style="min-height:48px;padding:0 24px;border:0;border-radius:14px;background:{{accent}};color:#fff;font-size:15px;font-weight:700;cursor:pointer">See tomorrow's trains</button>
+      </div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // Short loading state on first view, to show the skeleton.
+    this.state = { day: 1, loading: true };
+  }
+
+  componentDidMount() {
+    this.load(900);
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.t);
+  }
+
+  // Show skeletons for a moment, then the trips.
+  load(ms) {
+    clearTimeout(this.t);
+    this.t = setTimeout(() => this.setState({ loading: false }), ms);
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#e10801';
+    const day = this.state.day;
+    const loading = this.state.loading;
+
+    const dayDefs = [
+      { label: 'Today', long: 'Today, Mon 2 Nov' },
+      { label: 'Tomorrow', long: 'Tomorrow, Tue 3 Nov' },
+      { label: 'Wed 4 Nov', long: 'Wed 4 Nov' },
+      { label: 'Thu 5 Nov', long: 'Thu 5 Nov' }
+    ];
+    const days = dayDefs.map((d, i) => ({
+      label: d.label,
+      selected: i === day,
+      bg: i === day ? accent : '#fff',
+      fg: i === day ? '#fff' : '#191329',
+      border: i === day ? accent : '#dcd8e2',
+      pick: () => { this.setState({ day: i, loading: true }); this.load(600); }
+    }));
+
+    // Sample trips
+    const mk = (dep, arr, duration, number, stopNames, fares) => ({ dep, arr, duration, number, stopNames, fares });
+    const all = [
+      mk('05:30', '09:55', '4h 25m', '981', ['Cairo', 'Giza', 'Beni Suef', 'Minya', 'Assiut'],
+        [{ name: 'First class', price: 420, left: '12 seats left' }, { name: 'Second class', price: 260, left: '46 seats left' }, { name: 'Standing', price: 120, left: '30 places' }]),
+      mk('08:15', '12:30', '4h 15m', '1003', ['Cairo', 'Giza', 'Minya', 'Assiut'],
+        [{ name: 'First class', price: 440, left: '4 seats left' }, { name: 'Second class', price: 280, left: '18 seats left' }, { name: 'Standing', price: 130, left: '30 places' }]),
+      mk('12:40', '17:20', '4h 40m', '937', ['Cairo', 'Giza', 'Beni Suef', 'Minya', 'Mallawi', 'Assiut'],
+        [{ name: 'First class', price: 420, soldOut: true }, { name: 'Second class', price: 260, left: '9 seats left' }, { name: 'Standing', price: 120, left: '22 places' }]),
+      mk('18:20', '22:45', '4h 25m', '1015', ['Cairo', 'Beni Suef', 'Minya', 'Assiut'],
+        [{ name: 'First class', price: 420, left: '21 seats left' }, { name: 'Second class', price: 260, left: '52 seats left' }, { name: 'Standing', price: 120, left: '30 places' }]),
+      mk('21:15', '01:40', '4h 25m', '1029', ['Cairo', 'Giza', 'Minya', 'Assiut'],
+        [{ name: 'First class', price: 400, left: '30 seats left' }, { name: 'Second class', price: 240, left: '60 seats left' }, { name: 'Standing', price: 110, left: '30 places' }])
+    ];
+    const list = day === 0 ? all.slice(3) : all.slice(0, 4);
+
+    const trips = list.map((t, i) => {
+      const n = t.stopNames.length;
+      return {
+        dep: t.dep, arr: t.arr, duration: t.duration, number: t.number,
+        stopCount: n,
+        delay: (i * 0.07) + 's',
+        stops: t.stopNames.map((name, k) => ({
+          name,
+          isEnd: k === 0 || k === n - 1,
+          isMid: !(k === 0 || k === n - 1),
+          hasBar: k < n - 1,
+          grow: k < n - 1 ? '1 1 0' : '0 0 auto'
+        })),
+        fares: t.fares.map((f) => ({
+          name: f.name, price: f.price, left: f.left || '',
+          soldOut: !!f.soldOut, available: !f.soldOut
+        }))
+      };
+    });
+
+    return {
+      accent, days, trips,
+      loading,
+      ready: !loading,
+      skeletons: [1, 2, 3].map((n) => ({ n })),
+      dayLabel: dayDefs[day].long,
+      countText: loading ? 'Finding trains' : trips.length + ' trains',
+      showNext: !loading && day === 0,
+      goTomorrow: () => { this.setState({ day: 1, loading: true }); this.load(600); }
+    };
+  }
+}
+</script>
+</body>
+</html>

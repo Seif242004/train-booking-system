@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>My bookings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#f4f3f5}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+.tab{transition:background .15s ease,color .15s ease,border-color .15s ease}
+.tab:hover{border-color:#e10801}
+.card{transition:box-shadow .2s ease,opacity .3s ease}
+.card:hover{box-shadow:0 14px 36px rgba(25,19,41,.1)}
+.go{transition:background .15s ease,transform .15s ease}
+.go:hover{background:#b80600}
+.go:active{transform:scale(.98)}
+.ghost{transition:border-color .15s ease,background .15s ease}
+.ghost:hover{border-color:#e10801;background:#fff4f3}
+.nav a{transition:opacity .15s ease}
+.nav a:hover{opacity:.8}
+.rise{opacity:0;animation:rise .5s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.slide{animation:slide .3s cubic-bezier(.2,.7,.2,1) both}
+@keyframes slide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+.rise{animation:none;opacity:1}
+.slide{animation:none}
+.tab,.card,.go,.ghost,.nav a{transition:none}
+}
+</style>
+</helmet>
+
+<div style="min-height:1200px;background:#f4f3f5;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <header style="background:{{accent}}">
+    <div style="max-width:1120px;margin:0 auto;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+      <a href="Main.dc.html" aria-label="etisalat, home" style="display:block">
+        <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:30px;width:auto;display:block">
+      </a>
+      <nav class="nav" aria-label="Main" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;color:#fff;font-size:15px;font-weight:600">
+        <a href="Main.dc.html" style="padding:12px 0">Search trains</a>
+        <a href="MyBookings.dc.html" aria-current="page" style="padding:12px 0;border-bottom:2px solid #fff">My bookings</a>
+        <a href="MyBookings.dc.html" style="padding:12px 20px;background:#fff;color:#c20700;border-radius:999px;font-weight:700">Seif T.</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width:880px;margin:0 auto;padding:40px 24px 96px">
+
+    <h1 style="margin:0;font-size:36px;font-weight:800;letter-spacing:-.02em">My bookings</h1>
+
+    <div role="group" aria-label="Filter bookings" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:24px">
+      <sc-for list="{{tabs}}" as="t" hint-placeholder-count="2">
+        <button class="tab" type="button" onClick="{{t.pick}}" aria-pressed="{{t.selected}}" style="min-height:44px;padding:0 20px;border-radius:999px;border:1.5px solid {{t.border}};background:{{t.bg}};color:{{t.fg}};font-size:15px;font-weight:700;cursor:pointer">{{t.label}}</button>
+      </sc-for>
+    </div>
+
+    <ul style="list-style:none;margin:24px 0 0;padding:0;display:flex;flex-direction:column;gap:16px">
+      <sc-for list="{{bookings}}" as="b" hint-placeholder-count="2">
+        <li class="card rise" style="animation-delay:{{b.delay}};background:#fff;border-radius:20px;padding:24px;box-shadow:0 2px 8px rgba(25,19,41,.05);opacity:{{b.opacity}}">
+
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px">
+            <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:{{b.chipBg}};color:{{b.chipFg}};font-size:13px;font-weight:700">
+              <span aria-hidden="true" style="width:8px;height:8px;border-radius:999px;background:{{b.chipFg}}"></span>{{b.status}}
+            </span>
+            <span style="font-size:13px;font-weight:700;letter-spacing:.06em;color:#5f5873">REF {{b.ref}}</span>
+          </div>
+
+          <div style="margin-top:16px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px">
+            <div>
+              <h2 style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.01em">{{b.route}}</h2>
+              <p style="margin:6px 0 0;font-size:15px;font-weight:600;color:#3b3450">{{b.when}} · Train {{b.train}}</p>
+              <p style="margin:4px 0 0;font-size:14px;color:#5f5873">{{b.seats}}</p>
+            </div>
+            <p style="margin:0;font-size:24px;font-weight:800;letter-spacing:-.02em">EGP {{b.price}}</p>
+          </div>
+
+          <!-- Actions -->
+          <sc-if value="{{b.canCancel}}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:20px;padding-top:18px;border-top:1px solid #eeebf2;display:flex;flex-wrap:wrap;gap:12px">
+              <a class="ghost" href="Ticket.dc.html" style="min-height:48px;box-sizing:border-box;padding:0 22px;border:1.5px solid #cfc9d8;border-radius:12px;background:#fff;font-size:15px;font-weight:700;display:flex;align-items:center">View ticket</a>
+              <button class="ghost" type="button" onClick="{{b.ask}}" style="min-height:48px;padding:0 22px;border:1.5px solid #f0b3b0;border-radius:12px;background:#fff;color:#a30500;font-size:15px;font-weight:700;cursor:pointer">Cancel booking</button>
+            </div>
+          </sc-if>
+
+          <!-- Confirm cancellation -->
+          <sc-if value="{{b.confirming}}" hint-placeholder-val="{{ false }}">
+            <div class="slide" role="alertdialog" aria-label="Confirm cancellation" style="margin-top:20px;background:#fff4f3;border:1.5px solid #f3c9c7;border-radius:16px;padding:20px 22px">
+              <p style="margin:0;font-size:17px;font-weight:800;color:#8c0500">Cancel {{b.route}} on {{b.shortWhen}}?</p>
+              <p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:#3b3450">Your seats are released right away. We refund EGP {{b.price}} to the card you paid with. Banks usually show it within a few days.</p>
+              <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px">
+                <button class="go" type="button" onClick="{{b.confirm}}" style="min-height:48px;padding:0 22px;border:0;border-radius:12px;background:#c20700;color:#fff;font-size:15px;font-weight:700;cursor:pointer">Cancel booking and refund</button>
+                <button class="ghost" type="button" onClick="{{b.keep}}" style="min-height:48px;padding:0 22px;border:1.5px solid #cfc9d8;border-radius:12px;background:#fff;color:#191329;font-size:15px;font-weight:700;cursor:pointer">Keep booking</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{b.note}}" hint-placeholder-val="{{ false }}">
+            <p class="slide" style="margin:18px 0 0;padding-top:16px;border-top:1px solid #eeebf2;font-size:14px;line-height:1.6;color:#3b3450">{{b.noteText}}</p>
+          </sc-if>
+        </li>
+      </sc-for>
+    </ul>
+  </main>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"$preview":{"width":1280,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'upcoming', asking: null, cancelled: {} };
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#e10801';
+    const s = this.state;
+
+    const tabs = [
+      { id: 'upcoming', label: 'Upcoming' },
+      { id: 'past', label: 'Past and cancelled' }
+    ].map((t) => ({
+      label: t.label,
+      selected: s.tab === t.id,
+      bg: s.tab === t.id ? '#191329' : '#fff',
+      fg: s.tab === t.id ? '#fff' : '#191329',
+      border: s.tab === t.id ? '#191329' : '#dcd8e2',
+      pick: () => this.setState({ tab: t.id, asking: null })
+    }));
+
+    // Sample bookings
+    const data = {
+      upcoming: [
+        { ref: '7F3K29', route: 'Cairo → Assiut', when: 'Tue 3 Nov · 05:30', shortWhen: 'Tue 3 Nov', train: '981', seats: 'Second class · Coach 3 · Seats 5C, 5D', price: 520 },
+        { ref: '2Q8M41', route: 'Alexandria → Cairo', when: 'Fri 6 Nov · 08:00', shortWhen: 'Fri 6 Nov', train: '1100', seats: 'First class · Coach 1 · Seat 2A', price: 310 }
+      ],
+      past: [
+        { ref: '9D1X05', route: 'Cairo → Giza', when: 'Thu 22 Oct · 09:10', shortWhen: 'Thu 22 Oct', train: '752', seats: 'Second class · Coach 2 · Seat 8B', price: 45, fixed: 'completed' },
+        { ref: '4B6N77', route: 'Cairo → Minya', when: 'Mon 12 Oct · 14:00', shortWhen: 'Mon 12 Oct', train: '921', seats: 'Standing × 1', price: 95, fixed: 'refunded' }
+      ]
+    };
+
+    const bookings = data[s.tab].map((b, i) => {
+      const done = !!s.cancelled[b.ref];
+      let status = 'Confirmed', chipBg = '#d9f3e3', chipFg = '#005c25';
+      let canCancel = !b.fixed && !done;
+      let note = false, noteText = '';
+      let opacity = 1;
+      if (b.fixed === 'completed') {
+        status = 'Completed'; chipBg = '#e9e6ee'; chipFg = '#3b3450';
+      } else if (b.fixed === 'refunded') {
+        status = 'Cancelled · Refunded'; chipBg = '#e9e6ee'; chipFg = '#3b3450'; opacity = 0.85;
+        note = true; noteText = 'You cancelled this booking. EGP ' + b.price + ' was refunded to your card.';
+      } else if (done) {
+        status = 'Cancelled · Refund pending'; chipBg = '#fff4dc'; chipFg = '#7a4b00'; opacity = 0.9;
+        note = true; noteText = 'Your seats are released. The refund of EGP ' + b.price + ' is on its way to your card.';
+      }
+      return {
+        ref: b.ref, route: b.route, when: b.when, shortWhen: b.shortWhen, train: b.train, seats: b.seats, price: b.price,
+        status, chipBg, chipFg, canCancel: canCancel && s.asking !== b.ref, opacity,
+        confirming: s.asking === b.ref && !done,
+        note, noteText,
+        delay: (i * 0.07) + 's',
+        ask: () => this.setState({ asking: b.ref }),
+        keep: () => this.setState({ asking: null }),
+        confirm: () => {
+          const c = Object.assign({}, this.state.cancelled);
+          c[b.ref] = true;
+          this.setState({ cancelled: c, asking: null });
+        }
+      };
+    });
+
+    return { accent, tabs, bookings };
+  }
+}
+</script>
+</body>
+</html>

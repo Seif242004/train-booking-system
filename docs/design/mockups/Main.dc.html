@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Train Booking home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#f4f3f5}
+a{color:inherit;text-decoration:none}
+button,input{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+.hero :focus-visible,.dark :focus-visible{outline-color:#fff}
+
+/* Hero photo: slow push-in and drift, like a locked-off camera move */
+.photo{position:absolute;inset:-6%;background:#191329 url(/_blob/0311d08e7f1e86b564aff965ad5d7bc5) 72% center/cover no-repeat;animation:drift 30s ease-in-out infinite alternate;will-change:transform}
+@keyframes drift{from{transform:scale(1) translate3d(0,0,0)}to{transform:scale(1.12) translate3d(-2.5%,1.5%,0)}}
+.scrim{position:absolute;inset:0;background:linear-gradient(90deg,rgba(25,19,41,.84) 0%,rgba(25,19,41,.6) 42%,rgba(25,19,41,.12) 100%)}
+
+/* Headline lands once on load */
+.line-in{display:block;opacity:0;animation:rise .9s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
+.field input{transition:border-color .15s ease,box-shadow .15s ease}
+.field input:focus{border-color:#e10801;box-shadow:0 0 0 4px rgba(225,8,1,.12);outline:none}
+.chip{transition:background .15s ease,color .15s ease,border-color .15s ease}
+.chip:hover{border-color:#e10801}
+.go{transition:background .15s ease,transform .15s ease}
+.go:hover{background:#b80600}
+.go:active{transform:scale(.98)}
+.swap{transition:transform .35s ease,background .15s ease}
+.swap:hover{background:#fff4f3;transform:rotate(180deg)}
+.nav a{transition:opacity .15s ease}
+.nav a:hover{opacity:.8}
+.flink{transition:color .15s ease}
+.flink:hover{color:#fff}
+.row{transition:background .2s ease}
+.row:hover{background:#221a36}
+
+@media (prefers-reduced-motion:reduce){
+.photo{animation:none;inset:0}
+.line-in{animation:none;opacity:1}
+.field input,.chip,.go,.swap,.nav a,.flink,.row{transition:none}
+.swap:hover{transform:none}
+}
+</style>
+</helmet>
+
+<div style="min-height:2000px;background:#f4f3f5;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <!-- Header -->
+  <header class="hero" style="background:{{accent}};color:#fff;position:relative;z-index:2">
+    <div style="max-width:1120px;margin:0 auto;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+      <a href="Main.dc.html" aria-label="etisalat, home" style="display:block">
+        <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:30px;width:auto;display:block">
+      </a>
+      <nav class="nav" aria-label="Main" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;font-size:15px;font-weight:600">
+        <a href="Results.dc.html" style="padding:12px 0">Search trains</a>
+        <a href="MyBookings.dc.html" style="padding:12px 0">My bookings</a>
+        <a href="Login.dc.html" style="padding:12px 20px;background:#fff;color:#c20700;border-radius:999px;font-weight:700">Sign in</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero: full-bleed photo with slow camera drift -->
+  <section class="hero" style="position:relative;overflow:hidden;background:#191329;color:#fff;min-height:560px">
+    <div class="photo" role="img" aria-label="A passenger train running beside palm trees and farmland along the Nile at sunset"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div style="position:relative;max-width:1120px;margin:0 auto;padding:96px 24px 184px">
+      <h1 style="margin:0;max-width:620px;font-size:clamp(40px,6vw,68px);line-height:1.02;font-weight:800;letter-spacing:-.035em">
+        <span class="line-in" style="animation-delay:.05s">Egypt by train,</span>
+        <span class="line-in" style="animation-delay:.2s">booked in a minute.</span>
+      </h1>
+      <p class="line-in" style="animation-delay:.4s;margin:22px 0 0;font-size:19px;line-height:1.55;color:#f1eef7;max-width:460px">Choose your stations, pick the exact seat you want and pay online.</p>
+    </div>
+  </section>
+
+  <main>
+    <!-- Search card -->
+    <div style="max-width:1120px;margin:-112px auto 0;padding:0 24px;position:relative;z-index:3">
+      <form onSubmit="{{noSubmit}}" aria-label="Search trains" style="background:#fff;border-radius:24px;padding:24px;box-shadow:0 18px 48px rgba(25,19,41,.22)">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px">
+          <div class="field" style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <label for="from" style="font-size:13px;font-weight:700;color:#3b3450">From</label>
+            <input id="from" type="text" value="{{fromName}}" onChange="{{setFrom}}" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;font-weight:600;color:#191329;background:#fff">
+          </div>
+          <button class="swap" type="button" onClick="{{swap}}" aria-label="Swap stations" style="width:48px;height:48px;flex:0 0 48px;margin-bottom:3px;border-radius:999px;border:1.5px solid #dcd8e2;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#e10801">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v14"/><path d="M3 14l4 4 4-4"/><path d="M17 20V6"/><path d="M13 10l4-4 4 4"/></svg>
+          </button>
+          <div class="field" style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <label for="to" style="font-size:13px;font-weight:700;color:#3b3450">To</label>
+            <input id="to" type="text" value="{{toName}}" onChange="{{setTo}}" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;font-weight:600;color:#191329;background:#fff">
+          </div>
+          <div class="field" style="flex:1 1 180px;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <label for="date" style="font-size:13px;font-weight:700;color:#3b3450">Date</label>
+            <input id="date" type="date" value="{{isoDate}}" onChange="{{setDate}}" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;font-weight:600;color:#191329;background:#fff">
+          </div>
+          <a class="go" href="Results.dc.html" style="height:54px;flex:1 1 170px;box-sizing:border-box;padding:0 28px;border-radius:14px;background:{{accent}};color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            Search trains
+          </a>
+        </div>
+        <div role="group" aria-label="Quick dates" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:18px">
+          <sc-for list="{{days}}" as="d" hint-placeholder-count="4">
+            <button class="chip" type="button" onClick="{{d.pick}}" aria-pressed="{{d.selected}}" style="min-height:44px;padding:0 18px;border-radius:999px;border:1.5px solid {{d.border}};background:{{d.bg}};color:{{d.fg}};font-size:14px;font-weight:700;cursor:pointer">{{d.label}}</button>
+          </sc-for>
+        </div>
+      </form>
+    </div>
+
+    <!-- How booking works: a sequence, drawn as a short line of stops -->
+    <section aria-labelledby="how-h" style="max-width:1120px;margin:0 auto;padding:96px 24px 104px">
+      <h2 id="how-h" style="margin:0;font-size:clamp(30px,4vw,40px);line-height:1.1;font-weight:800;letter-spacing:-.025em;max-width:560px">Three steps from search to ticket</h2>
+      <ol style="list-style:none;margin:48px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:40px 0">
+        <li style="flex:1 1 280px;min-width:0">
+          <div aria-hidden="true" style="display:flex;align-items:center">
+            <span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:999px;background:{{accent}}"></span>
+            <span style="flex:1 1 auto;height:2px;background:#d9d5df;margin:0 12px"></span>
+          </div>
+          <h3 style="margin:18px 0 0;font-size:21px;font-weight:800;letter-spacing:-.01em">Search</h3>
+          <p style="margin:8px 0 0;padding-right:32px;font-size:16px;line-height:1.6;color:#4a4360">Pick your stations and day. Every trip shows all its stops, so you can see if yours is on the way.</p>
+        </li>
+        <li style="flex:1 1 280px;min-width:0">
+          <div aria-hidden="true" style="display:flex;align-items:center">
+            <span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:999px;background:#fff;border:3px solid {{accent}}"></span>
+            <span style="flex:1 1 auto;height:2px;background:#d9d5df;margin:0 12px"></span>
+          </div>
+          <h3 style="margin:18px 0 0;font-size:21px;font-weight:800;letter-spacing:-.01em">Choose your seats</h3>
+          <p style="margin:8px 0 0;padding-right:32px;font-size:16px;line-height:1.6;color:#4a4360">Open the coach plan and tap the seats you want. They are held for 5 minutes from your first pick.</p>
+        </li>
+        <li style="flex:1 1 280px;min-width:0">
+          <div aria-hidden="true" style="display:flex;align-items:center">
+            <span style="flex:0 0 16px;width:16px;height:16px;box-sizing:border-box;border-radius:999px;background:#fff;border:3px solid {{accent}}"></span>
+          </div>
+          <h3 style="margin:18px 0 0;font-size:21px;font-weight:800;letter-spacing:-.01em">Pay and travel</h3>
+          <p style="margin:8px 0 0;padding-right:32px;font-size:16px;line-height:1.6;color:#4a4360">Pay by card. Your ticket appears right away and arrives in your email.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Details -->
+    <section class="dark" aria-labelledby="det-h" style="background:#191329;color:#fff">
+      <div style="max-width:1120px;margin:0 auto;padding:96px 24px;display:flex;flex-wrap:wrap;gap:48px 80px">
+        <div style="flex:1 1 320px;min-width:0;max-width:420px">
+          <h2 id="det-h" style="margin:0;font-size:clamp(30px,4vw,40px);line-height:1.1;font-weight:800;letter-spacing:-.025em">Your seat stays yours while you pay</h2>
+          <p style="margin:18px 0 0;font-size:17px;line-height:1.6;color:#d6d1e2">And if plans change, you can cancel without calling anyone.</p>
+          <a class="go" href="Results.dc.html" style="margin-top:32px;min-height:54px;box-sizing:border-box;padding:0 28px;border-radius:14px;background:{{accent}};color:#fff;font-size:16px;font-weight:700;display:inline-flex;align-items:center">Find a train</a>
+        </div>
+
+        <ul style="flex:1 1 440px;min-width:0;list-style:none;margin:0;padding:0">
+          <li class="row" style="display:flex;gap:20px;padding:24px 16px;border-top:1px solid #3b3450;border-radius:12px">
+            <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 28px"><rect x="5" y="4" width="14" height="12" rx="3"/><path d="M8 16v3M16 16v3M5 12h14"/></svg>
+            <div><h3 style="margin:0;font-size:18px;font-weight:700">Pick your exact seat</h3><p style="margin:6px 0 0;font-size:15px;line-height:1.6;color:#d6d1e2">See every coach and choose the seat you want, not only a class.</p></div>
+          </li>
+          <li class="row" style="display:flex;gap:20px;padding:24px 16px;border-top:1px solid #3b3450;border-radius:12px">
+            <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 28px"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 3h6"/></svg>
+            <div><h3 style="margin:0;font-size:18px;font-weight:700">Held for 5 minutes</h3><p style="margin:6px 0 0;font-size:15px;line-height:1.6;color:#d6d1e2">The hold starts with your first pick, so nobody else can take your seat while you pay.</p></div>
+          </li>
+          <li class="row" style="display:flex;gap:20px;padding:24px 16px;border-top:1px solid #3b3450;border-radius:12px">
+            <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 28px"><path d="M4 12a8 8 0 108-8H7"/><path d="M10 1L7 4l3 3"/></svg>
+            <div><h3 style="margin:0;font-size:18px;font-weight:700">Cancel and get refunded</h3><p style="margin:6px 0 0;font-size:15px;line-height:1.6;color:#d6d1e2">Cancel a confirmed booking before departure and the full amount goes back to your card.</p></div>
+          </li>
+          <li class="row" style="display:flex;gap:20px;padding:24px 16px;border-top:1px solid #3b3450;border-bottom:1px solid #3b3450;border-radius:12px">
+            <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ff6b64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 28px"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/></svg>
+            <div><h3 style="margin:0;font-size:18px;font-weight:700">Ticket in your inbox</h3><p style="margin:6px 0 0;font-size:15px;line-height:1.6;color:#d6d1e2">We email your ticket as soon as the payment goes through.</p></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="dark" style="background:#191329;color:#bdb6cc;border-top:1px solid #3b3450">
+    <div style="max-width:1120px;margin:0 auto;padding:40px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:20px">
+      <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:26px;width:auto;display:block">
+      <nav aria-label="Footer" style="display:flex;flex-wrap:wrap;gap:4px 28px;font-size:15px;font-weight:600">
+        <a class="flink" href="Results.dc.html" style="padding:12px 0">Search trains</a>
+        <a class="flink" href="MyBookings.dc.html" style="padding:12px 0">My bookings</a>
+        <a class="flink" href="Login.dc.html" style="padding:12px 0">Sign in</a>
+      </nav>
+      <p style="margin:0;font-size:13px">Card payments are processed by Stripe.</p>
+    </div>
+  </footer>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"$preview":{"width":1280,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { day: 1, from: 'Cairo', to: 'Assiut' };
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#e10801';
+    const s = this.state;
+
+    const dayDefs = [
+      { label: 'Today', iso: '2026-11-02' },
+      { label: 'Tomorrow', iso: '2026-11-03' },
+      { label: 'Wed 4 Nov', iso: '2026-11-04' },
+      { label: 'Thu 5 Nov', iso: '2026-11-05' }
+    ];
+    const days = dayDefs.map((dd, i) => ({
+      label: dd.label,
+      selected: i === s.day,
+      bg: i === s.day ? accent : '#fff',
+      fg: i === s.day ? '#fff' : '#191329',
+      border: i === s.day ? accent : '#dcd8e2',
+      pick: () => this.setState({ day: i })
+    }));
+
+    return {
+      accent, days,
+      fromName: s.from,
+      toName: s.to,
+      isoDate: dayDefs[s.day].iso,
+      swap: () => this.setState({ from: this.state.to, to: this.state.from }),
+      setFrom: (e) => this.setState({ from: e.target.value }),
+      setTo: (e) => this.setState({ to: e.target.value }),
+      setDate: (e) => {
+        const i = dayDefs.findIndex((x) => x.iso === e.target.value);
+        if (i >= 0) this.setState({ day: i });
+      },
+      noSubmit: (e) => { if (e && e.preventDefault) e.preventDefault(); }
+    };
+  }
+}
+</script>
+</body>
+</html>

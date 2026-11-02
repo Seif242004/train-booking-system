@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create account</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#fff}
+a{color:inherit}
+button,input{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+.field input{transition:border-color .15s ease,box-shadow .15s ease}
+.field input:focus{border-color:#e10801;box-shadow:0 0 0 4px rgba(225,8,1,.12);outline:none}
+.go{transition:background .15s ease,transform .15s ease}
+.go:hover{background:#b80600}
+.go:active{transform:scale(.98)}
+.lnk{transition:color .15s ease}
+.lnk:hover{color:#8c0500}
+.photo{position:absolute;inset:-6%;background:#191329 url(/_blob/0311d08e7f1e86b564aff965ad5d7bc5) 88% center/cover no-repeat;animation:drift 30s ease-in-out infinite alternate;will-change:transform}
+@keyframes drift{from{transform:scale(1) translate3d(0,0,0)}to{transform:scale(1.1) translate3d(-2%,1.5%,0)}}
+.scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(25,19,41,.62) 0%,rgba(25,19,41,.18) 38%,rgba(25,19,41,.88) 100%)}
+.in{animation:in .6s cubic-bezier(.2,.7,.2,1) both}
+@keyframes in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.photo{animation:none;inset:0}.in{animation:none}.go,.lnk,.field input{transition:none}}
+</style>
+</helmet>
+
+<div style="min-height:900px;display:flex;flex-wrap:wrap;background:#fff;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <!-- Brand panel -->
+  <section aria-label="Welcome" style="flex:1 1 440px;min-width:0;background:#191329;color:#fff;padding:48px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;gap:48px;position:relative;overflow:hidden">
+    <div class="photo" role="img" aria-label="A passenger train beside palm trees and farmland along the Nile at sunset"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:38px;width:auto;align-self:flex-start;display:block;position:relative">
+
+    <div style="position:relative;max-width:440px">
+      <h1 style="margin:0;font-size:44px;line-height:1.1;font-weight:800;letter-spacing:-.02em">Create your account in under a minute.</h1>
+      <p style="margin:16px 0 0;font-size:17px;line-height:1.6;color:#ffe6e5">One account for booking, payments and your tickets.</p>
+    </div>
+
+    <p style="margin:0;font-size:13px;color:#f1eef7;position:relative">Train Booking</p>
+  </section>
+
+  <!-- Form -->
+  <section style="flex:1 1 440px;min-width:0;display:flex;align-items:center;justify-content:center;padding:48px 24px;box-sizing:border-box">
+    <div class="in" style="width:100%;max-width:440px">
+      <h2 style="margin:0;font-size:32px;font-weight:800;letter-spacing:-.02em">Create account</h2>
+      <p style="margin:8px 0 0;font-size:16px;color:#5f5873">It takes a minute. You can book right after.</p>
+
+      <form onSubmit="{{submit}}" style="margin-top:28px;display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-wrap:wrap;gap:16px">
+          <div class="field" style="flex:1 1 160px;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <label for="fn" style="font-size:13px;font-weight:700;color:#3b3450">First name</label>
+            <input id="fn" type="text" autocomplete="given-name" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+          </div>
+          <div class="field" style="flex:1 1 160px;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <label for="ln" style="font-size:13px;font-weight:700;color:#3b3450">Last name</label>
+            <input id="ln" type="text" autocomplete="family-name" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+          </div>
+        </div>
+        <div class="field" style="display:flex;flex-direction:column;gap:6px">
+          <label for="em" style="font-size:13px;font-weight:700;color:#3b3450">Email</label>
+          <input id="em" type="text" inputmode="email" autocomplete="email" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+        </div>
+        <div class="field" style="display:flex;flex-direction:column;gap:6px">
+          <label for="un" style="font-size:13px;font-weight:700;color:#3b3450">Username</label>
+          <input id="un" type="text" autocomplete="username" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+        </div>
+        <div class="field" style="display:flex;flex-direction:column;gap:6px">
+          <label for="pw" style="font-size:13px;font-weight:700;color:#3b3450">Password</label>
+          <input id="pw" type="password" autocomplete="new-password" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+        </div>
+        <div class="field" style="display:flex;flex-direction:column;gap:6px">
+          <label for="pc" style="font-size:13px;font-weight:700;color:#3b3450">Confirm password</label>
+          <input id="pc" type="password" autocomplete="new-password" style="height:54px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+        </div>
+        <button class="go" type="submit" style="min-height:56px;margin-top:6px;border:0;border-radius:14px;background:{{accent}};color:#fff;font-size:17px;font-weight:700;cursor:pointer">Create account</button>
+      </form>
+
+      <p style="margin:24px 0 0;text-align:center;font-size:15px;color:#5f5873">Already have an account?
+        <a class="lnk" href="Login.dc.html" style="display:inline-block;padding:12px 4px;font-weight:700;color:#c20700">Sign in</a>
+      </p>
+    </div>
+  </section>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#e10801',
+      submit: (e) => { if (e && e.preventDefault) e.preventDefault(); }
+    };
+  }
+}
+</script>
+</body>
+</html>

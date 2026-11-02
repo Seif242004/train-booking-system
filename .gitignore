@@ -24,3 +24,6 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+# TypeScript incremental build cache (frontend)
+frontend/tsconfig.tsbuildinfo

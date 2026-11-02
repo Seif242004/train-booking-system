@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Payment</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#191329;background:#f4f3f5}
+a{color:inherit;text-decoration:none}
+button,input{font-family:inherit}
+:focus-visible{outline:3px solid #191329;outline-offset:2px}
+.field input{transition:border-color .15s ease,box-shadow .15s ease}
+.field input:focus{border-color:#e10801;box-shadow:0 0 0 4px rgba(225,8,1,.12);outline:none}
+.go{transition:background .15s ease,transform .15s ease}
+.go:hover{background:#b80600}
+.go:active{transform:scale(.98)}
+.nav a{transition:opacity .15s ease}
+.nav a:hover{opacity:.8}
+.pop{animation:pop .45s cubic-bezier(.2,.7,.2,1) both}
+@keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}.go,.nav a,.field input{transition:none}}
+</style>
+</helmet>
+
+<div style="min-height:1000px;background:#f4f3f5;color:#191329;font-family:'Plus Jakarta Sans',system-ui,sans-serif">
+
+  <header style="background:{{accent}}">
+    <div style="max-width:1120px;margin:0 auto;padding:16px 24px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">
+      <a href="Main.dc.html" aria-label="etisalat, home" style="display:block">
+        <img src="/_blob/584694e5f041472bd3b0ef3cfdb8fb23" alt="etisalat" style="height:30px;width:auto;display:block">
+      </a>
+      <nav class="nav" aria-label="Main" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;color:#fff;font-size:15px;font-weight:600">
+        <a href="Main.dc.html" style="padding:12px 0">Search trains</a>
+        <a href="MyBookings.dc.html" style="padding:12px 0">My bookings</a>
+        <a href="MyBookings.dc.html" style="padding:12px 20px;background:#fff;color:#c20700;border-radius:999px;font-weight:700">Seif T.</a>
+      </nav>
+    </div>
+  </header>
+
+  <main style="max-width:1120px;margin:0 auto;padding:28px 24px 96px">
+
+    <ol aria-label="Booking steps" style="list-style:none;margin:0 0 28px;padding:0;display:flex;flex-wrap:wrap;gap:8px 12px;font-size:14px;font-weight:700">
+      <li style="display:flex;align-items:center;gap:8px;color:#5f5873"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:#d9f3e3;color:#006b2b;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>Search</li>
+      <li aria-hidden="true" style="color:#b7b1c4">—</li>
+      <li style="display:flex;align-items:center;gap:8px;color:#5f5873"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:#d9f3e3;color:#006b2b;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg></span>Seats</li>
+      <li aria-hidden="true" style="color:#b7b1c4">—</li>
+      <li aria-current="step" style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:{{accent}};color:#fff;display:flex;align-items:center;justify-content:center">3</span>Payment</li>
+      <li aria-hidden="true" style="color:#b7b1c4">—</li>
+      <li style="display:flex;align-items:center;gap:8px;color:#5f5873"><span aria-hidden="true" style="width:28px;height:28px;border-radius:999px;background:#e9e6ee;color:#5f5873;display:flex;align-items:center;justify-content:center">4</span>Ticket</li>
+    </ol>
+
+    <h1 style="margin:0 0 20px;font-size:34px;font-weight:800;letter-spacing:-.02em">Pay for your trip</h1>
+
+    <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+
+      <!-- Payment form -->
+      <section aria-label="Card payment" class="pop" style="flex:1 1 520px;min-width:0;background:#fff;border-radius:24px;padding:32px;box-shadow:0 2px 8px rgba(25,19,41,.05)">
+
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px">
+          <h2 style="margin:0;font-size:20px;font-weight:800">Card details</h2>
+          <span style="display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:#fff4dc;color:#7a4b00;font-size:12px;font-weight:700">Test mode · no real charges</span>
+        </div>
+
+        <form onSubmit="{{noSubmit}}" style="display:flex;flex-direction:column;gap:18px">
+          <div class="field" style="display:flex;flex-direction:column;gap:6px">
+            <label for="name" style="font-size:13px;font-weight:700;color:#3b3450">Name on card</label>
+            <input id="name" type="text" autocomplete="cc-name" value="Seif Tamer" style="height:52px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+          </div>
+          <div class="field" style="display:flex;flex-direction:column;gap:6px">
+            <label for="num" style="font-size:13px;font-weight:700;color:#3b3450">Card number</label>
+            <input id="num" type="text" inputmode="numeric" autocomplete="cc-number" value="4242 4242 4242 4242" style="height:52px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;font-variant-numeric:tabular-nums;color:#191329;background:#fff">
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:16px">
+            <div class="field" style="flex:1 1 160px;display:flex;flex-direction:column;gap:6px">
+              <label for="exp" style="font-size:13px;font-weight:700;color:#3b3450">Expiry</label>
+              <input id="exp" type="text" inputmode="numeric" autocomplete="cc-exp" value="12 / 30" style="height:52px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+            </div>
+            <div class="field" style="flex:1 1 160px;display:flex;flex-direction:column;gap:6px">
+              <label for="cvc" style="font-size:13px;font-weight:700;color:#3b3450">Security code</label>
+              <input id="cvc" type="text" inputmode="numeric" autocomplete="cc-csc" value="123" style="height:52px;box-sizing:border-box;width:100%;border:1.5px solid #dcd8e2;border-radius:14px;padding:0 16px;font-size:16px;color:#191329;background:#fff">
+            </div>
+          </div>
+
+          <a class="go" href="Ticket.dc.html" style="margin-top:6px;min-height:56px;border-radius:14px;background:{{accent}};color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>
+            Pay EGP 520
+          </a>
+        </form>
+
+        <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:#5f5873">Payments are processed by Stripe. Card details never touch our servers. Your booking is confirmed as soon as the payment succeeds.</p>
+      </section>
+
+      <!-- Order summary -->
+      <aside aria-label="Order summary" style="flex:1 1 320px;max-width:420px;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+        <div style="background:#191329;color:#fff;border-radius:20px;padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span style="font-size:14px;font-weight:600;color:#e4e0ee">Seats held for</span>
+          <span role="timer" aria-live="off" style="font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums">3:42</span>
+        </div>
+
+        <div style="background:#fff;border-radius:20px;padding:24px;box-shadow:0 2px 8px rgba(25,19,41,.05)">
+          <h2 style="margin:0 0 16px;font-size:18px;font-weight:800">Order summary</h2>
+
+          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+            <span style="font-size:22px;font-weight:800;letter-spacing:-.02em">05:30</span>
+            <span style="font-size:15px;font-weight:700">Cairo</span>
+            <span aria-hidden="true" style="color:#8a8399">→</span>
+            <span style="font-size:22px;font-weight:800;letter-spacing:-.02em">09:55</span>
+            <span style="font-size:15px;font-weight:700">Assiut</span>
+          </div>
+          <p style="margin:6px 0 0;font-size:14px;color:#5f5873">Tue 3 Nov · Train 981</p>
+
+          <ul style="list-style:none;margin:20px 0 0;padding:0;border-top:1px solid #eeebf2">
+            <li style="display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #eeebf2"><span style="font-size:15px"><b style="font-weight:700">Seat 5C</b><br><span style="font-size:13px;color:#5f5873">Second class · Coach 3</span></span><span style="font-size:15px;font-weight:700">EGP 260</span></li>
+            <li style="display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #eeebf2"><span style="font-size:15px"><b style="font-weight:700">Seat 5D</b><br><span style="font-size:13px;color:#5f5873">Second class · Coach 3</span></span><span style="font-size:15px;font-weight:700">EGP 260</span></li>
+          </ul>
+
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:18px">
+            <span style="font-size:15px;font-weight:600;color:#5f5873">Total</span>
+            <span style="font-size:28px;font-weight:800;letter-spacing:-.02em">EGP 520</span>
+          </div>
+        </div>
+
+        <a href="SeatMap.dc.html" style="min-height:44px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#c20700;text-decoration:underline;text-underline-offset:3px">Back to seats</a>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#e10801","options":["#e10801","#c20700","#191329"]},"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      accent: this.props.accent ?? '#e10801',
+      noSubmit: (e) => { if (e && e.preventDefault) e.preventDefault(); }
+    };
+  }
+}
+</script>
+</body>
+</html>

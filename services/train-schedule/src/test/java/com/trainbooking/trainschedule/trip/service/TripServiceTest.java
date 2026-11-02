@@ -282,4 +282,39 @@ class TripServiceTest {
 
         assertThatThrownBy(() -> service.delete(11, "admin-1")).isInstanceOf(BookingConflictException.class);
     }
+
+    // ---- Flow 8: Booking and Seat marks the trip cancelled -----------------------------------------------------------
+
+    @Test
+    void markCancelled_setsTheStatus_andWritesAnAuditRow_butNeverPushesASnapshotBack() {
+        Trip active = savedTrip(11);
+        Trip cancelled = new Trip(11, 7, "T100", "Express", 4, "Cairo-Alexandria", DAY, TripStatus.CANCELLED, active.stops());
+        given(trips.findById(11)).willReturn(Optional.of(active), Optional.of(cancelled));
+        given(trips.markCancelled(11)).willReturn(true);
+
+        Trip result = service.markCancelled(11, "admin-sub");
+
+        assertThat(result.status()).isEqualTo(TripStatus.CANCELLED);
+        verify(trips).markCancelled(11);
+        verify(auditLog).record(eq("admin-sub"), eq("trip"), eq(11L), eq("CANCEL"), anyString());
+        verify(snapshots, never()).publish(any(), anyString());
+    }
+
+    @Test
+    void markCancelled_twice_changesNothingTheSecondTime() {
+        Trip cancelled = new Trip(11, 7, "T100", "Express", 4, "Cairo-Alexandria", DAY, TripStatus.CANCELLED, savedTrip(11).stops());
+        given(trips.findById(11)).willReturn(Optional.of(cancelled));
+
+        assertThat(service.markCancelled(11, "booking-seat").status()).isEqualTo(TripStatus.CANCELLED);
+
+        verify(trips, never()).markCancelled(anyLong());
+        verify(auditLog, never()).record(anyString(), anyString(), anyLong(), anyString(), anyString());
+    }
+
+    @Test
+    void markCancelled_ofAnUnknownTrip_isNotFound() {
+        given(trips.findById(99)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.markCancelled(99, "booking-seat")).isInstanceOf(TripNotFoundException.class);
+    }
 }

@@ -115,6 +115,10 @@ Rules worth knowing:
 - **Train delete is stricter than FR-A4 on purpose:** a train with any trip cannot be deleted (409 `train_in_use`), not only a
   train with future confirmed bookings; delete or cancel its trips first, or set the train to INACTIVE.
 
+### The internal endpoint (for Booking & Seat)
+
+`POST /internal/trips/{id}/cancel` marks a trip CANCELLED so it leaves the search results (Flow 8, step 3). It needs the shared key in `X-Internal-Api-Key` (its own security chain, `InternalSecurityConfig`; a user's token, even an admin's, is not accepted and the Gateway never forwards `/internal`), is idempotent, and does not push a snapshot back to Booking & Seat (Booking is the caller and keeps the cancelled trip's copy). `X-Acting-User` names the admin for the audit log. 404 for an unknown trip.
+
 ## Database
 
 Flyway migrations live in `src/main/resources/db/migration` and run at startup as the `train_schedule` Oracle user.

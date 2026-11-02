@@ -93,6 +93,11 @@ public class TripRepository {
                 .update() == 1;
     }
 
+    /** Marks the trip CANCELLED (Booking and Seat asks for it when an admin cancels the whole trip). @return true if the trip exists */
+    public boolean markCancelled(long id) {
+        return jdbc.sql("UPDATE trip SET status = 'CANCELLED' WHERE id = :id").param("id", id).update() == 1;
+    }
+
     /** Inserts all stops of a trip in one JDBC batch, inside the caller's transaction. */
     public void insertStops(long tripId, List<StopRow> stops) {
         SqlParameterSource[] batch = stops.stream()

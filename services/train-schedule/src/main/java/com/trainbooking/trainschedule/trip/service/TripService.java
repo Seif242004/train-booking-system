@@ -20,6 +20,7 @@ import com.trainbooking.trainschedule.trip.model.RouteFaresIncompleteException;
 import com.trainbooking.trainschedule.trip.model.TrainHasNoCoachesException;
 import com.trainbooking.trainschedule.trip.model.TrainInactiveException;
 import com.trainbooking.trainschedule.trip.model.Trip;
+import com.trainbooking.trainschedule.trip.model.TripStatus;
 import com.trainbooking.trainschedule.trip.model.TripNotFoundException;
 import com.trainbooking.trainschedule.trip.model.TripRequest;
 import com.trainbooking.trainschedule.trip.repository.TripRepository;
@@ -64,6 +65,23 @@ public class TripService {
     @Transactional(readOnly = true)
     public List<Trip> list(LocalDate date) {
         return trips.findAll(date);
+    }
+
+    /**
+     * Booking and Seat tells us that an admin cancelled the whole trip (Flow 8): the trip is marked CANCELLED so it disappears from search.
+     * Idempotent (Booking repeats the call until it is accepted). It does NOT push a snapshot back: Booking is the one who asked, and a
+     * cancelled trip keeps its copy there.
+     */
+    @Transactional
+    public Trip markCancelled(long id, String actor) {
+        Trip before = get(id);
+        if (before.status() == TripStatus.CANCELLED) {
+            return before;
+        }
+        trips.markCancelled(id);
+        Trip after = get(id);
+        audit.change(actor, ENTITY, id, "CANCEL", before, after);
+        return after;
     }
 
     @Transactional(readOnly = true)

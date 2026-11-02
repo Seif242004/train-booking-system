@@ -34,6 +34,12 @@ public class DatabaseTestConfig {
     }
 
     @Bean
+    @Primary
+    FakeTrainSchedulePort fakeTrainSchedule() {
+        return new FakeTrainSchedulePort();
+    }
+
+    @Bean
     Holds holds(com.trainbooking.bookingseat.booking.service.HoldService service) {
         return new Holds(service);
     }

@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MockMvc;
         "trainbooking.internal-api-key=" + DatabaseTest.INTERNAL_KEY,
         "trainbooking.sweeper.enabled=false",
         "trainbooking.outbox.enabled=false",
+        "trainbooking.tripcancel.enabled=false",
         // Never contacted: the tests send mock JWTs. The issuer is only looked up when a real token has to be decoded.
         "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:1/not-used"
 })
@@ -61,6 +62,9 @@ public abstract class DatabaseTest {
     @Autowired
     protected FakeNotificationPort notifications;
 
+    @Autowired
+    protected FakeTrainSchedulePort trainSchedule;
+
     @BeforeEach
     void emptyTheTestSchema() {
         String schema = jdbc.sql("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual").query(String.class).single();
@@ -76,6 +80,7 @@ public abstract class DatabaseTest {
         payment.reset();
         tickets.reset();
         notifications.reset();
+        trainSchedule.reset();
         committed.clear();
     }
 

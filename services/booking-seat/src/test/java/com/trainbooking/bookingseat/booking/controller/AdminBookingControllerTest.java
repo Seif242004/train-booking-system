@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,6 +15,8 @@ import com.trainbooking.bookingseat.booking.model.BookingNotFoundException;
 import com.trainbooking.bookingseat.booking.model.BookingStatus;
 import com.trainbooking.bookingseat.booking.model.BookingView;
 import com.trainbooking.bookingseat.booking.model.RefundStatus;
+import com.trainbooking.bookingseat.booking.service.AdminBookingQueryService;
+import com.trainbooking.bookingseat.booking.model.AdminBookingView;
 import com.trainbooking.bookingseat.booking.service.CancellationService;
 import com.trainbooking.bookingseat.common.GlobalExceptionHandler;
 import com.trainbooking.bookingseat.security.JsonErrorHandlers;
@@ -47,6 +50,9 @@ class AdminBookingControllerTest {
     CancellationService cancellations;
 
     @MockitoBean
+    AdminBookingQueryService queries;
+
+    @MockitoBean
     JwtDecoder jwtDecoder;
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor as(String role) {
@@ -73,6 +79,39 @@ class AdminBookingControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED")).andExpect(jsonPath("$.refundStatus").value("REFUND_PENDING"));
 
         verify(cancellations).cancel(CancellationService.Actor.admin("ADMIN-sub"), 31L, "Called support");
+    }
+
+    private static final AdminBookingView DETAILS = new AdminBookingView(CANCELLED, "alice-sub", "alice@example.com", "Alice", "PAID", NOW, NOW, "admin-sub", "ADMIN", "Called support", false);
+
+    @Test
+    void searchAndDetails_areForAdminsOnly() throws Exception {
+        mvc.perform(get("/admin/bookings")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/admin/bookings").with(as("USER"))).andExpect(status().isForbidden());
+        mvc.perform(get("/admin/bookings/31").with(as("USER"))).andExpect(status().isForbidden());
+
+        verifyNoInteractions(queries);
+    }
+
+    @Test
+    void search_passesTheFiltersOn_andReturnsTheList() throws Exception {
+        given(queries.search("TB-ABC234", "alice", 2L, "CONFIRMED", "REFUND_FAILED")).willReturn(List.of(DETAILS));
+
+        mvc.perform(get("/admin/bookings").param("ref", "TB-ABC234").param("email", "alice").param("tripId", "2").param("status", "CONFIRMED")
+                        .param("refundStatus", "REFUND_FAILED").with(as("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].booking.reference").value("TB-ABC234"))
+                .andExpect(jsonPath("$[0].userEmail").value("alice@example.com"))
+                .andExpect(jsonPath("$[0].paymentStatus").value("PAID"))
+                .andExpect(jsonPath("$[0].cancelledBy").value("admin-sub"));
+    }
+
+    @Test
+    void details_ofABooking_andAnUnknownOneIs404() throws Exception {
+        given(queries.details(31)).willReturn(DETAILS);
+        given(queries.details(32)).willThrow(new BookingNotFoundException(32));
+
+        mvc.perform(get("/admin/bookings/31").with(as("ADMIN"))).andExpect(status().isOk()).andExpect(jsonPath("$.cancelReason").value("Called support"));
+        mvc.perform(get("/admin/bookings/32").with(as("ADMIN"))).andExpect(status().isNotFound());
     }
 
     @Test

@@ -77,8 +77,20 @@ public class CancellationService {
      * @throws BookingConflictException {@code not_cancellable} (it is not a confirmed booking) or {@code trip_departed} (the train has left the boarding stop)
      */
     public BookingView cancel(Actor actor, long bookingId, String reason) {
+        return cancel(actor, bookingId, reason, true);
+    }
+
+    /**
+     * The same cancellation for a booking of a trip an admin is cancelling as a whole (Flow 8): the boarding-stop cutoff does not apply, because
+     * the trip itself is cancelled and every confirmed booking must be refunded, also when a later pass reaches it after its train has left.
+     */
+    public BookingView cancelForTrip(Actor admin, long bookingId, String reason) {
+        return cancel(admin, bookingId, reason, false);
+    }
+
+    private BookingView cancel(Actor actor, long bookingId, String reason, boolean enforceCutoff) {
         try {
-            tx.executeWithoutResult(status -> cancelInTransaction(actor, bookingId, reason));
+            tx.executeWithoutResult(status -> cancelInTransaction(actor, bookingId, reason, enforceCutoff));
         } catch (org.springframework.dao.DeadlockLoserDataAccessException | org.springframework.dao.CannotAcquireLockException e) {
             // ORA-00060 or a lock timeout: treated as a conflict (CLAUDE.md). Nothing was changed; trying again works.
             throw new BookingConflictException("busy", "Another change to this booking is in progress. Try again in a moment.");
@@ -86,7 +98,7 @@ public class CancellationService {
         return views.view(bookingId);
     }
 
-    private void cancelInTransaction(Actor actor, long bookingId, String reason) {
+    private void cancelInTransaction(Actor actor, long bookingId, String reason, boolean enforceCutoff) {
         Booking booking = locks.lock(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (actor.role() == Actor.Role.USER && !booking.userId().equals(actor.id())) {
             throw new BookingNotFoundException(bookingId);
@@ -100,7 +112,7 @@ public class CancellationService {
         OffsetDateTime now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         // The cutoff: the train has not yet left the boarding stop of this booking.
         boolean departed = inventoryRows.departureTime(booking.tripId(), booking.fromStop()).map(departure -> !departure.toInstant().isAfter(clock.instant())).orElse(true); // no stop row: fail closed
-        if (departed) {
+        if (enforceCutoff && departed) {
             throw new BookingConflictException("trip_departed", "The train has already left your boarding stop, so this booking can no longer be cancelled.");
         }
 

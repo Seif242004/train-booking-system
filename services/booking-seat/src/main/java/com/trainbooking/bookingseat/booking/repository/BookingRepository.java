@@ -127,6 +127,38 @@ public class BookingRepository {
                 .param("u", userId).param("limit", limit).query((rs, row) -> map(rs)).list();
     }
 
+    /**
+     * Support search: every filter is optional. The email is a case-insensitive "contains" (LIKE characters in it are escaped), the reference an
+     * exact match ignoring case. The values are bound parameters; the SQL text only ever contains the fixed conditions of the filters that are set.
+     */
+    public List<Booking> search(String reference, String email, Long tripId, BookingStatus status, RefundStatus refundStatus, int limit) {
+        StringBuilder sql = new StringBuilder("SELECT " + COLUMNS + " FROM booking WHERE 1 = 1");
+        java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
+        if (reference != null) {
+            sql.append(" AND UPPER(reference) = :ref");
+            params.put("ref", reference.toUpperCase());
+        }
+        if (email != null) {
+            sql.append(" AND LOWER(user_email) LIKE :email ESCAPE '\\'");
+            params.put("email", "%" + email.toLowerCase().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
+        }
+        if (tripId != null) {
+            sql.append(" AND trip_id = :trip");
+            params.put("trip", tripId);
+        }
+        if (status != null) {
+            sql.append(" AND status = :status");
+            params.put("status", status.name());
+        }
+        if (refundStatus != null) {
+            sql.append(" AND refund_status = :refund");
+            params.put("refund", refundStatus.name());
+        }
+        sql.append(" ORDER BY created_at DESC, id DESC FETCH FIRST :limit ROWS ONLY");
+        params.put("limit", limit);
+        return batch.query(sql.toString(), params, (rs, row) -> map(rs));
+    }
+
     public void setRefundStatus(long bookingId, RefundStatus status) {
         jdbc.sql("UPDATE booking SET refund_status = :s WHERE id = :b").param("s", status.name()).param("b", bookingId).update();
     }

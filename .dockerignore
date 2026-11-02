@@ -1,0 +1,9 @@
+# Keeps the build context small and, above all, keeps every .env (secrets) out of the images.
+.git
+**/.env
+**/node_modules
+**/build
+**/.gradle
+**/dist
+**/*.log
+docs

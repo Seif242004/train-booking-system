@@ -1,10 +1,32 @@
 name: train-booking
 
+# Settings shared by the five Spring Boot services (YAML anchors).
+x-spring-service: &spring-service
+  restart: unless-stopped
+  depends_on:
+    oracle:
+      condition: service_healthy
+    openobserve:
+      condition: service_started
+  environment: &spring-env
+    # One JSON object per log line on the console (user, booking and trip ids are fields). The OpenTelemetry agent in the image also sends
+    # traces and these logs to OpenObserve (see infra/docker/entrypoint-java.sh).
+    LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://openobserve:5080/api/default
+    OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+    OTEL_METRICS_EXPORTER: none
+    # The ids set in the logging context (user, booking, trip, actor) become attributes of every log record in OpenObserve.
+    OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_CAPTURE_MDC_ATTRIBUTES: "*"
+    OPENOBSERVE_USER: ${OPENOBSERVE_USER:?set OPENOBSERVE_USER in .env}
+    OPENOBSERVE_PASSWORD: ${OPENOBSERVE_PASSWORD:?set OPENOBSERVE_PASSWORD in .env}
+    INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in .env}
+    TZ: Africa/Cairo
+
 services:
   oracle:
     image: gvenzl/oracle-free:23-slim
     container_name: tbs-oracle
-    # Bound to loopback: the services run on the host via Gradle (CLAUDE.md), so nothing else needs to reach it.
+    # Bound to loopback so that Gradle runs and tools on the host can reach it; the containers use the service name "oracle".
     ports:
       - "127.0.0.1:1521:1521"
     environment:
@@ -94,14 +116,14 @@ services:
     profiles: ["dev"]
     image: stripe/stripe-cli:latest
     container_name: tbs-stripe-cli
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    depends_on:
+      - gateway
     environment:
       # Test-mode secret key only: the CLI is started with it, never with a live key (the Payment service refuses a live key too).
       STRIPE_API_KEY: ${STRIPE_SECRET_KEY:?set STRIPE_SECRET_KEY (an sk_test_ key) in .env}
     command: >-
       listen
-      --forward-to http://host.docker.internal:8080/webhooks/payment
+      --forward-to http://gateway:8080/webhooks/payment
       --events payment_intent.succeeded,payment_intent.processing,payment_intent.payment_failed,payment_intent.canceled,refund.updated,refund.failed
 
   # Catches every email the Notification service sends, so development never sends a real one. SMTP on localhost:1025, web UI and API on
@@ -114,5 +136,135 @@ services:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
 
+  # Logs, traces and the audit trail of every service. Web UI and API: http://localhost:5080 (login: OPENOBSERVE_USER / OPENOBSERVE_PASSWORD).
+  openobserve:
+    image: openobserve/openobserve:v1.1.2
+    container_name: tbs-openobserve
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5080:5080"
+    environment:
+      ZO_ROOT_USER_EMAIL: ${OPENOBSERVE_USER:?set OPENOBSERVE_USER in .env}
+      ZO_ROOT_USER_PASSWORD: ${OPENOBSERVE_PASSWORD:?set OPENOBSERVE_PASSWORD in .env}
+      ZO_DATA_DIR: /data
+      # The pollers (hold sweeper every second, outbox, e-mail) make many small traces: keep two weeks, not the default ten years.
+      ZO_COMPACT_DATA_RETENTION_DAYS: "14"
+    volumes:
+      - openobserve-data:/data
+
+  train-schedule:
+    <<: *spring-service
+    build: { context: ., dockerfile: infra/docker/spring.Dockerfile, args: { SERVICE: train-schedule } }
+    image: train-booking/train-schedule
+    container_name: tbs-train-schedule
+    environment:
+      <<: *spring-env
+      OTEL_SERVICE_NAME: train-schedule
+      TRAIN_SCHEDULE_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      TRAIN_SCHEDULE_DB_PASSWORD: ${TRAIN_SCHEDULE_DB_PASSWORD:?set TRAIN_SCHEDULE_DB_PASSWORD in .env}
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/train-booking
+      # The keys are fetched inside the Compose network; the issuer above stays the address the browser used (it is the token's iss).
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/train-booking/protocol/openid-connect/certs
+      BOOKING_SEAT_URL: http://booking-seat:8082
+
+  booking-seat:
+    <<: *spring-service
+    build: { context: ., dockerfile: infra/docker/spring.Dockerfile, args: { SERVICE: booking-seat } }
+    image: train-booking/booking-seat
+    container_name: tbs-booking-seat
+    environment:
+      <<: *spring-env
+      OTEL_SERVICE_NAME: booking-seat
+      BOOKING_SEAT_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      BOOKING_SEAT_DB_PASSWORD: ${BOOKING_SEAT_DB_PASSWORD:?set BOOKING_SEAT_DB_PASSWORD in .env}
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/train-booking
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/train-booking/protocol/openid-connect/certs
+      CORS_ORIGIN: http://localhost:5173
+      PAYMENT_URL: http://payment:8083
+      TICKET_URL: http://ticket:8084
+      NOTIFICATION_URL: http://notification:8085
+      TRAIN_SCHEDULE_URL: http://train-schedule:8081
+
+  payment:
+    <<: *spring-service
+    build: { context: ., dockerfile: infra/docker/spring.Dockerfile, args: { SERVICE: payment } }
+    image: train-booking/payment
+    container_name: tbs-payment
+    environment:
+      <<: *spring-env
+      OTEL_SERVICE_NAME: payment
+      PAYMENT_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?set PAYMENT_DB_PASSWORD in .env}
+      BOOKING_SEAT_URL: http://booking-seat:8082
+      # Test-mode keys only: the service refuses to start with anything else.
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+
+  ticket:
+    <<: *spring-service
+    build: { context: ., dockerfile: infra/docker/spring.Dockerfile, args: { SERVICE: ticket } }
+    image: train-booking/ticket
+    container_name: tbs-ticket
+    environment:
+      <<: *spring-env
+      OTEL_SERVICE_NAME: ticket
+      TICKET_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD:?set TICKET_DB_PASSWORD in .env}
+      TICKET_SIGNING_KEY: ${TICKET_SIGNING_KEY:?set TICKET_SIGNING_KEY in .env}
+
+  notification:
+    <<: *spring-service
+    build: { context: ., dockerfile: infra/docker/spring.Dockerfile, args: { SERVICE: notification } }
+    image: train-booking/notification
+    container_name: tbs-notification
+    environment:
+      <<: *spring-env
+      OTEL_SERVICE_NAME: notification
+      NOTIFICATION_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?set NOTIFICATION_DB_PASSWORD in .env}
+      # SMTP: Mailpit of the dev profile by default. For a real server set MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD in .env.
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_AUTH: ${MAIL_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+
+  # The single entry point (port 8080). Verifies the Keycloak token, routes, composes the seat map and the search, proxies the WebSocket.
+  gateway:
+    build: { context: ., dockerfile: infra/docker/gateway.Dockerfile }
+    image: train-booking/gateway
+    container_name: tbs-gateway
+    restart: unless-stopped
+    depends_on:
+      - openobserve
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      HOST: 0.0.0.0
+      KEYCLOAK_ISSUER: http://localhost:8180/realms/train-booking
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/train-booking/protocol/openid-connect/certs
+      CORS_ORIGIN: http://localhost:5173
+      TRAIN_SCHEDULE_URL: http://train-schedule:8081
+      BOOKING_SEAT_URL: http://booking-seat:8082
+      PAYMENT_URL: http://payment:8083
+      OTEL_SERVICE_NAME: gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://openobserve:5080/api/default
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OPENOBSERVE_URL: http://openobserve:5080/api/default
+      OPENOBSERVE_USER: ${OPENOBSERVE_USER:?set OPENOBSERVE_USER in .env}
+      OPENOBSERVE_PASSWORD: ${OPENOBSERVE_PASSWORD:?set OPENOBSERVE_PASSWORD in .env}
+
+  # The web app (React, built by Vite, served by nginx) on http://localhost:5173.
+  frontend:
+    build: { context: ., dockerfile: infra/docker/frontend.Dockerfile }
+    image: train-booking/frontend
+    container_name: tbs-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:5173"
+
 volumes:
   oracle-data:
+  openobserve-data:

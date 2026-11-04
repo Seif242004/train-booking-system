@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { requireAuth, requireRole } from './auth.js';
 import { accessLog } from './accesslog.js';
+import { boardTripDetail } from './board.js';
 import { config } from './config.js';
 import { HttpError, sendError } from './errors.js';
 import { log } from './log.js';
@@ -54,6 +55,9 @@ export function createApp() {
   // generic /admin/trips rules below, which send the trip CRUD to Train & Schedule. Booking & Seat tells Train & Schedule to mark the trip cancelled.
   app.post('/admin/trips/:id/cancel', requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.bookingSeatUrl, '/admin/trips'));
   app.get('/admin/trips/:id/cancellation', requireAuth, requireRole('ADMIN'), forwardTo(config.bookingSeatUrl, '/admin/trips'));
+  // The live trips board (read-only, admin): the list is Booking & Seat's own aggregate; the detail of one trip is composed here with the layout.
+  app.get('/admin/board/trips', requireAuth, requireRole('ADMIN'), forwardTo(config.bookingSeatUrl, '/admin/board/trips'));
+  app.get('/admin/board/trips/:id', requireAuth, requireRole('ADMIN'), boardTripDetail());
   for (const prefix of ['/admin/stations', '/admin/trains', '/admin/coaches', '/admin/seats', '/admin/routes', '/admin/trips']) {
     app.use(prefix, requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.trainScheduleUrl, prefix));
   }

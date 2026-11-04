@@ -23,7 +23,9 @@ export function composeBoardDetail(layout, detail) {
         // A seat that Booking does not know is shown as taken, never as free. Only a taken seat carries a booking reference.
         seats: coach.seats.map((seat) => {
           const known = stateBySeat.get(seat.id);
-          return { ...seat, state: known?.state ?? 'TAKEN', reference: known?.state === 'TAKEN' ? known.reference ?? null : null };
+          return { ...seat, state: known?.state ?? 'TAKEN', reference: known?.state === 'TAKEN' ? known.reference ?? null : null,
+            // When a hold ends, for the countdown on a HELD seat.
+            holdExpiresAt: known?.state === 'HELD' ? known.holdExpiresAt ?? null : null };
         }),
         standing: counts
           ? { capacity: counts.capacity, confirmed: counts.confirmed, held: counts.held, free: counts.free }

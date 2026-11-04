@@ -56,6 +56,8 @@ export function createApp() {
   app.post('/admin/trips/:id/cancel', requireAuth, requireRole('ADMIN'), passThroughBody, forwardTo(config.bookingSeatUrl, '/admin/trips'));
   app.get('/admin/trips/:id/cancellation', requireAuth, requireRole('ADMIN'), forwardTo(config.bookingSeatUrl, '/admin/trips'));
   // The live trips board (read-only, admin): the list is Booking & Seat's own aggregate; the detail of one trip is composed here with the layout.
+  // Looking up a passenger by exact email for a counter booking (Booking & Seat answers one match or 404, never a list).
+  app.get('/admin/passengers/lookup', requireAuth, requireRole('ADMIN'), forwardTo(config.bookingSeatUrl, '/admin/passengers'));
   app.get('/admin/board/trips', requireAuth, requireRole('ADMIN'), forwardTo(config.bookingSeatUrl, '/admin/board/trips'));
   app.get('/admin/board/trips/:id', requireAuth, requireRole('ADMIN'), boardTripDetail());
   for (const prefix of ['/admin/stations', '/admin/trains', '/admin/coaches', '/admin/seats', '/admin/routes', '/admin/trips']) {

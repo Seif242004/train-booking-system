@@ -11,7 +11,8 @@ public final class TripLifecycle {
     }
 
     /**
-     * CANCELLED wins (a trip in CANCELLING is shown as cancelled too: its bookings are being cancelled). Otherwise the trip is UPCOMING until it
+      * CANCELLED wins (a trip in CANCELLING is shown as cancelled too: its bookings are being cancelled). Otherwise the trip is UPCOMING
+      * until it
      * leaves its first stop, DEPARTED until it reaches its last stop, then ARRIVED.
      */
     public static TripState of(String tripStatus, Instant departure, Instant arrival, Instant now) {
@@ -25,6 +26,7 @@ public final class TripLifecycle {
     }
 
     /** FULL: an upcoming trip that has places in total but none free in any class (seats and standing). */
+    // A trip that has already left is never "full": it simply left.
     public static boolean isFull(TripState state, SeatCounts totals) {
         return state == TripState.UPCOMING && totals.capacity() > 0 && totals.free() == 0;
     }

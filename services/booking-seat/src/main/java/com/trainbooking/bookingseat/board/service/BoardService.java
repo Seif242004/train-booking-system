@@ -38,10 +38,12 @@ import org.springframework.transaction.annotation.Transactional;
  * confirmed booking but a running hold on any segment. A hold whose five minutes ran out but that the sweeper has not released yet still
  * counts as held (it blocks the seat, SRS 4.2); the clock is read only for the lifecycle of the trip.
  */
+// @Service: bean with the board logic. @Transactional(readOnly = true): one consistent read-only view for all queries of an answer.
 @Service
 public class BoardService {
 
     /** At most this many trips in an answer, so it stays small whatever range is asked for. */
+    // Limits that keep the answer small whatever the admin asks for.
     static final int MAX_TRIPS = 300;
     /** The widest range accepted, in days. */
     static final int MAX_DAYS = 62;
@@ -64,6 +66,8 @@ public class BoardService {
      * @param state states to keep (UPCOMING, DEPARTED, ARRIVED, CANCELLED, FULL), empty = all; the summary always covers the whole range
      */
     @Transactional(readOnly = true)
+    // Steps: work out the date range in the railway time zone (default: from 24 hours ago to today + 7 days), validate it, load the trips,
+    // build the rows, count the summary over ALL rows, then apply the state filter to the rows that are shown.
     public BoardResponse board(String from, String to, String state) {
         Instant now = clock.instant();
         LocalDate today = now.atZone(zone).toLocalDate();
@@ -88,6 +92,7 @@ public class BoardService {
     }
 
     @Transactional(readOnly = true)
+    // Seat states come from one query; the booking reference is shown only for TAKEN seats and nothing else about the passenger (privacy).
     public BoardTripDetail detail(long tripId) {
         Instant now = clock.instant();
         TripRow row = repository.findTrip(tripId).orElseThrow(() -> new TripNotFoundException(tripId));
@@ -104,6 +109,8 @@ public class BoardService {
         return new BoardTripDetail(now.atZone(zone).toOffsetDateTime(), trip, seats, standing);
     }
 
+    // Loads all counts for all trips with a handful of queries (not one per trip), then assembles one BoardTrip per row: counts per class,
+    // standing, totals, lifecycle state, FULL flag, and the departure/arrival in the railway time zone.
     private List<BoardTrip> build(List<TripRow> rows, Instant now) {
         List<Long> ids = rows.stream().map(TripRow::id).toList();
         Map<Long, Map<CoachClass, SeatCounts>> seats = new HashMap<>();
@@ -140,6 +147,7 @@ public class BoardService {
         return trips;
     }
 
+    // FULL is a flag on UPCOMING trips, so it is counted separately from the four states.
     private static BoardSummary summarise(List<BoardTrip> trips) {
         int upcoming = 0;
         int departed = 0;
@@ -160,6 +168,7 @@ public class BoardService {
         return new BoardSummary(trips.size(), upcoming, departed, arrived, full, cancelled);
     }
 
+    // A comma list of states; an unknown word answers 400.
     private static Set<String> parseStates(String state) {
         if (state == null || state.isBlank()) {
             return Set.of();

@@ -20,6 +20,9 @@ public final class StandingBoardCounts {
     private StandingBoardCounts() {
     }
 
+    // free = minimum remaining over every segment; confirmed = highest confirmed use on one segment, capped by what is used; held = the
+    // rest.
+    // The three parts always add up to the capacity.
     public static SeatCounts of(int stops, List<StandingRow> usage, List<StandingBookingRow> bookings) {
         int segments = Math.max(stops - 1, 0);
         Map<Integer, StandingRow> bySegment = new HashMap<>();

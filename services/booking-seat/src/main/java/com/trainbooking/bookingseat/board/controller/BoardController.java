@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The live trips board for admins (read-only). {@code /admin/**} needs the ADMIN role here as well as at the Gateway. */
+// @RestController: JSON endpoints for the admin "live trips board". Read-only. /admin/** needs ADMIN (SecurityConfig). The Gateway forwards
+// the list and composes the detail view; the board page in the frontend calls them.
 @RestController
 public class BoardController {
 
@@ -18,14 +20,23 @@ public class BoardController {
         this.board = board;
     }
 
-    /** {@code GET /admin/board/trips?from=2026-11-04&to=2026-11-11&state=UPCOMING,FULL}: all parameters optional (see {@link BoardService#board}). */
+    /**
+     * {@code GET /admin/board/trips?from=2026-11-04&to=2026-11-11&state=UPCOMING,FULL}: all parameters optional (see {@link
+     * BoardService#board}).
+     */
+    // All three query parameters are optional text (dates as yyyy-MM-dd, states as a comma list); BoardService parses them and answers 400
+    // validation_failed for a bad value or a range wider than 62 days.
     @GetMapping("/admin/board/trips")
     public BoardResponse trips(@RequestParam(required = false) String from, @RequestParam(required = false) String to,
                                @RequestParam(required = false) String state) {
         return board.board(from, to, state);
     }
 
-    /** {@code GET /admin/board/trips/{id}}: one trip with the state of every seat for the full journey (a booking reference only on taken seats). */
+    /**
+     * {@code GET /admin/board/trips/{id}}: one trip with the state of every seat for the full journey (a booking reference only on taken
+     * seats).
+     */
+    // 404 trip_not_found when Booking has no copy of the trip.
     @GetMapping("/admin/board/trips/{id}")
     public BoardTripDetail detail(@PathVariable long id) {
         return board.detail(id);

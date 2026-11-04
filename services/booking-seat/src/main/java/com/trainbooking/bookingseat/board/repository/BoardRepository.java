@@ -9,6 +9,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /** Read-only queries of the trips board. Aggregates only: nothing here loads a row per seat for a list of trips. */
+// @Repository: data-access bean (Spring JDBC, bound parameters). The queries are aggregates (COUNT, SUM, GROUP BY), so a board of 300 trips
+// does not read one row per seat. IN (:ids) is expanded by Spring into one placeholder per trip id.
 @Repository
 public class BoardRepository {
 
@@ -28,6 +30,9 @@ public class BoardRepository {
     public record SeatRow(long seatId, long coachId, String state, String reference, OffsetDateTime holdExpiresAt) {
     }
 
+    // The common head of the trip queries: the trip joined to its FIRST stop (stop_index = 0, for the origin and departure time) and its
+    // LAST
+    // stop (the highest stop_index, for the destination and arrival time), plus the number of stops.
     private static final String TRIP_COLUMNS = "SELECT t.id, t.train_number, t.train_name, t.route_name, t.status, o.station_name AS origin, "
             + "d.station_name AS destination, o.departure_time AS departure, d.arrival_time AS arrival, "
             + "(SELECT COUNT(*) FROM trip_stop x WHERE x.trip_id = t.id) AS stops "
@@ -47,6 +52,7 @@ public class BoardRepository {
     }
 
     /** Trips that leave their first stop in [from, to), oldest departure first, at most {@code limit}. */
+    // Trips whose first departure is in [from, to). FETCH FIRST n ROWS ONLY is Oracle's row limit.
     public List<TripRow> findTrips(OffsetDateTime from, OffsetDateTime to, int limit) {
         return jdbc.sql(TRIP_COLUMNS + "WHERE o.departure_time >= :from AND o.departure_time < :to ORDER BY o.departure_time, t.id FETCH FIRST :limit ROWS ONLY")
                 .param("from", from).param("to", to).param("limit", limit)
@@ -61,6 +67,10 @@ public class BoardRepository {
      * Seats per trip and class. A seat is confirmed if ANY segment of it has a reservation without expiry; held if it has none of
      * those but some segment with an expiry; otherwise free. (The full journey uses every segment, so "any segment" is the rule.)
      */
+    // The board counting rule in SQL. The inner query counts, per seat, its reservation rows without expiry (confirmed) and with expiry
+    // (held). The outer query counts seats per class: confirmed if ANY segment is confirmed; held if none is confirmed but some is held;
+    // the
+    // rest are free. A LEFT JOIN keeps seats that have no reservation at all.
     public List<ClassSeatRow> seatCounts(List<Long> tripIds) {
         if (tripIds.isEmpty()) {
             return List.of();
@@ -82,6 +92,7 @@ public class BoardRepository {
                 }).list();
     }
 
+    // The raw standing counters per coach and segment; StandingBoardCounts reduces them to confirmed, held and free.
     public List<StandingRow> standingUsage(List<Long> tripIds) {
         if (tripIds.isEmpty()) {
             return List.of();
@@ -95,6 +106,7 @@ public class BoardRepository {
     }
 
     /** Standing places of confirmed bookings and of running holds (their journey tells which segments they use). */
+    // Which bookings use standing places, with their stops, so confirmed use can be split from running holds.
     public List<StandingBookingRow> standingBookings(List<Long> tripIds) {
         if (tripIds.isEmpty()) {
             return List.of();
@@ -109,6 +121,9 @@ public class BoardRepository {
     }
 
     /** One row per seat of the trip: TAKEN (with the reference of the first confirmed booking), HELD or FREE. */
+    // One row per seat of one trip. state: TAKEN (a confirmed reservation exists), HELD, or FREE. The reference of the first confirmed
+    // booking
+    // (KEEP DENSE_RANK FIRST is Oracle's "take the value of the first row in this order") is shown only on taken seats.
     public List<SeatRow> seatStates(long tripId) {
         return jdbc.sql("SELECT s.seat_id, s.coach_id, CASE WHEN r.confirmed = 0 AND r.held > 0 THEN r.expires END AS hold_expires, "
                         + "CASE WHEN r.confirmed > 0 THEN 'TAKEN' WHEN r.held > 0 THEN 'HELD' ELSE 'FREE' END AS state, "

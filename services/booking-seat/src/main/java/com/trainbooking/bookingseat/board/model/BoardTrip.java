@@ -3,6 +3,8 @@ package com.trainbooking.bookingseat.board.model;
 import java.time.OffsetDateTime;
 
 /** One row of the live trips board. No per-seat data: the list stays small. */
+// All times are in the railway's own time zone. first/second/third are seat counts per class, standing is the sum of the standing places
+// of all coaches, totals adds all four. departedAt, totalSeats and confirmedAtDeparture are filled only for trips that have left.
 public record BoardTrip(
         long tripId,
         String trainNumber,

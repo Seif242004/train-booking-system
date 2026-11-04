@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import { AdminHeader } from '../components/AdminHeader';
 import { gatewayGet, gatewayRequest, readError } from '../api';
@@ -6,6 +7,7 @@ import type { Booking, BookingStatus, RefundStatus } from '../bookingTypes';
 import { clock } from '../time';
 import { label } from '../format';
 import { EmptyState } from '../components/EmptyState';
+import { TripsBoard } from './TripsBoard';
 
 interface AdminBooking {
   booking: Booking;
@@ -29,7 +31,7 @@ const REFUND_LABEL: Record<RefundStatus, string> = { NONE: 'No refund', REFUND_P
  * a confirmed booking on the passenger's request with a reason (the same cancellation as the passenger's own, which records which admin did it).
  * "Failed refunds" lists the bookings whose refund needs a follow-up.
  */
-export function SupportPage() {
+function BookingSearch() {
   const [reference, setReference] = useState('');
   const [email, setEmail] = useState('');
   const [tripId, setTripId] = useState('');
@@ -87,8 +89,7 @@ export function SupportPage() {
   }
 
   return (
-    <section>
-      <AdminHeader title="Support: bookings" />
+    <section aria-label="Bookings">
       <form className="filters filters-card" onSubmit={onSearch}>
         <label>Reference <input value={reference} onChange={(event) => setReference(event.target.value)} placeholder="TB-ABC234" /></label>
         <label>Passenger email <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="part of the address" /></label>
@@ -174,6 +175,31 @@ export function SupportPage() {
           {message && <p className={`notice ${message.ok ? 'notice-ok' : 'notice-error'}`} role="status">{message.text}</p>}
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * The admin support area has two views under one heading: the live trips board (what is full, held or gone, right now) and the booking search
+ * (the original support page, unchanged). The view is in the address (?view=bookings) so a refresh or Back keeps it.
+ */
+export function SupportPage() {
+  const [params, setParams] = useSearchParams();
+  const view = params.get('view') === 'bookings' ? 'bookings' : 'board';
+
+  function choose(next: 'board' | 'bookings') {
+    // Each view has its own filters in the address, so they start clean.
+    setParams(next === 'board' ? new URLSearchParams() : new URLSearchParams({ view: next }), { replace: true });
+  }
+
+  return (
+    <section>
+      <AdminHeader title="Support" />
+      <div className="chips support-tabs" role="group" aria-label="Support views">
+        <button type="button" className="chip" aria-pressed={view === 'board'} onClick={() => choose('board')}>Trips board</button>
+        <button type="button" className="chip" aria-pressed={view === 'bookings'} onClick={() => choose('bookings')}>Find a booking</button>
+      </div>
+      {view === 'board' ? <TripsBoard /> : <BookingSearch />}
     </section>
   );
 }

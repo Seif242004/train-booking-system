@@ -1,0 +1,321 @@
+/* Live trips board (admin support). Tokens only; motion only where the visitor has not asked for less. */
+.support-tabs {
+  margin-bottom: 16px;
+}
+
+.board-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+
+.live-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--timer-ok);
+  border-radius: 50%;
+}
+
+.live-dot.is-lost {
+  background: var(--red);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot:not(.is-lost) {
+    animation: live-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes live-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---- Summary tiles: each one is a filter ---- */
+.board-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.board-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: var(--touch);
+  padding: 12px 16px;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-card);
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+
+.board-tile:hover {
+  border-color: var(--red);
+}
+
+.board-tile[aria-pressed='true'] {
+  color: #fff;
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.board-tile-value {
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-tile-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- Filters ---- */
+.board-filters {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+}
+
+.board-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.field-inline {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field-inline input {
+  min-height: var(--touch);
+  padding: 0 12px;
+  font: inherit;
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-control);
+}
+
+.board-search {
+  flex: 1 1 240px;
+}
+
+.board-help {
+  margin: 0;
+  font-size: 13px;
+}
+
+.board-summary {
+  min-height: 1.5em;
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+/* ---- Table ---- */
+.board-wrap .table {
+  min-width: 760px;
+}
+
+.trip-open {
+  min-height: var(--touch);
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: var(--red-text);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-decoration: underline;
+}
+
+.trip-open:focus-visible,
+.board-tile:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.board-row {
+  cursor: pointer;
+}
+
+.board-full-chip {
+  margin-left: 6px;
+}
+
+.occupancy {
+  min-width: 190px;
+}
+
+.occupancy-bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  background: var(--line-soft);
+  border: 1.5px solid var(--ink-2);
+  border-radius: var(--r-pill);
+}
+
+.occupancy-bar span {
+  display: block;
+  height: 100%;
+}
+
+.occ-confirmed {
+  background: var(--ink-2);
+}
+
+.occ-held {
+  background: var(--warn-text);
+  border-left: 2px solid var(--white);
+}
+
+.occ-free {
+  background: var(--ok-bg);
+}
+
+.occupancy-text {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-expand {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.board-expand-button {
+  min-height: var(--touch);
+}
+
+.board-classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  list-style: none;
+}
+
+/* A row whose numbers just changed: a short highlight (none when the visitor asked for less motion). */
+@media (prefers-reduced-motion: no-preference) {
+  .board-row.is-changed td {
+    animation: board-changed 2s ease-out;
+  }
+}
+
+@keyframes board-changed {
+  from {
+    background-color: var(--warn-bg);
+  }
+}
+
+/* ---- The trip in the slide-over ---- */
+.board-detail h3,
+.board-detail h4 {
+  margin: 20px 0 8px;
+}
+
+.board-counts {
+  min-width: 0;
+}
+
+.board-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.plan-seat-readonly {
+  cursor: default;
+}
+
+.plan-seat-readonly:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.board-stamp {
+  margin-top: 20px;
+  font-size: 13px;
+}
+
+/* ---- Phones: every trip becomes a card ---- */
+@media (max-width: 720px) {
+  .board-wrap {
+    overflow: visible;
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+
+  .board-wrap .table {
+    min-width: 0;
+    background: none;
+  }
+
+  .board-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .board-table,
+  .board-table tbody,
+  .board-table tr,
+  .board-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .board-table .board-row {
+    margin-bottom: 12px;
+    padding: 8px 0;
+    background: var(--white);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-rest);
+  }
+
+  .board-table td {
+    padding: 6px 16px;
+    border-bottom: none;
+  }
+
+  .board-table td[data-label]::before {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    content: attr(data-label);
+  }
+
+  .board-expand {
+    text-align: left;
+  }
+
+  .board-classes-row td {
+    padding: 0 16px 12px;
+  }
+}

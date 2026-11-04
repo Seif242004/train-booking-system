@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Whole-trip cancellation (Flow 8). Everything under {@code /admin} needs the ADMIN role, at the Gateway and here. */
+// @RestController: ADMIN-only endpoints (SecurityConfig). The Gateway routes these exact paths here before its generic /admin/trips
+// rules (which go to Train & Schedule).
 @RestController
 public class AdminTripController {
 
@@ -23,15 +25,19 @@ public class AdminTripController {
     }
 
     /**
-     * {@code POST /admin/trips/{id}/cancel}: cancels the whole trip and refunds every booking, with the reason. Safe to repeat: it does another pass
+      * {@code POST /admin/trips/{id}/cancel}: cancels the whole trip and refunds every booking, with the reason. Safe to repeat: it does
+      * another pass
      * over what is left. The answer says where it stands; {@code status} CANCELLING is shown as "CANCELLED - bookings pending".
      */
+    // Body: { "reason": ... } (required, max 500). Errors: 404 trip_not_found, 409 trip_departed (the trip has left its first stop), 400.
+    // Answer: the current TripCancellationStatus (status CANCELLING means some bookings are still being processed).
     @PostMapping("/admin/trips/{id}/cancel")
     public TripCancellationStatus cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable long id, @Valid @RequestBody CancelRequest request) {
         return service.request(jwt.getSubject(), id, request.reason().trim());
     }
 
     /** {@code GET /admin/trips/{id}/cancellation}: where the cancellation stands (OPEN when the trip is not being cancelled). */
+    // Counts of holds, confirmed and cancelled bookings and failed refunds, for the admin page.
     @GetMapping("/admin/trips/{id}/cancellation")
     public TripCancellationStatus status(@PathVariable long id) {
         return service.status(id);

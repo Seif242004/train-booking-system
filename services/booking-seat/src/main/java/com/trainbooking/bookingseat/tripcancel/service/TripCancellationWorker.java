@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
  * Keeps trying (every few seconds, configurable) for every trip that is CANCELLING: Train &amp; Schedule that was down, a payment that was
  * still processing, a booking that failed. "Each booking is processed independently and retried" (Flow 8, step 7). Switched off in tests.
  */
+// @Component + @ConditionalOnProperty(trainbooking.tripcancel.enabled): a background worker that tests can switch off.
 @Component
 @ConditionalOnProperty(name = "trainbooking.tripcancel.enabled", havingValue = "true", matchIfMissing = true)
 class TripCancellationWorker {
@@ -25,6 +26,8 @@ class TripCancellationWorker {
         this.service = service;
     }
 
+    // Every 5 seconds (trainbooking.tripcancel.fixed-delay-ms) it runs a pass over each CANCELLING trip, so a Train & Schedule outage or a
+    // payment that was still processing is finished without an admin pressing the button again.
     @Scheduled(fixedDelayString = "${trainbooking.tripcancel.fixed-delay-ms:5000}")
     void run() {
         for (long tripId : trips.findCancellingTripIds()) {

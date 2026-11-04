@@ -32,18 +32,23 @@ import org.springframework.transaction.support.TransactionTemplate;
  * does by itself.
  *
  * <ol>
- *   <li><b>Request</b> (one transaction, trip row locked): the trip must not have left its first stop. It becomes CANCELLING, which closes it
+  * <li><b>Request</b> (one transaction, trip row locked): the trip must not have left its first stop. It becomes CANCELLING, which closes
+  * it
  *       to new holds at once (a pick locks the trip row and refuses a trip that is not OPEN).</li>
  *   <li><b>Train &amp; Schedule</b> is told the trip is cancelled so it leaves the search results; repeated until it accepts.</li>
- *   <li><b>Active holds:</b> the pending payment is cancelled FIRST (never a seat released while a payment could still be paid), then the hold is
- *       released as EXPIRED and its user's browser is sent back with "This trip was cancelled". A payment that already succeeded or is still
+  * <li><b>Active holds:</b> the pending payment is cancelled FIRST (never a seat released while a payment could still be paid), then the
+  * hold is
+  * released as EXPIRED and its user's browser is sent back with "This trip was cancelled". A payment that already succeeded or is still
  *       processing waits for the next pass: Payment's report turns it into a confirmed booking, which step 4 then cancels and refunds.</li>
  *   <li><b>Confirmed bookings:</b> each is cancelled with the same {@link CancellationService} as a passenger's or a support cancellation
  *       (seats given back, QR invalidated, full refund, email), one transaction per booking.</li>
- *   <li>When nothing is left (and Train &amp; Schedule knows), the trip becomes CANCELLED and "trip cancelled" is pushed to everyone viewing it.
+  * <li>When nothing is left (and Train &amp; Schedule knows), the trip becomes CANCELLED and "trip cancelled" is pushed to everyone
+  * viewing it.
  *       Until then it is CANCELLING, shown to the admin as "CANCELLED - bookings pending".</li>
  * </ol>
  */
+// @Service: bean. TransactionTemplate (field tx) opens the short transactions explicitly, because the passes call other services and must
+// not hold a transaction open while they do. Every step is idempotent, so a pass can be repeated or run twice at once.
 @Service
 public class TripCancellationService {
 
@@ -79,12 +84,16 @@ public class TripCancellationService {
     }
 
     /**
-     * Starts the cancellation (or repeats it: asking again for a trip that is already CANCELLING or CANCELLED just does another pass, with the
+      * Starts the cancellation (or repeats it: asking again for a trip that is already CANCELLING or CANCELLED just does another pass,
+      * with the
      * reason of the first request) and does one pass at once.
      *
      * @throws TripNotFoundException a trip Booking has no copy of
      * @throws BookingConflictException {@code trip_departed}: the trip has already left its first stop, so it can no longer be cancelled
      */
+    // One transaction under the trip row lock: only an OPEN trip that has not left its first stop moves to CANCELLING (closed to new
+    // holds at
+    // once, because a pick locks the trip row and refuses a trip that is not OPEN). Then one pass runs immediately.
     public TripCancellationStatus request(String adminId, long tripId, String reason) {
         tx.executeWithoutResult(status -> {
             String state = inventory.lockTrip(tripId).orElseThrow(() -> new TripNotFoundException(tripId));
@@ -102,6 +111,10 @@ public class TripCancellationService {
     }
 
     /** One pass over a trip that is being cancelled. Safe to call at any time, also concurrently with another pass. */
+    // One pass: tell Train & Schedule (retried until accepted); release each hold (payment cancelled first); cancel each confirmed
+    // booking with
+    // CancellationService.cancelForTrip (no boarding-stop cutoff); when nothing is left and Train & Schedule knows, mark CANCELLED and push
+    // TRIP_CANCELLED after the commit. Each booking is wrapped in its own try/catch, so one failure never blocks the others.
     public TripCancellationStatus process(long tripId) {
         TripCancellationRepository.State state = trips.find(tripId).orElseThrow(() -> new TripNotFoundException(tripId));
         if (!"CANCELLING".equals(state.status())) {
@@ -131,7 +144,8 @@ public class TripCancellationService {
             }
         }
 
-        // 4. Confirmed bookings, each on its own: one that fails does not stop the others. The boarding-stop cutoff does not apply (the trip
+        // 4. Confirmed bookings, each on its own: one that fails does not stop the others. The boarding-stop cutoff does not apply (the
+        // trip
         // is cancelled), so a later pass still refunds a booking whose train has left in the meantime.
         String why = cancelReason(state.reason());
         for (long bookingId : trips.findConfirmedBookingIds(tripId)) {
@@ -155,13 +169,20 @@ public class TripCancellationService {
         return status(tripId);
     }
 
-    /** booking.cancel_reason is VARCHAR2(500 CHAR) and the admin's reason may be 500 characters itself: cut the text, never fail the cancellation. */
+    /**
+     * booking.cancel_reason is VARCHAR2(500 CHAR) and the admin's reason may be 500 characters itself: cut the text, never fail the
+     * cancellation.
+     */
+    // Package-private for the test. The booking column is 500 characters, so the text is cut instead of failing the refund.
     static String cancelReason(String reason) {
         String why = "The trip was cancelled" + (reason == null || reason.isBlank() ? "." : ": " + reason.trim());
         return why.length() <= MAX_REASON ? why : why.substring(0, MAX_REASON);
     }
 
     /** Cancels the payment of a hold first, then releases it with the message "This trip was cancelled". */
+    // A hold whose payment succeeded or is processing is NOT released: Payment's report will confirm it, and the next pass cancels and
+    // refunds
+    // it. Seats are never freed while a payment could still be completed.
     private void releaseHold(long bookingId, String admin) {
         Booking hold = bookings.find(bookingId).orElse(null);
         if (hold == null || hold.status() != BookingStatus.PENDING_PAYMENT) {

@@ -7,6 +7,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /** Data access for the cancellation of a whole trip (the trip rows are Booking's own copy; the booking rows are read for the counts). */
+// @Repository: data-access bean. The state columns are in the trip table (V7): cancel_reason, cancelled_by, cancel_requested_at, tns_marked
+// ("Train & Schedule has been told", stored as 0 or 1).
 @Repository
 public class TripCancellationRepository {
 
@@ -26,6 +28,7 @@ public class TripCancellationRepository {
     }
 
     /** OPEN -> CANCELLING, with who and why. The trip row must be locked by the caller. */
+    // "AND status = 'OPEN'" makes the change conditional: a repeated request cannot overwrite the reason of the first one.
     public void markCancelling(long tripId, String reason, String adminId, OffsetDateTime now) {
         jdbc.sql("UPDATE trip SET status = 'CANCELLING', cancel_reason = :reason, cancelled_by = :by, cancel_requested_at = :now WHERE id = :id AND status = 'OPEN'")
                 .param("reason", reason).param("by", adminId).param("now", now).param("id", tripId).update();
@@ -36,10 +39,12 @@ public class TripCancellationRepository {
     }
 
     /** CANCELLING -> CANCELLED. @return true if the trip was CANCELLING */
+    // Conditional on CANCELLING; the row count tells the caller whether this call did the change.
     public boolean markCancelled(long tripId) {
         return jdbc.sql("UPDATE trip SET status = 'CANCELLED' WHERE id = :id AND status = 'CANCELLING'").param("id", tripId).update() == 1;
     }
 
+    // Used by the worker. Trips in this state are the ones with work left.
     public List<Long> findCancellingTripIds() {
         return jdbc.sql("SELECT id FROM trip WHERE status = 'CANCELLING' ORDER BY id").query(Long.class).list();
     }
@@ -48,6 +53,7 @@ public class TripCancellationRepository {
         return jdbc.sql("SELECT id FROM booking WHERE trip_id = :t AND status = 'CONFIRMED' ORDER BY id").param("t", tripId).query(Long.class).list();
     }
 
+    // Counts the bookings of the trip in one status; used to decide when nothing is left to do and for the admin status.
     public int count(long tripId, String bookingStatus) {
         return jdbc.sql("SELECT COUNT(*) FROM booking WHERE trip_id = :t AND status = :s").param("t", tripId).param("s", bookingStatus).query(Integer.class).single();
     }

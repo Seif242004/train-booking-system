@@ -10,6 +10,7 @@ package com.trainbooking.bookingseat.tripcancel.model;
  * @param cancelledBookings     bookings of the trip that are cancelled
  * @param refundsFailed         cancelled bookings whose refund failed, for the admin to follow up
  */
+// The JSON answer of both endpoints. "status" is the trip copy status: OPEN, CANCELLING or CANCELLED.
 public record TripCancellationStatus(
         long tripId,
         String status,

@@ -9,6 +9,7 @@ import java.util.List;
  * is idempotent, because the outbox repeats a job until it succeeds. Throws
  * {@link com.trainbooking.bookingseat.common.RemoteServiceException} when the answer is not known.
  */
+// Port for the Ticket service. TicketData is what is printed on the PDF; the Ticket service builds the QR from the booking reference.
 public interface TicketPort {
 
     /** One seat, or the standing places of one coach, as printed on the ticket. */

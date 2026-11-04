@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 /** Calls the internal endpoints of the Ticket service with the shared API key. */
+// @Component: HTTP adapter for the Ticket service: PUT /internal/tickets/{bookingId} (issue), GET .../pdf, POST .../invalidate.
 @Component
 class TicketClient implements TicketPort {
 
@@ -34,6 +35,7 @@ class TicketClient implements TicketPort {
     }
 
     @Override
+    // A binary body (the PDF). An empty answer is an error so a blank attachment is never e-mailed.
     public byte[] pdf(long bookingId) {
         byte[] pdf = send(() -> http.get().uri("/internal/tickets/{id}/pdf", bookingId).header("X-Internal-Api-Key", apiKey).retrieve().body(byte[].class));
         if (pdf == null || pdf.length == 0) {
@@ -43,6 +45,7 @@ class TicketClient implements TicketPort {
     }
 
     @Override
+    // A 404 ticket_not_found means no ticket was ever made, so there is nothing to invalidate.
     public void invalidate(long bookingId) {
         try {
             send(() -> http.post().uri("/internal/tickets/{id}/invalidate", bookingId).header("X-Internal-Api-Key", apiKey).retrieve().toBodilessEntity());

@@ -10,7 +10,7 @@ which files to open. Paths are in code font so you can open them.
 | 1. Architecture overview | `01-architecture.md` | to write |
 | 2. End-to-end walkthroughs | `02-walkthroughs.md` | to write |
 | 3. Train & Schedule | [03-train-schedule.md](03-train-schedule.md) | written |
-| 4. Booking & Seat | `04-booking-seat.md` | to write |
+| 4. Booking & Seat | [04-booking-seat.md](04-booking-seat.md) | written |
 | 5. Payment | `05-payment.md` | to write |
 | 6. Ticket | `06-ticket.md` | to write |
 | 7. Notification | `07-notification.md` | to write |

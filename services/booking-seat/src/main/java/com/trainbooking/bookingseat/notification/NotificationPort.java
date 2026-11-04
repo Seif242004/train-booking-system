@@ -9,6 +9,7 @@ import java.util.List;
  * successful call only means "accepted". Asking again with the same {@code dedupeKey} stores no second email. Throws
  * {@link com.trainbooking.bookingseat.common.RemoteServiceException} when the answer is not known.
  */
+// The "port" is an interface owned by Booking; NotificationClient is the adapter. Tests use FakeNotificationPort instead.
 public interface NotificationPort {
 
     enum Kind { TICKET, CANCELLATION, REFUND }

@@ -12,6 +12,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 /** Calls the internal endpoint of the Notification service with the shared API key. */
+// @Component: a bean implementing NotificationPort. It is the HTTP adapter (Spring RestClient) to POST /internal/notifications of the
+// Notification service, with the shared key in X-Internal-Api-Key. @Value injects a property (url from NOTIFICATION_URL, optional read
+// timeout).
 @Component
 class NotificationClient implements NotificationPort {
 
@@ -27,6 +30,8 @@ class NotificationClient implements NotificationPort {
     }
 
     @Override
+    // Notification answers 202 "accepted" at once and sends the e-mail later. Any failure becomes RemoteServiceException so the outbox
+    // retries.
     public void send(Email email) {
         try {
             http.post().uri("/internal/notifications").header("X-Internal-Api-Key", apiKey).contentType(MediaType.APPLICATION_JSON)

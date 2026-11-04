@@ -43,6 +43,21 @@ Start only the infrastructure (`docker compose --profile dev up -d oracle keyclo
 - `cd gateway && npm test` and `cd frontend && npm run build` (type-check and build).
 - `node scripts/smoke-test.mjs` runs the whole journey against the running stack, through the Gateway, with real Keycloak logins, the Stripe sandbox's test cards, Mailpit and OpenObserve: it builds a trip, holds and pays seats (success card, declined card, 3D Secure), cancels as passenger and as admin, cancels a whole trip, and checks the audit trail and traces in OpenObserve.
 
+## Demo data and cleaning up test data
+
+`node scripts/demo-data.mjs <command>` (dev stack running, `docker compose --profile dev up -d`):
+
+| Command | What it does |
+|---|---|
+| `seed-demo` | Makes the demo network through the Gateway's admin endpoints: 24 stations, 6 lines (Cairo to Alexandria, Aswan, Mansoura, Port Said, Suez and a Cairo to Banha shuttle), 13 trains with First and Second class coaches (2+2 and 2+1) and standing places, fares per segment in EGP, and trips for today and the next 14 days (16 a day). It also adds a few trips that have left or arrived today, a full trip, a nearly full trip, trips with a mix of confirmed seats, one trip cancelled with the real whole-trip cancellation, and the small train `M001` (8 seats, Cairo to Banha, empty) to fill by hand. Running it again creates nothing twice. |
+| `reset-demo` | Removes exactly what `seed-demo` made: the demo bookings first, then the demo trips, trains, routes and stations through the API. Anything a real booking still uses stays. |
+| `reset-test-data` | Removes what the smoke test and the check and stress scripts left behind: stations `S<tag>A..C`, trains `SM<tag>`, routes `Smoke <tag>`, every cancelled trip that is not a demo trip, and the abandoned, expired and cancelled bookings of the two dev accounts, with their payments, refunds, tickets, e-mails and outbox rows. It never touches Keycloak, the accounts, other users' bookings or the audit logs. |
+| `verify` | Checks by API: no duplicate stations or trips, the line stops in order, search results for each main route today and in two days, and a trip in every state on the live board. |
+
+`--dry-run` (on `reset-test-data` and `reset-demo`) only writes the audit file. Before anything is deleted the counts and ids go to `.local/` (git-ignored). The smoke test runs `reset-test-data` at its end (`--keep` skips that).
+
+Demo bookings (reference `DEMO-<trip>-<n>`, passenger `demo-passenger`) are written straight into the Booking & Seat tables, because the API cannot book a train that has already left or fill a trip in one go. That path is dev-only: it refuses to run unless the containers `tbs-oracle` and `tbs-mailpit` are up and the Stripe keys in `.env` are test keys. It uses the service's own keys and checks (one reservation per seat and segment, standing places within capacity), never disables a constraint, and the demo bookings have no payment or ticket.
+
 ## Documentation
 
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is authoritative. Every service README states its responsibility, endpoints, environment variables and how to run it.

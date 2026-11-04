@@ -2,13 +2,14 @@
 // OpenObserve's search API). It creates its own stations, train, route, fares and trip, so it also works on a fresh database.
 //
 //   docker compose --profile dev up -d --build     (the full stack, Mailpit and the Stripe CLI included)
-//   node scripts/smoke-test.mjs
+//   node scripts/smoke-test.mjs [--keep]      (--keep: leave the test data in the database; by default it is removed at the end)
 //
 // It reads .env at the repository root for the dev users' passwords, the Stripe test key (to confirm payments with Stripe's test cards in
 // place of the browser's card form) and the OpenObserve login. No secret is printed. Test mode only: the script refuses any other key.
 //
 // Not covered here (covered by the automated tests): the 5-minute hold timeout, which would make this script run for five minutes.
 import { createHash, randomBytes } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -209,6 +210,13 @@ const traces = await waitFor(async () => { const h = await ooSearch('SELECT * FR
 check('OpenTelemetry traces arrived', Boolean(traces));
 const leaked = await ooSearch(`SELECT * FROM "gateway" WHERE match_all('access_token') OR match_all('Bearer')`);
 check('no token appears in the Gateway logs', leaked.length === 0);
+
+// Everything this run created carries the tag (stations S<tag>A..C, train SM<tag>, route "Smoke <tag>", bookings of the dev accounts). Remove it,
+// so running the test never pollutes the demo data. `--keep` leaves it in place for inspection.
+if (!process.argv.includes('--keep')) {
+  const cleanup = spawnSync(process.execPath, [resolve(ROOT, 'scripts/demo-data.mjs'), 'reset-test-data'], { encoding: 'utf8' });
+  console.log(cleanup.status === 0 ? '--- the data of this run was removed (scripts/demo-data.mjs reset-test-data)' : `--- clean-up failed, run scripts/demo-data.mjs reset-test-data by hand: ${(cleanup.stderr || cleanup.stdout).slice(0, 300)}`);
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

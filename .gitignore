@@ -27,3 +27,6 @@ Thumbs.db
 
 # TypeScript incremental build cache (frontend)
 frontend/tsconfig.tsbuildinfo
+
+# Local audit files of the demo-data script
+.local/

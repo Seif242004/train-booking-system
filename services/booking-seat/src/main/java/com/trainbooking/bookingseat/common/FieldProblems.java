@@ -32,6 +32,8 @@ public final class FieldProblems {
     }
 
     /** From the violations of one object that was validated by hand. {@code prefix} is added to each field name. */
+    // Same rule as above but for violations found by calling the Validator by hand (for example inside a service). The generic <T> is the
+    // type of the validated object. The key of the map is the property path, so a nested field such as "seats[0].row" keeps its own entry.
     public static <T> List<ApiError.Detail> fromViolations(Set<ConstraintViolation<T>> violations, String prefix) {
         Map<String, ConstraintViolation<T>> chosen = new LinkedHashMap<>();
         for (ConstraintViolation<T> violation : violations) {
@@ -51,6 +53,7 @@ public final class FieldProblems {
         return "coachClass".equals(property) ? "class" : property;
     }
 
+    // The rule name is the simple name of the constraint annotation (NotBlank, Size ...). It is used only to find the "is required" rules.
     private static String ruleOf(ConstraintViolation<?> violation) {
         return violation.getConstraintDescriptor().getAnnotation().annotationType().getSimpleName();
     }

@@ -18,6 +18,8 @@ import org.springframework.web.socket.server.HandshakeInterceptor;
  * as a subprotocol: {@code Sec-WebSocket-Protocol: v12.stomp, access_token.<jwt>}. Nothing of the header is ever logged.
  * The user is the subject of the token; it becomes the name of the connection, which is how events are sent to one user only.
  */
+// @Component: a bean injected into WebSocketConfig. HandshakeInterceptor is the Spring hook that runs once while the HTTP request is
+// upgraded to a WebSocket, which is the only moment HTTP headers are available.
 @Component
 public class HandshakeAuthentication implements HandshakeInterceptor {
 
@@ -31,6 +33,8 @@ public class HandshakeAuthentication implements HandshakeInterceptor {
     }
 
     @Override
+    // Returns true to accept the connection and false to refuse it. The subject is stored in the session attributes and later read by
+    // SubjectHandshakeHandler to name the connection.
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler handler, Map<String, Object> attributes) {
         String token = tokenOf(request);
         if (token == null) {
@@ -56,6 +60,7 @@ public class HandshakeAuthentication implements HandshakeInterceptor {
     }
 
     /** The token from the subprotocols the browser offered, or from an Authorization header (for tools that can set one). */
+    // Package-private so the test can call it. The browser offers the protocols "v12.stomp" and "access_token.<jwt>" in one header.
     static String tokenOf(ServerHttpRequest request) {
         for (String offered : request.getHeaders().getOrDefault("Sec-WebSocket-Protocol", java.util.List.of())) {
             for (String protocol : offered.split(",")) {

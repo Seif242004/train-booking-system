@@ -6,6 +6,7 @@ package com.trainbooking.bookingseat.live;
  *
  * @param reason EXPIRED (the five minutes ran out), TRIP_CANCELLED or RELEASED (the user let go of the hold)
  */
+// Sent to one connection only (see LiveUpdates.userEvent). The frontend reacts to HOLD_EXPIRED by leaving the payment page.
 public record UserEvent(String type, String userId, long tripId, long bookingId, String reason) {
 
     public static final String HOLD_EXPIRED = "HOLD_EXPIRED";

@@ -19,6 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
  * them. These handlers write the same JSON error shape as the rest of the API:
  * 401 when the token is missing or invalid, 403 when it is valid but the role is missing.
  */
+// @Component: a bean that SecurityConfig receives by constructor injection and plugs into both filter chains as the 401 and 403 writer.
 @Component
 public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
 
@@ -31,6 +32,8 @@ public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDenied
     }
 
     @Override
+    // AuthenticationEntryPoint: called when a request needs a login and has none (or a bad one) -> 401. The body tells the two cases apart:
+    // "unauthenticated" (no Authorization header at all) and "invalid_token" (header present but the JWT failed the checks).
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
         bearerChallenge.commence(request, response, authException); // sets the status and the WWW-Authenticate header
@@ -41,11 +44,13 @@ public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDenied
     }
 
     @Override
+    // AccessDeniedHandler: called when the user is logged in but lacks the role -> 403. Only /admin/** is role-protected here.
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException)
             throws IOException {
         write(response, HttpStatus.FORBIDDEN, ApiError.of("forbidden", "The ADMIN role is required."));
     }
 
+    // Writes the JSON error by hand because no controller (and so no GlobalExceptionHandler) is involved at this stage.
     private void write(HttpServletResponse response, HttpStatus status, ApiError body) throws IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

@@ -23,17 +23,24 @@ import tools.jackson.databind.json.JsonMapper;
  * </ol>
  */
 @Configuration
+// @Configuration declares beans; @EnableWebSecurity switches on Spring Security's filter chain for the web app.
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
+    // @Bean registers the returned object as a Spring bean. @Order(1): chains are tried in order and the first whose securityMatcher fits
+    // the request wins, so /internal/** must come first. The @Value parameter reads the property trainbooking.internal-api-key
+    // (application.properties, from the INTERNAL_API_KEY environment variable).
     @Order(1)
     SecurityFilterChain internalChain(HttpSecurity http, JsonErrorHandlers errorHandlers, JsonMapper jsonMapper,
                                       @Value("${trainbooking.internal-api-key}") String apiKey) throws Exception {
         http
                 .securityMatcher("/internal/**")
+                // CSRF (cross-site request forgery) protects cookie sessions; this chain has none.
                 .csrf(csrf -> csrf.disable()) // no cookies or sessions here: the caller proves itself with the key header
                 .sessionManagement(sessions -> sessions.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // The key filter runs before the anonymous filter, so by the time authorizeHttpRequests decides the caller is already
+                // authenticated.
                 .addFilterBefore(new InternalApiKeyFilter(apiKey, jsonMapper), AnonymousAuthenticationFilter.class)
                 .authorizeHttpRequests(requests -> requests.anyRequest().hasAuthority(InternalApiKeyFilter.ROLE))
                 .exceptionHandling(errors -> errors
@@ -43,6 +50,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    // The user chain has no securityMatcher: it catches every request that the internal chain did not claim.
     @Order(2)
     SecurityFilterChain userChain(HttpSecurity http, JsonErrorHandlers errorHandlers) throws Exception {
         JwtAuthenticationConverter jwtConverter = new JwtAuthenticationConverter();
@@ -56,12 +64,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(requests -> requests
                         // The WebSocket handshake carries its token as a subprotocol, which a filter cannot read as a bearer token:
                         // HandshakeAuthentication checks it and refuses the connection without a valid one.
+                        // Rule order matters: first match wins. /ws is open at filter level (the handshake interceptor checks the token),
+                        // /admin/** needs the
+                        // ADMIN role (403 otherwise, SRS error contract), everything else needs any valid token (401 otherwise).
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint(errorHandlers)
                         .accessDeniedHandler(errorHandlers))
+                // Turns on bearer-token validation: the Authorization: Bearer <jwt> header is decoded, its signature is checked with the
+                // keys of the
+                // issuer-uri (fetched from Keycloak's JWKS and cached), and the roles converter above builds the authorities.
                 .oauth2ResourceServer(resource -> resource
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter))
                         .authenticationEntryPoint(errorHandlers)

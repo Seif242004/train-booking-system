@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
  * (MANDATORY): it takes the next version number of the trip there (so the counter is part of the same commit) and publishes the
  * event, which is delivered to the clients only after that transaction has committed (SRS section 6, CLAUDE.md "Live updates").
  */
+// @Component: a singleton bean. The @Transactional annotations below use propagation MANDATORY: the method throws if no transaction is
+// running, which turns "someone forgot to publish inside the transaction" into an immediate error instead of a silent race.
 @Component
 public class AvailabilityEvents {
 
@@ -25,6 +27,11 @@ public class AvailabilityEvents {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
+    /**
+     * Publishes a SEAT_HELD, SEAT_RELEASED or SEAT_BOOKED event for a list of seats. The trip version is incremented here (a row update on
+     * the trip counter, so it is locked until commit); the event reaches the browsers only when the transaction commits (see LiveUpdates).
+     * An empty seat list publishes nothing and does not consume a version number.
+     */
     public void seats(String type, long tripId, Collection<Long> seatIds, List<Integer> segments) {
         if (seatIds.isEmpty()) {
             return;
@@ -46,6 +53,7 @@ public class AvailabilityEvents {
 
     /** An event for one user; it has no version because it is not about the availability. */
     @Transactional(propagation = Propagation.MANDATORY)
+    // A user event is not about availability, so it takes no version number.
     public void toUser(String type, String userId, long tripId, long bookingId, String reason) {
         publisher.publishEvent(new UserEvent(type, userId, tripId, bookingId, reason));
     }

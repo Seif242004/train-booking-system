@@ -14,12 +14,14 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
  * ({@code /user/queue/holds}). It may not send anything: this connection only pushes events from the server to the browser,
  * so a SEND frame, or a subscription to any other destination, is an error and closes the connection.
  */
+// Not a bean: WebSocketConfig creates it and registers it on the inbound channel (the path of every frame sent by a client).
 public class SubscriptionGuard implements ChannelInterceptor {
 
     private static final Pattern TRIP_TOPIC = Pattern.compile("/topic/trips/\\d{1,18}");
     private static final String USER_QUEUE = "/user/queue/holds";
 
     @Override
+    // ChannelInterceptor.preSend sees each frame before it is processed; throwing refuses it. CONNECT and DISCONNECT frames pass.
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
         if (accessor == null || accessor.getCommand() == null) {

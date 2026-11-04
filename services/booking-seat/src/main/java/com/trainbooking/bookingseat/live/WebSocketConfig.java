@@ -23,6 +23,8 @@ import org.springframework.web.socket.server.support.DefaultHandshakeHandler;
  * A single Booking and Seat instance is assumed, so the in-memory broker is enough (SRS section 6).
  */
 @Configuration
+// @EnableWebSocketMessageBroker turns on STOMP over WebSocket (STOMP = a simple text protocol with SUBSCRIBE / SEND frames on top of a
+// socket).
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
@@ -36,6 +38,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // The browser connects to /ws (through the Gateway). The interceptor checks the token, the handshake handler names the user.
         registry.addEndpoint("/ws")
                 .addInterceptors(authentication)
                 .setHandshakeHandler(new SubjectHandshakeHandler())
@@ -45,16 +48,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
+        // The simple broker lives in memory inside this JVM: it delivers /topic (to all subscribers) and /queue (to one user). With two
+        // Booking
+        // instances an event would reach only the clients of the instance that made it (known limit; the project runs one instance).
         registry.enableSimpleBroker("/topic", "/queue");
         registry.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
+        // Every frame from a client passes the guard first.
         registration.interceptors(new SubscriptionGuard());
     }
 
     /** The name of a connection is the subject of its token, so that an event can be sent to one user. */
+    // Spring uses the "Principal" of a connection to route /user/** messages; here the principal name is the Keycloak sub.
     private static final class SubjectHandshakeHandler extends DefaultHandshakeHandler {
         @Override
         protected Principal determineUser(ServerHttpRequest request, WebSocketHandler handler, Map<String, Object> attributes) {

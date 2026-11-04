@@ -23,6 +23,10 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Turns every failure inside a controller into the shared JSON error shape. */
+// @RestControllerAdvice = one class whose @ExceptionHandler methods apply to every controller of the service, and whose return values
+// are written as JSON. It keeps the controllers free of try/catch and gives every error the same shape (ApiError) with a stable "code"
+// that the Gateway and the frontend can test. HTTP status map: 400 bad input, 404 not found, 409 conflict, 410 expired hold,
+// 503 payment service down, 500 unexpected. The 401 and 403 answers are produced earlier, by the security filters (see JsonErrorHandlers).
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -30,6 +34,7 @@ public class GlobalExceptionHandler {
 
     // ---- 400: the request itself is not acceptable -------------------------------------------------------------
 
+    // @ExceptionHandler(X.class): this method answers every X thrown by a controller. Here: @Valid on a request body failed (field errors).
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalidBody(MethodArgumentNotValidException e) {
         List<ApiError.Detail> details = FieldProblems.fromFieldErrors(e.getBindingResult().getFieldErrors(), FieldProblems::jsonName);
@@ -41,11 +46,13 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("validation_failed", e.getMessage(), e.details()));
     }
 
+    // The body is missing or is not JSON (or has the wrong types).
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiError> unreadableBody() {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("malformed_request", "The request body is missing or is not valid JSON."));
     }
 
+    // A query or path parameter could not be converted, for example ?from=abc where a number is expected.
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ResponseEntity<ApiError> badParameter(MethodArgumentTypeMismatchException e) {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("invalid_parameter", "The parameter '" + e.getName() + "' is not valid."));
@@ -73,6 +80,7 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("booking_not_found", e.getMessage()));
     }
 
+    // No controller matches the path: answered with the shared shape instead of Spring's default HTML error page.
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> noRoute() {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("not_found", "No such route."));
@@ -89,6 +97,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BookingConflictException.class)
+    // A rule of the booking lifecycle was broken (for example not_cancellable, trip_departed, payment_in_progress,
+    // hold_for_another_journey).
+    // The exception carries the stable error code.
     ResponseEntity<ApiError> bookingConflict(BookingConflictException e) {
         return respond(HttpStatus.CONFLICT, ApiError.of(e.code(), e.getMessage()));
     }
@@ -99,6 +110,7 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.GONE, ApiError.of("hold_expired", e.getMessage()));
     }
 
+    // 503: the Payment service could not be reached or has no Stripe key. The hold stays untouched; the user can try again.
     @ExceptionHandler(PaymentUnavailableException.class)
     ResponseEntity<ApiError> paymentUnavailable(PaymentUnavailableException e) {
         log.warn("Payment unavailable: {}", e.getMessage());
@@ -115,10 +127,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(TripClosedException.class)
+    // The trip is CANCELLING, CANCELLED or has already left: no new holds (trip_closed / trip_departed).
     ResponseEntity<ApiError> tripClosed(TripClosedException e) {
         return respond(HttpStatus.CONFLICT, ApiError.of(e.code(), e.getMessage()));
     }
 
+    // Used by the internal snapshot endpoint: trip_not_open, trip_has_reservations, capacity_conflict (FR-A9), with a list of the items
+    // in conflict.
     @ExceptionHandler(SnapshotConflictException.class)
     ResponseEntity<ApiError> snapshotConflict(SnapshotConflictException e) {
         ApiError body = e.details().isEmpty() ? ApiError.of(e.code(), e.getMessage()) : ApiError.of(e.code(), e.getMessage(), e.details());
@@ -132,12 +147,14 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.METHOD_NOT_ALLOWED, ApiError.of("method_not_allowed", "This method is not supported for this route."));
     }
 
+    // The catch-all: the real cause goes to the log (with the stack trace), the client only gets a generic message so no internals leak.
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception e) {
         log.error("Unhandled error", e);
         return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiError.of("internal_error", "Something went wrong."));
     }
 
+    // Builds the HTTP response: the status line plus the ApiError JSON body.
     private static ResponseEntity<ApiError> respond(HttpStatus status, ApiError body) {
         return ResponseEntity.status(status).body(body);
     }

@@ -8,6 +8,7 @@ import java.util.List;
  */
 public class RequestValidationException extends RuntimeException {
 
+    // transient: the exception class is Serializable by inheritance, but the list of details need not be serialized.
     private final transient List<ApiError.Detail> details;
 
     public RequestValidationException(List<ApiError.Detail> details) {

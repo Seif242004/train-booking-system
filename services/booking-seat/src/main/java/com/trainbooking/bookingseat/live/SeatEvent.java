@@ -14,6 +14,7 @@ import java.util.List;
  * @param delta    the change of the standing places left, for STANDING_CHANGED (negative when places are taken)
  * @param segments the segments the change applies to; a client ignores the event if they do not overlap its journey
  */
+// A record: the JSON fields are exactly these components. STANDING_CHANGED carries coachId and delta; seat events carry seatIds.
 public record SeatEvent(String type, long tripId, List<Long> seatIds, Long coachId, Integer delta, List<Integer> segments, long version) {
 
     public static final String SEAT_HELD = "SEAT_HELD";

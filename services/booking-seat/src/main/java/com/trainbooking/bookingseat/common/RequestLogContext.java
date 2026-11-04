@@ -23,18 +23,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Only the path is logged, never the query string, a header or a body: tokens and card data must not reach the logs.
  */
+// @Component registers the filter as a bean; Spring Boot adds every Filter bean to the servlet filter chain automatically.
 @Component
 class RequestLogContext extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger("access");
+    // Finds the booking id in paths such as /bookings/17/cancel or /internal/payments/17/... so the log line carries bookingId.
     private static final Pattern BOOKING = Pattern.compile("/(?:bookings|payments|tickets|refunds)/(\\d+)");
     private static final Pattern TRIP = Pattern.compile("/trips/(\\d+)");
 
     @Override
+    // OncePerRequestFilter guarantees one run per request. The try/finally clears the MDC fields even if the request fails, because threads
+    // are reused by the server and a leftover userId would be printed on the next request's log lines.
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         long start = System.nanoTime();
         String path = request.getRequestURI();
-        // The user is the Keycloak subject of the verified token (the same plain value the services store); calls with the internal key have none.
+        // The user is the Keycloak subject of the verified token (the same plain value the services store); calls with the internal key
+        // have none.
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof JwtAuthenticationToken token) {
             MDC.put("userId", token.getName());
@@ -53,6 +58,7 @@ class RequestLogContext extends OncePerRequestFilter {
         }
     }
 
+    // Puts the first capture group of the pattern into the MDC under the key, if the path matches.
     private static void put(String key, Pattern pattern, String path) {
         Matcher matcher = pattern.matcher(path);
         if (matcher.find()) {

@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.jwt.Jwt;
 public class KeycloakRealmRolesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 
     @Override
+    // Keycloak puts realm roles in the claim realm_access.roles (not in Spring's default "scope" claim), so the default converter would
+    // find no roles. Anything that is not a string is ignored. A token without the claim simply has no authorities.
     public Collection<GrantedAuthority> convert(Jwt jwt) {
         Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
         if (realmAccess == null || !(realmAccess.get("roles") instanceof List<?> roles)) {

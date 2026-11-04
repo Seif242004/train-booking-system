@@ -12,10 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * "Resend ticket" (SRS FR-T4, {@code POST /bookings/{id}/resend-ticket}): the passenger asks for the ticket email again. It queues the same job
+  * "Resend ticket" (SRS FR-T4, {@code POST /bookings/{id}/resend-ticket}): the passenger asks for the ticket email again. It queues the
+  * same job
  * as a confirmation does; the Ticket service returns the same ticket and the email goes out again. Asking while the first is still waiting
  * adds nothing, so the button cannot be used to flood anyone's inbox.
  */
+// @Service: bean. @Transactional on resend(): the booking row is locked, so two clicks cannot queue two jobs.
 @Service
 public class TicketResendService {
 
@@ -31,6 +33,8 @@ public class TicketResendService {
 
     /** @return true if an email was queued, false if one is already waiting */
     @Transactional
+    // Owner check (404), CONFIRMED only (409 not_confirmed), then queue a TICKET_EMAIL job unless one is already waiting. 202 is answered
+    // either way.
     public boolean resend(String userId, long bookingId) {
         // Owner check: someone else's booking is "not found", whatever its state.
         Booking booking = bookings.findForUpdate(bookingId).filter(b -> b.userId().equals(userId)).orElseThrow(() -> new BookingNotFoundException(bookingId));

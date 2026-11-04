@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
  * and announces it. The expiry of a hold, the manual release of a hold and the cancellation of a confirmed booking all use
  * this one implementation, in the transaction of their own change.
  */
+// @Component: a plain bean used by HoldReleaseService and CancellationService.
 @Component
 public class BookingInventory {
 
@@ -27,6 +28,12 @@ public class BookingInventory {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
+    /**
+     * Returns everything the booking holds to the pool. MANDATORY propagation: it must run inside the caller's transaction (it throws
+     * otherwise), so the seats are freed if and only if the status change in that same transaction commits.
+     * Steps: read the seats and segments, delete the reservation rows, publish SEAT_RELEASED, then give back each standing hold segment by
+     * segment (ascending, the same order as when taken, to avoid deadlocks), publish STANDING_CHANGED and delete the standing_hold rows.
+     */
     public void giveBack(Booking booking) {
         List<Long> seatIds = inventory.findReservedSeatIds(booking.id());
         List<Integer> segments = inventory.findReservedSegments(booking.id());

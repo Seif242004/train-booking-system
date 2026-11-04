@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
  * Exactly one of {@code seatId} and {@code coachId} must be given; {@code qty} is for standing places only (1 if missing).
  * When the last item of the hold is released, the hold ends and the booking is ABANDONED.
  */
+// Body of POST /bookings/{id}/release.
 public record ReleaseRequest(
         Long seatId,
         Long coachId,

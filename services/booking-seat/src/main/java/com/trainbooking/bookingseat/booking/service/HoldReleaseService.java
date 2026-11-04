@@ -19,10 +19,13 @@ import org.springframework.transaction.annotation.Transactional;
  * outside any transaction, and only then calls this. It does not cancel by itself, because that is a call to Stripe and a
  * transaction must not hold one open.
  */
+// @Service: bean. @Transactional on release(): one transaction for the whole release.
 @Service
 public class HoldReleaseService {
 
     /** Why a hold ended; the user's browser shows a different message for each. */
+    // EXPIRED = time ran out; TRIP_CANCELLED = the admin cancelled the trip (the booking also becomes EXPIRED, the user is told why);
+    // RELEASED = the user gave up the hold (the booking becomes ABANDONED).
     public enum Reason { EXPIRED, TRIP_CANCELLED, RELEASED }
 
     private final BookingRepository bookings;
@@ -50,6 +53,9 @@ public class HoldReleaseService {
      * @return true if the hold was released; false if the booking is not a pending hold any more (it was paid, or already released)
      */
     @Transactional
+    // Safe to call twice: a booking that is no longer PENDING_PAYMENT returns false. The sequence: lock trip + booking, re-check the status
+    // and (for the sweeper) the expiry under the lock, check payment_started, give the seats back, set the final status, publish the user
+    // event (after commit), write the audit row.
     public boolean release(long bookingId, Reason reason, boolean onlyIfPastExpiry, String actor, boolean paymentWasStarted) {
         // The locks (the trip, then the booking: the one lock order of every inventory change) make this safe against a payment that
         // is confirmed at the same moment: whoever gets the rows first decides, and the other one then sees the new status.

@@ -28,9 +28,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * An admin confirms their own active hold WITHOUT a Stripe payment: the passenger paid at the counter, or the booking is complimentary
- * (docs/design/COUNTER-BOOKING.md). The confirmation itself is the one of the card path ({@link ConfirmationService#confirmLocked}): the same
+  * (docs/design/COUNTER-BOOKING.md). The confirmation itself is the one of the card path ({@link ConfirmationService#confirmLocked}): the
+  * same
  * HELD to CONFIRMED transition, the same event after commit, the same ticket and email job. Nothing here calls Payment or Stripe.
  */
+// @Service: business-logic bean for the counter and complimentary bookings (an admin confirms their own hold without Stripe).
+// TransactionTemplate (field tx) is Spring's programmatic transaction: tx.executeWithoutResult(...) runs the lambda in one transaction.
 @Service
 public class BookingIssueService {
 
@@ -64,6 +67,13 @@ public class BookingIssueService {
         return found.size() == 1 ? Optional.of(found.get(0)) : Optional.empty(); // two accounts with one email would be ambiguous: no answer
     }
 
+    /**
+      * Confirms the admin's own hold as COUNTER (paid in person) or COMPLIMENTARY. Validation happens first (no database); then one
+      * transaction
+     * under the booking lock. A lock timeout or deadlock (PessimisticLockingFailureException, ORA-00060 or ORA-30006) is answered as the
+     * conflict "busy". Errors: 400 validation_failed, 404 booking_not_found / passenger_not_found, 409 hold_expired / payment_started /
+     * not_issuable / busy.
+     */
     public BookingView issue(String adminId, long bookingId, IssueRequest request) {
         validate(request);
         try {
@@ -98,9 +108,14 @@ public class BookingIssueService {
         }
     }
 
+    // Rules, in order: lock trip then booking; a repeated request by the same admin with the same method is a no-op (idempotent); only the
+    // admin's own hold can be issued (else 404); the hold must be live (not expired, no card payment started); then record who/how/what was
+    // charged, call the shared ConfirmationService.confirmLocked (reservations lose their expiry, CONFIRMED, SEAT_BOOKED after commit, the
+    // ticket e-mail queued) and write the audit row. Counter: charged = fare. Complimentary: charged = 0 and a reason (>= 5 characters).
     private void issueInTransaction(String adminId, long bookingId, IssueRequest request) {
         Booking booking = locks.lock(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
-        // A repeated request (a double click, a retry after a lost answer) finds the booking this admin already issued: one booking, never two.
+        // A repeated request (a double click, a retry after a lost answer) finds the booking this admin already issued: one booking,
+        // never two.
         if (booking.status() == BookingStatus.CONFIRMED && booking.paymentMethod() == request.method() && adminId.equals(booking.issuedBy())) {
             return;
         }
@@ -114,7 +129,8 @@ public class BookingIssueService {
             throw new BookingConflictException("not_issuable", "This booking cannot be issued: it is already confirmed or cancelled.");
         }
         OffsetDateTime now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
-        // An expired-but-unreleased hold still blocks the seats until the sweeper releases it, but it is not confirmed here ("payment wins" is for Stripe only).
+        // An expired-but-unreleased hold still blocks the seats until the sweeper releases it, but it is not confirmed here ("payment
+        // wins" is for Stripe only).
         if (!booking.expiresAt().toInstant().isAfter(clock.instant())) {
             throw new BookingConflictException("hold_expired", "The hold ran out. Pick the seats again.");
         }
@@ -159,6 +175,7 @@ public class BookingIssueService {
     }
 
     /** Marks a cancelled counter booking as refunded at the counter. Idempotent; any other state is a conflict. */
+    // Idempotent: an already marked booking returns without a second audit row. Only CANCELLED + MANUAL_REFUND_DUE bookings qualify.
     public BookingView markRefundedAtCounter(String adminId, long bookingId) {
         tx.executeWithoutResult(status -> {
             Booking booking = locks.lock(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));

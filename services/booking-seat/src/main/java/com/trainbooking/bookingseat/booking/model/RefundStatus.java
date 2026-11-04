@@ -1,6 +1,7 @@
 package com.trainbooking.bookingseat.booking.model;
 
 /** The refund of a cancelled booking, mirrored from Payment (CLAUDE.md, "Refund state"). */
+// The first four values come from Payment (card bookings). The last three belong to admin-issued bookings (V8) and never involve Stripe.
 public enum RefundStatus {
     NONE,
     REFUND_PENDING,

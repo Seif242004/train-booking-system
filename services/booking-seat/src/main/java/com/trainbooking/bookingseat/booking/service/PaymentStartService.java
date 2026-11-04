@@ -26,6 +26,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * that changes after that sees the flag and cancels the payment first; a change that read the booking before the flag was set is
  * detected under its own lock and retried (see {@code PaymentStartedMeanwhileException}). So an open payment can never be missed.
  */
+// @Service: bean for "Continue to payment". TransactionTemplate (field tx) gives a short transaction around the locked re-check only.
 @Service
 public class PaymentStartService {
 
@@ -45,6 +46,8 @@ public class PaymentStartService {
         this.clock = clock;
     }
 
+    // Sequence: owner check (404) -> short transaction under the booking lock: the hold must be live, set payment_started once ->
+    // OUTSIDE any transaction: create the payment in the Payment service -> answer with the client secret and the time left.
     public PaymentStart start(String userId, long bookingId) {
         // The owner check first, and without a lock: someone else's booking is "not found", whatever its state.
         bookings.find(bookingId).filter(b -> b.userId().equals(userId)).orElseThrow(() -> new BookingNotFoundException(bookingId));
@@ -64,6 +67,7 @@ public class PaymentStartService {
                 OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
     }
 
+    // payment_outdated: Payment holds an open payment for an older amount (the hold changed). It is invalidated and created again.
     private PaymentPort.PaymentSession createOrReplace(Booking hold) {
         try {
             return payments.createPayment(hold.id(), hold.amount(), hold.currency());
@@ -77,6 +81,8 @@ public class PaymentStartService {
         }
     }
 
+    // The 410 for an expired hold is raised here even if the sweeper has not released it yet: no payment is ever created for an expired
+    // hold.
     private void requireActiveHold(Booking booking) {
         if (booking.status() == BookingStatus.CONFIRMED) {
             throw new BookingConflictException("already_paid", "This booking is already paid.");

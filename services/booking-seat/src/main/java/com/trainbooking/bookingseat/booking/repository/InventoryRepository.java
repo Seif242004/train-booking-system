@@ -20,10 +20,13 @@ import org.springframework.stereotype.Repository;
  * guarantee is the primary key of seat_reservation, the standing guarantee is the conditional update (CLAUDE.md, "Rules
  * that must not be broken").
  */
+// @Repository: data-access bean. This class holds the SQL that guarantees "no double booking": the primary key of seat_reservation
+// and the conditional UPDATE of the standing counters.
 @Repository
 public class InventoryRepository {
 
     /** A seat of the copy of the trip, with the coach it is in. */
+    // Small records: what the hold code needs to know about a seat, a coach and a standing hold.
     public record SeatRef(long seatId, String seatNumber, long coachId, String coachCode, CoachClass coachClass) {
     }
 
@@ -50,15 +53,19 @@ public class InventoryRepository {
      * the snapshot receiver all take this lock, so a hold can never slip in while a trip is being closed, and a snapshot is
      * never applied in the middle of a hold.
      */
+    // First lock in the lock order. FOR UPDATE waits until the other transaction that holds the trip row finishes.
     public Optional<String> lockTrip(long tripId) {
         return jdbc.sql("SELECT status FROM trip WHERE id = :id FOR UPDATE").param("id", tripId).query(String.class).optional();
     }
 
+    // Departure of a stop of the trip (used for the cancellation cutoff and the trip-departed check).
     public Optional<OffsetDateTime> departureTime(long tripId, int stopIndex) {
         return jdbc.sql("SELECT departure_time FROM trip_stop WHERE trip_id = :t AND stop_index = :i").param("t", tripId).param("i", stopIndex)
                 .query((rs, row) -> rs.getObject("departure_time", OffsetDateTime.class)).optional().map(time -> time);
     }
 
+    // seat_id IN (:ids): Spring expands the collection into one placeholder per id. Only the seats of this trip are returned, so an unknown
+    // seat id simply does not appear and the caller reports it as unavailable.
     public Map<Long, SeatRef> findSeats(long tripId, Collection<Long> seatIds) {
         Map<Long, SeatRef> seats = new HashMap<>();
         if (seatIds.isEmpty()) {
@@ -74,6 +81,7 @@ public class InventoryRepository {
         return seats;
     }
 
+    // "counters" counts the standing_usage rows of the coach; more than 0 means the coach has standing places.
     public Map<Long, CoachRef> findCoaches(long tripId, Collection<Long> coachIds) {
         Map<Long, CoachRef> coaches = new HashMap<>();
         if (coachIds.isEmpty()) {
@@ -97,6 +105,8 @@ public class InventoryRepository {
      * held or booked on any of the segments, even a hold that has run out but has not been released yet, violates the primary
      * key (ORA-00001, a DuplicateKeyException) and the whole hold fails. Nothing expired is purged here (SRS 4.2).
      */
+    // The heart of the no-double-booking rule: one INSERT row per (seat, segment), run as a JDBC batch. If any row is taken, Oracle raises
+    // ORA-00001 (unique constraint pk_seat_reservation) and the whole transaction rolls back, so a hold is all or nothing.
     public void insertReservations(long tripId, long bookingId, Collection<Long> seatIds, int fromSegment, int toSegment, OffsetDateTime expiresAt) {
         List<Long> sorted = seatIds.stream().sorted().toList();
         List<SqlParameterSource> rows = new ArrayList<>();
@@ -110,6 +120,7 @@ public class InventoryRepository {
                 rows.toArray(SqlParameterSource[]::new));
     }
 
+    // Seats currently reserved by one booking (distinct, because a seat has one row per segment).
     public List<Long> findReservedSeatIds(long bookingId) {
         return jdbc.sql("SELECT DISTINCT seat_id FROM seat_reservation WHERE booking_id = :b ORDER BY seat_id").param("b", bookingId).query(Long.class).list();
     }
@@ -120,6 +131,7 @@ public class InventoryRepository {
     }
 
     /** Gives back one seat of a booking on every segment it was reserved on, and returns those segments. */
+    // Reads the segments first (the live event needs them), then deletes all rows of that seat for that booking.
     public List<Integer> deleteSeatReservations(long bookingId, long seatId) {
         List<Integer> segments = jdbc.sql("SELECT segment_index FROM seat_reservation WHERE booking_id = :b AND seat_id = :s ORDER BY segment_index")
                 .param("b", bookingId).param("s", seatId).query(Integer.class).list();
@@ -132,6 +144,7 @@ public class InventoryRepository {
     }
 
     /** A paid booking: the reservations stop being holds (no expiry) and become bookings. */
+    // Setting expires_at to NULL is what turns a hold into a booking (the availability query reads NULL as BOOKED).
     public int confirmReservations(long bookingId) {
         return jdbc.sql("UPDATE seat_reservation SET expires_at = NULL WHERE booking_id = :b").param("b", bookingId).update();
     }
@@ -143,11 +156,14 @@ public class InventoryRepository {
      * are still there. The caller calls it for the segments in ascending order and treats {@code false} as "gone" (it rolls
      * the whole hold back).
      */
+    // A conditional UPDATE: the WHERE clause (used + qty <= capacity) is evaluated under Oracle's row lock, so two buyers of the last place
+    // cannot both succeed. update() == 1 means "taken", 0 means "full" (a row count check, no exception).
     public boolean reserveStandingSegment(long tripId, long coachId, int segment, int qty) {
         return jdbc.sql("UPDATE standing_usage SET used = used + :qty WHERE trip_id = :t AND coach_id = :c AND segment_index = :seg AND used + :qty <= capacity")
                 .param("qty", qty).param("t", tripId).param("c", coachId).param("seg", segment).update() == 1;
     }
 
+    // The mirror image. used >= qty protects against giving back more than was taken; if it fails the data is inconsistent, so it throws.
     public void releaseStandingSegment(long tripId, long coachId, int segment, int qty) {
         int updated = jdbc.sql("UPDATE standing_usage SET used = used - :qty WHERE trip_id = :t AND coach_id = :c AND segment_index = :seg AND used >= :qty")
                 .param("qty", qty).param("t", tripId).param("c", coachId).param("seg", segment).update();
@@ -156,6 +172,7 @@ public class InventoryRepository {
         }
     }
 
+    // Remembers which coach, which segments and how many places a booking holds, so release, expiry and cancellation can give them back.
     public void insertStandingHold(long bookingId, long tripId, long coachId, int fromSegment, int toSegment, int qty) {
         jdbc.sql("INSERT INTO standing_hold (booking_id, trip_id, coach_id, from_segment, to_segment, qty) VALUES (:b, :t, :c, :f, :to, :q)")
                 .param("b", bookingId).param("t", tripId).param("c", coachId).param("f", fromSegment).param("to", toSegment).param("q", qty).update();
@@ -186,6 +203,7 @@ public class InventoryRepository {
     // ---- the change counter of the trip ----------------------------------------------------------------------------
 
     /** Increases the counter of the trip and returns the new value. The update takes a row lock, so versions are never duplicated. */
+    // Increments the per-trip event counter. The UPDATE takes a row lock until commit, so every change of one trip gets its own number.
     public long nextVersion(long tripId) {
         int updated = jdbc.sql("UPDATE trip_version SET version = version + 1 WHERE trip_id = :t").param("t", tripId).update();
         if (updated != 1) {

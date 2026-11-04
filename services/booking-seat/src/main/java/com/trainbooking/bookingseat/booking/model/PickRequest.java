@@ -10,6 +10,8 @@ import jakarta.validation.constraints.NotNull;
  * {@code coachId} must be given; {@code qty} is for standing places only (1 if missing). The client never sends an amount: it is
  * worked out on the server.
  */
+// Bean Validation on a request body: @NotNull required, @Min/@Max numeric limits. Exactly one of seatId and coachId must be set; that
+// rule needs two fields, so HoldService checks it (400 validation_failed). The server prices the pick; no amount is accepted.
 public record PickRequest(
         @NotNull(message = "is required")
         Long tripId,

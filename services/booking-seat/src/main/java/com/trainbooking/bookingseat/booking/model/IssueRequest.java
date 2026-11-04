@@ -5,9 +5,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
- * An admin confirms a hold without Stripe (docs/design/COUNTER-BOOKING.md). {@code method} is COUNTER or COMPLIMENTARY; {@code note} is the optional
- * receipt of a counter payment; {@code reason} is required for a complimentary booking. The rules that depend on the method are checked by the service.
+  * An admin confirms a hold without Stripe (docs/design/COUNTER-BOOKING.md). {@code method} is COUNTER or COMPLIMENTARY; {@code note} is
+  * the optional
+  * receipt of a counter payment; {@code reason} is required for a complimentary booking. The rules that depend on the method are checked
+  * by the service.
  */
+// Body of POST /admin/bookings/{id}/issue. Annotations: @NotNull the field must be present, @Size(max = n) the text length limit,
+// @Valid also validates the nested Passenger record. COUNTER = paid in person (charged amount = fare). COMPLIMENTARY = free, the
+// reason is mandatory (checked in BookingIssueService, not here, because it depends on the method).
 public record IssueRequest(
         @NotNull(message = "is required") PaymentMethod method,
         @Size(max = 200, message = "must be at most 200 characters") String note,

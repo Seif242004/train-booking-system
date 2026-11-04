@@ -14,6 +14,8 @@ public final class BookingReferences {
     private BookingReferences() {
     }
 
+    // 32 symbols ^ 6 positions = about 10^9 references. A clash is possible in theory; the database UNIQUE constraint uk_booking_reference
+    // catches it and HoldService.insertBooking draws a new one.
     public static String next() {
         StringBuilder reference = new StringBuilder("TB-");
         for (int i = 0; i < 6; i++) {

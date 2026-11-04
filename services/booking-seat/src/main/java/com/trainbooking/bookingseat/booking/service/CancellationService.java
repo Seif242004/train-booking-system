@@ -20,7 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * The cancellation of a confirmed booking (Flow 6, SRS 7.2): <b>one implementation</b> for both ways, the passenger cancelling their own booking
+  * The cancellation of a confirmed booking (Flow 6, SRS 7.2): <b>one implementation</b> for both ways, the passenger cancelling their own
+  * booking
  * from "My bookings" (instant, no approval) and an admin cancelling on the passenger's request (with a reason). Whole-trip cancellation
  * (Flow 8) runs this per booking too.
  *
@@ -30,10 +31,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * email the passenger. Those calls are made afterwards, with retries, so a Ticket, Payment or Notification that is down never blocks or
  * undoes the cancellation, and nothing is refunded or emailed for a cancellation that rolled back.
  */
+// @Service: bean. The cancellation is the same code for the passenger and the admin; only the Actor differs. tx is Spring's
+// TransactionTemplate: the lambda runs in one transaction, committed when it returns and rolled back when it throws.
 @Service
 public class CancellationService {
 
     /** Who cancels: the user (their own booking) or an admin. {@code id} is the Keycloak subject. */
+    // Role is part of the audit record (cancelled_by_role) and decides the owner check and whether a reason is stored.
     public record Actor(String id, Role role) {
 
         public enum Role { USER, ADMIN }
@@ -73,21 +77,26 @@ public class CancellationService {
     /**
      * @param reason required for an admin, ignored for a passenger (no reason is stored for a passenger)
      * @return the booking as it is now. An already cancelled booking is returned as it is (a retry is safe).
-     * @throws BookingNotFoundException a booking that does not exist, or (for a passenger) is somebody else's: 404, so its existence is not revealed
-     * @throws BookingConflictException {@code not_cancellable} (it is not a confirmed booking) or {@code trip_departed} (the train has left the boarding stop)
+      * @throws BookingNotFoundException a booking that does not exist, or (for a passenger) is somebody else's: 404, so its existence is
+      * not revealed
+      * @throws BookingConflictException {@code not_cancellable} (it is not a confirmed booking) or {@code trip_departed} (the train has
+      * left the boarding stop)
      */
     public BookingView cancel(Actor actor, long bookingId, String reason) {
         return cancel(actor, bookingId, reason, true);
     }
 
     /**
-     * The same cancellation for a booking of a trip an admin is cancelling as a whole (Flow 8): the boarding-stop cutoff does not apply, because
-     * the trip itself is cancelled and every confirmed booking must be refunded, also when a later pass reaches it after its train has left.
+      * The same cancellation for a booking of a trip an admin is cancelling as a whole (Flow 8): the boarding-stop cutoff does not apply,
+      * because
+      * the trip itself is cancelled and every confirmed booking must be refunded, also when a later pass reaches it after its train has
+      * left.
      */
     public BookingView cancelForTrip(Actor admin, long bookingId, String reason) {
         return cancel(admin, bookingId, reason, false);
     }
 
+    // The transaction and the lock-timeout translation. After the commit the booking is read again for the answer.
     private BookingView cancel(Actor actor, long bookingId, String reason, boolean enforceCutoff) {
         try {
             tx.executeWithoutResult(status -> cancelInTransaction(actor, bookingId, reason, enforceCutoff));
@@ -98,6 +107,13 @@ public class CancellationService {
         return views.view(bookingId);
     }
 
+    // Order of the checks: lock (trip, booking); owner check for USER (404); already CANCELLED = return (idempotent); a USER cannot
+    // cancel a
+    // desk-issued booking (409 cancel_at_desk); only CONFIRMED can be cancelled (409 not_cancellable); the cutoff (409 trip_departed)
+    // unless
+    // the whole trip is cancelled; give the seats back; set CANCELLED with the refund state of the payment method; queue the follow-up
+    // jobs.
+    // Everything is one transaction: either all of it is saved or none. The refund itself is asked from Payment later, from the outbox.
     private void cancelInTransaction(Actor actor, long bookingId, String reason, boolean enforceCutoff) {
         Booking booking = locks.lock(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (actor.role() == Actor.Role.USER && !booking.userId().equals(actor.id())) {
@@ -107,7 +123,8 @@ public class CancellationService {
             return; // a retry, or two clicks: the current state is the answer
         }
         if (actor.role() == Actor.Role.USER && booking.paymentMethod().issuedByAdmin()) {
-            // The money of a counter booking is returned at the counter, and a complimentary one was given by staff: the support desk cancels them.
+            // The money of a counter booking is returned at the counter, and a complimentary one was given by staff: the support desk
+            // cancels them.
             throw new BookingConflictException("cancel_at_desk", "This booking was issued at the support desk. Ask the support desk to cancel it.");
         }
         if (booking.status() != BookingStatus.CONFIRMED) {
@@ -115,6 +132,7 @@ public class CancellationService {
         }
         OffsetDateTime now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         // The cutoff: the train has not yet left the boarding stop of this booking.
+        // A missing stop row counts as "departed" (fail closed): when in doubt the booking is not cancelled automatically.
         boolean departed = inventoryRows.departureTime(booking.tripId(), booking.fromStop()).map(departure -> !departure.toInstant().isAfter(clock.instant())).orElse(true); // no stop row: fail closed
         if (enforceCutoff && departed) {
             throw new BookingConflictException("trip_departed", "The train has already left your boarding stop, so this booking can no longer be cancelled.");
@@ -122,7 +140,9 @@ public class CancellationService {
 
         inventory.giveBack(booking);
         boolean byAdmin = actor.role() == Actor.Role.ADMIN;
-        // The refund depends on how it was paid: card = a full Stripe refund; counter = returned at the counter; complimentary = nothing to return.
+        // The refund depends on how it was paid: card = a full Stripe refund; counter = returned at the counter; complimentary = nothing
+        // to return.
+        // switch expression on the enum: each payment method has its own refund path. Only CARD goes to Stripe.
         RefundStatus refund = switch (booking.paymentMethod()) {
             case CARD -> RefundStatus.REFUND_PENDING;
             case COUNTER -> RefundStatus.MANUAL_REFUND_DUE;

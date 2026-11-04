@@ -4,6 +4,7 @@ package com.trainbooking.bookingseat.booking.model;
  * The request clashes with the state of the booking: a pick for another journey while the user holds seats for one, too many items
  * in one hold, a payment that is already made or being made. Answered as 409 with the code, so that the page can say what to do.
  */
+// Unchecked exception; GlobalExceptionHandler maps it to HTTP 409 with the given code.
 public class BookingConflictException extends RuntimeException {
 
     private final String code;

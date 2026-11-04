@@ -55,10 +55,13 @@ import org.springframework.transaction.support.TransactionTemplate;
  * the hold changes, so that the amount of a payment never differs from the booking. The amount is always worked out here from the
  * fares of the copy of the trip.
  */
+// @Service: bean. Spring injects the dependencies by the constructor. The class has no @Transactional methods: it uses TransactionTemplate
+// (field tx) so that each pick runs in its OWN transaction, and so that the calls to Payment happen outside any transaction.
 @Service
 public class HoldService {
 
     /** SRS FR-H3: a hold is valid for exactly 5 minutes from the first pick. */
+    // The hold clock. The expiry time is set once at the first pick and never changed afterwards (FR-H3).
     public static final Duration HOLD_DURATION = Duration.ofMinutes(5);
     /** Limits that keep one hold reasonable: it is a booking for one party, not a way to lock a whole train. */
     static final int MAX_SEATS = 20;
@@ -67,6 +70,7 @@ public class HoldService {
     private static final Logger log = LoggerFactory.getLogger(HoldService.class);
 
     /** How often a change is tried again when the user opens the payment page at the very moment it is made. */
+    // A change is tried again at most this many times when "Continue to payment" is clicked at the same moment.
     private static final int SETTLE_ATTEMPTS = 3;
 
     /** The result of a pick: the hold, and whether this pick started it. */
@@ -116,6 +120,9 @@ public class HoldService {
      * Picks a seat or standing places: starts the hold if the user has none on the trip, otherwise adds to it.
      * A pick that loses a race throws {@link HoldConflictException} and changes nothing, so what was picked before stays held.
      */
+    // Flow: (1) validate and price WITHOUT a transaction (prepare); (2) if the user already visited the payment page, cancel that payment
+    // first (Stripe, outside a transaction); (3) ONE transaction for the pick; (4) map ORA-00001 / standing refusal / lock failure to a
+    // per-pick 409. Because only this pick's transaction rolls back, seats picked earlier stay held.
     public PickResult pick(AuthenticatedUser caller, PickRequest request) {
         AuthenticatedUser user = checked(caller);
         Prepared prepared = prepare(request);
@@ -135,6 +142,10 @@ public class HoldService {
                 if (attempt >= SETTLE_ATTEMPTS) {
                     throw new BookingConflictException("payment_in_progress", "A payment was just started for this booking. Try again in a moment.");
                 }
+            // DuplicateKeyException is how Spring reports ORA-00001 (the seat_reservation primary key): the seat is taken on some segment
+            // of the journey.
+            // PessimisticLockingFailureException covers a lock timeout or deadlock (ORA-00060): treated as a conflict, the user can pick
+            // again.
             } catch (DuplicateKeyException | StandingUnavailableException | PessimisticLockingFailureException e) {
                 // The transaction of this pick was rolled back: this pick changed nothing. Say what was lost (FR-H2).
                 log.info("Pick refused for trip {}: {}", request.tripId(), e.getClass().getSimpleName());
@@ -143,6 +154,7 @@ public class HoldService {
         }
     }
 
+    // The ticket is e-mailed, so a token without an e-mail address cannot book (400).
     private AuthenticatedUser checked(AuthenticatedUser caller) {
         if (caller.email() == null || caller.email().isBlank()) {
             // The ticket is sent by e-mail: a booking without an address could never be delivered.
@@ -152,6 +164,8 @@ public class HoldService {
         return new AuthenticatedUser(caller.id(), caller.email(), caller.name() == null ? null : caller.name().substring(0, Math.min(200, caller.name().length())));
     }
 
+    // Everything that needs no lock: exactly one of seat or coach, the trip exists and is OPEN, the journey fits the trip, the seat or
+    // coach exists, and the price comes from the fares of the trip copy.
     private Prepared prepare(PickRequest request) {
         if (request.seatId() == null == (request.coachId() == null)) {
             throw new RequestValidationException(List.of(new ApiError.Detail("seatId", "give either a seat or a coach for standing places, not both and not neither")));
@@ -179,6 +193,8 @@ public class HoldService {
     }
 
     /** @param paymentWasStarted whether the caller saw the payment page opened and cancelled the payment before this transaction */
+    // The transaction of one pick. Lock order: trip row, then the user's active hold row, then seats/counters, then the version counter.
+    // First pick: INSERT the booking with expires_at = now + 5 minutes. Later pick: same booking, same expires_at, same journey.
     private Picked pickInTransaction(AuthenticatedUser user, Prepared p, boolean paymentWasStarted) {
         PickRequest request = p.request();
         long tripId = request.tripId();
@@ -234,6 +250,7 @@ public class HoldService {
         return new Picked(bookingId, started);
     }
 
+    // Idempotent for a seat already in the hold. The INSERT of the reservation rows is the double-booking guard.
     private void pickSeat(long bookingId, long tripId, Prepared p, OffsetDateTime expiresAt, List<Integer> segments) {
         long seatId = p.request().seatId();
         if (bookings.seatItemExists(bookingId, seatId)) {
@@ -249,6 +266,8 @@ public class HoldService {
         events.seats(SeatEvent.SEAT_HELD, tripId, List.of(seatId), segments);
     }
 
+    // Standing places are taken segment by segment with a conditional UPDATE (see InventoryRepository.reserveStandingSegment). If any
+    // segment has no room the exception rolls back the whole pick, including the segments already taken.
     private void pickStanding(long bookingId, long tripId, Prepared p, List<Integer> segments) {
         long coachId = p.request().coachId();
         int qty = p.request().places();
@@ -275,6 +294,7 @@ public class HoldService {
     }
 
     /** A clash of the (random) reference is not a clash of seats: it is retried with a new reference. */
+    // The reference is random; if it collides with an existing one (unique constraint) a new one is drawn, up to 5 more times.
     private long insertBooking(AuthenticatedUser user, Prepared p, OffsetDateTime createdAt, OffsetDateTime expiresAt) {
         for (int attempt = 0; ; attempt++) {
             try {
@@ -294,6 +314,7 @@ public class HoldService {
      * Deselects a seat, or gives back some standing places, at once. If it is the last item of the hold, the hold ends
      * (ABANDONED) and the booking is returned in that state.
      */
+    // Deselect one seat or give back some places. If it is the last item the hold ends (ABANDONED) through HoldReleaseService.
     public BookingView release(AuthenticatedUser user, long bookingId, ReleaseRequest request) {
         if (request.seatId() == null == (request.coachId() == null)) {
             throw new RequestValidationException(List.of(new ApiError.Detail("seatId", "give either a seat or a coach for standing places, not both and not neither")));
@@ -322,6 +343,7 @@ public class HoldService {
     }
 
     /** Releases the whole hold at once (FR-H7: for example when the user presses Back or Cancel). */
+    // FR-H7: releases the whole hold (Back / Cancel on the seat map or payment page).
     public BookingView releaseAll(AuthenticatedUser user, long bookingId) {
         for (int attempt = 1; ; attempt++) {
             Booking hold = ownHold(user, bookingId);
@@ -340,6 +362,7 @@ public class HoldService {
         }
     }
 
+    // Owner check (404), must still be PENDING_PAYMENT (409 not_a_hold) and not past its expiry (410 hold_expired).
     private Booking ownHold(AuthenticatedUser user, long bookingId) {
         Booking hold = bookings.find(bookingId).filter(b -> b.userId().equals(user.id())).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (hold.status() != BookingStatus.PENDING_PAYMENT) {
@@ -361,6 +384,8 @@ public class HoldService {
         return bookings.findStandingQty(hold.id(), request.coachId()).map(qty -> request.places() >= qty).orElse(false);
     }
 
+    // Gives one item back: delete the line, delete the reservation rows (or decrement the standing counters in segment order), publish the
+    // event, recompute the amount, write the audit row.
     private void releaseInTransaction(AuthenticatedUser user, long bookingId, ReleaseRequest request, boolean paymentWasStarted) {
         Booking hold = locks.lock(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (hold.status() != BookingStatus.PENDING_PAYMENT) {
@@ -409,6 +434,7 @@ public class HoldService {
 
     // ---- shared -------------------------------------------------------------------------------------------------------------
 
+    // A hold is over when its expiry is not after "now" (the injected Clock, so tests can move time).
     private boolean isOver(Booking hold) {
         return !hold.expiresAt().toInstant().isAfter(clock.instant());
     }
@@ -419,6 +445,8 @@ public class HoldService {
      * refused for now. {@code ending} is true when the hold ends (the payment is then closed for good), false when only an item changes
      * (a new payment can be created for the new amount).
      */
+    // Asks Payment first (outside a transaction): ending = cancelPending (closed for good), otherwise invalidate (a new payment for the new
+    // amount may follow). The answer decides: nothing open = go on; SUCCEEDED = 409 already_paid; PROCESSING = 409 payment_in_progress.
     private void settlePaymentBefore(Booking hold, boolean ending) {
         PaymentPort.CancelOutcome outcome = ending ? payments.cancelPending(hold.id()) : payments.invalidate(hold.id());
         switch (outcome) {

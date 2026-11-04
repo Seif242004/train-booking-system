@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
  * snapshot receiver all follow it, so two of them can wait for each other but can never wait in a circle (ORA-00060).
  * A hold takes the trip row first by itself; the others call this.
  */
+// @Component: a bean. lock() uses propagation MANDATORY, so calling it outside a transaction throws instead of silently locking nothing.
 @Component
 public class BookingLocks {
 
@@ -27,6 +28,8 @@ public class BookingLocks {
 
     /** Locks the trip of the booking and then the booking itself, and returns the booking as it is now (empty if there is none). */
     @Transactional(propagation = Propagation.MANDATORY)
+    // The booking is read once without a lock only to learn its trip id; the trip row is locked first, then the booking row is read again
+    // FOR UPDATE, so the returned object is the current state under both locks.
     public Optional<Booking> lock(long bookingId) {
         Optional<Booking> unlocked = bookings.find(bookingId);
         if (unlocked.isEmpty()) {

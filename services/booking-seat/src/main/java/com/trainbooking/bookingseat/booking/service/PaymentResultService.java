@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
  * What the Payment service tells Booking (CLAUDE.md: Payment to Booking, payment result and refund status). Both calls are repeated
  * by Payment until Booking answers, so both are idempotent.
  */
+// @Service: bean. It is the receiver of Payment's reports and the only way a card payment turns into a CONFIRMED booking.
 @Service
 public class PaymentResultService {
 
@@ -50,6 +51,8 @@ public class PaymentResultService {
      * A payment succeeded at Stripe (SRS 7.1, step 4): the money is taken. If the booking is still a hold for exactly this amount it is
      * confirmed, even if its five minutes have just run out (the payment wins). Otherwise the money cannot become a booking.
      */
+    // Not transactional itself: the amount check and the release/confirm each run in their own transaction. Payment repeats the report
+    // until it is answered, so this is idempotent (a confirmed booking answers CONFIRMED again).
     public Result paymentSucceeded(long bookingId, BigDecimal paidAmount) {
         Booking booking = bookings.find(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (booking.status() == BookingStatus.PENDING_PAYMENT && paidAmount.compareTo(booking.amount()) != 0) {
@@ -60,6 +63,8 @@ public class PaymentResultService {
             audit.record("system", "booking", bookingId, "PAYMENT_MISMATCH", Map.of("paid", paidAmount, "amount", booking.amount()));
             return Result.REFUND_REQUIRED;
         }
+        // CONFIRMED or ALREADY_CONFIRMED -> CONFIRMED. NOT_CONFIRMABLE (the hold is gone) -> REFUND_REQUIRED and an audit row; Payment then
+        // refunds the money. An unknown booking is a 404.
         return switch (confirmations.confirm(bookingId)) {
             case CONFIRMED, ALREADY_CONFIRMED -> Result.CONFIRMED;
             case NOT_CONFIRMABLE -> {
@@ -72,6 +77,8 @@ public class PaymentResultService {
 
     /** Mirrors the refund status of Payment in the booking. */
     @Transactional
+    // @Transactional: lock the booking row, change refund_status if it differs (idempotent), audit, and queue the REFUND_EMAIL once when
+    // the refund reaches REFUNDED.
     public void refundStatus(long bookingId, RefundStatus status) {
         Booking booking = bookings.findForUpdate(bookingId).orElseThrow(() -> new BookingNotFoundException(bookingId));
         if (booking.refundStatus() == status) {

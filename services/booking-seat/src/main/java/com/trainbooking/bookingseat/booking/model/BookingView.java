@@ -9,6 +9,7 @@ import java.util.List;
  * A booking as returned by the API. {@code serverTime} lets the browser correct its countdown for a clock that is off: the
  * countdown is driven by the expiry time of the server (SRS FR-H4).
  */
+// The JSON shape of a booking for the browser. The second (14 argument) constructor is the older shape and defaults the method to CARD.
 public record BookingView(
         long id,
         String reference,

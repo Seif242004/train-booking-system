@@ -16,10 +16,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Support: look up bookings (Flow 7, FR-C6) by reference, user email, trip, status, or the ones whose refund failed. */
+// @Service: business-logic bean (support queries). @Transactional(readOnly = true) on a method: one read-only database transaction, so all
+// the rows of one answer come from one consistent view. Known limit: toAdminView reads the trip info and items per booking (N+1 queries,
+// up to 100 bookings per search).
 @Service
 public class AdminBookingQueryService {
 
     /** More than this is not a list a person reads: narrow the search. */
+    // A search returns at most this many bookings.
     static final int LIMIT = 100;
 
     private final BookingRepository bookings;
@@ -39,6 +43,8 @@ public class AdminBookingQueryService {
     }
 
     @Transactional(readOnly = true)
+    // Text parameters (status, refundStatus, method) are parsed into enums here, so a typo answers 400 validation_failed with the allowed
+    // values.
     public List<AdminBookingView> search(String reference, String email, Long tripId, String status, String refundStatus, String method) {
         PaymentMethod parsedMethod = parse(PaymentMethod.class, "method", method);
         BookingStatus parsedStatus = parse(BookingStatus.class, "status", status);
@@ -51,6 +57,8 @@ public class AdminBookingQueryService {
         return toAdminView(bookings.find(id).orElseThrow(() -> new BookingNotFoundException(id)));
     }
 
+    // "cancellable" = a CONFIRMED booking whose boarding stop has not been left yet. PAID means confirmed_at is set (a card payment, a
+    // counter payment, or a complimentary issue all confirm the booking). The Issue block is added only for admin-issued bookings.
     private AdminBookingView toAdminView(Booking booking) {
         BookingView view = views.toView(booking);
         boolean cancellable = booking.status() == BookingStatus.CONFIRMED && view.trip().from().departureTime() != null
@@ -65,6 +73,7 @@ public class AdminBookingQueryService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    // Generic helper: turns a text into a constant of any enum, or fails with a clear message listing the allowed constants.
     private static <E extends Enum<E>> E parse(Class<E> type, String field, String value) {
         if (value == null || value.isBlank()) {
             return null;

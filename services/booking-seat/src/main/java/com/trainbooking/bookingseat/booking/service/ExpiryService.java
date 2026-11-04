@@ -31,6 +31,8 @@ import org.springframework.stereotype.Service;
  * An expired hold that has not been released yet keeps blocking its seats and shows as held, never as free. A timed-out hold is
  * never charged and never refunded: payment is blocked before any money moves.
  */
+// @Service: bean. This class is NOT transactional on purpose: it calls Payment (and so Stripe) first and only then opens the short
+// transaction in HoldReleaseService. expire() even throws if it finds itself inside a transaction.
 @Service
 public class ExpiryService {
 
@@ -52,6 +54,7 @@ public class ExpiryService {
     }
 
     /** One sweep: handles the holds that are due. Returns how many it looked at. */
+    // One pass over at most BATCH due holds. A failure of one hold is logged and rescheduled; it never stops the others or the schedule.
     public int sweep() {
         OffsetDateTime now = OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
         List<Long> due = bookings.findDueHoldIds(now, BATCH);
@@ -72,6 +75,8 @@ public class ExpiryService {
     }
 
     /** Handles one hold that is past its expiry. */
+    // Decision table (see the class comment). paymentStarted is read BEFORE the call: a hold whose owner never opened the payment page
+    // has no payment, so the sweeper does not call Payment at all and an unavailable Payment cannot keep seats blocked.
     public void expire(long bookingId) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             // The call to Payment and Stripe below must never run inside an open database transaction (CLAUDE.md).
@@ -91,6 +96,7 @@ public class ExpiryService {
                 outcome = payments.cancelPending(bookingId); // before anything is released, and not inside a transaction
             } catch (PaymentUnavailableException e) {
                 log.warn("Payment of booking {} could not be cancelled yet: {}", bookingId, e.getMessage());
+                // Payment (or Stripe) is down: keep the seats held, try again later with the backoff below.
                 retryLater(bookingId, booking.attempts() + 1);
                 return;
             }
@@ -105,15 +111,20 @@ public class ExpiryService {
                 }
             }
             case SUCCEEDED, PROCESSING -> {
-                // The money is taken (SUCCEEDED) or may still be taken (PROCESSING): the seats stay held, nothing is released, and the sweeper
-                // asks again. A succeeded payment confirms the booking through ONE path: Payment's report (payment-result), which carries the
-                // amount paid and is checked against the booking (PaymentResultService). Payment queued that report when it recorded the success.
+                // The money is taken (SUCCEEDED) or may still be taken (PROCESSING): the seats stay held, nothing is released, and the
+                // sweeper
+                // asks again. A succeeded payment confirms the booking through ONE path: Payment's report (payment-result), which carries
+                // the
+                // amount paid and is checked against the booking (PaymentResultService). Payment queued that report when it recorded the
+                // success.
                 bookings.scheduleRetry(bookingId, at(clock.instant().plus(PROCESSING_RETRY)), booking.attempts());
             }
         }
     }
 
     /** Exponential backoff: 2, 4, 8 ... seconds, at most a minute. */
+    // 2^attempts seconds (2, 4, 8, ... capped at 60). next_attempt_at is what findDueHoldIds checks, so the sweeper skips the booking
+    // until then.
     private void retryLater(long bookingId, int attempts) {
         if (attempts >= 5) {
             log.error("Booking {} could not be expired after {} attempts: its seats stay held until this is looked at", bookingId, attempts);

@@ -24,9 +24,11 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 /** Data access for bookings and their items. Parameterised SQL only; the caller owns the transaction. */
+// @Repository: data-access bean on Spring JDBC. All SQL uses bound :parameters. The caller owns the transaction (the services open it).
 @Repository
 public class BookingRepository {
 
+    // The column list of the booking table, shared by every SELECT so map() can read the same names in the same way.
     private static final String COLUMNS = "id, reference, user_id, user_email, user_name, trip_id, from_stop, to_stop, status, refund_status, amount, "
             + "currency, expires_at, created_at, confirmed_at, cancelled_at, cancelled_by, cancelled_by_role, cancel_reason, next_attempt_at, attempts, "
             + "payment_started, payment_method, charged_amount, issued_by, issued_at, issue_note, walk_in_name, walk_in_phone, walk_in_email, "
@@ -43,6 +45,10 @@ public class BookingRepository {
     }
 
     /** Inserts a PENDING_PAYMENT booking and returns its id. A clash of the reference (unique) is a DuplicateKeyException. */
+    // INSERT of a PENDING_PAYMENT booking; the id comes from the identity column and is read back with a KeyHolder. A repeated reference
+    // breaks the UNIQUE constraint uk_booking_reference (DuplicateKeyException); the caller picks a new random reference and retries. A
+    // second
+    // active hold of the same user and trip breaks the unique index uk_booking_active_hold (V4).
     public long insert(String reference, String userId, String userEmail, String userName, long tripId, int fromStop, int toStop,
                        BigDecimal amount, OffsetDateTime expiresAt, OffsetDateTime createdAt) {
         KeyHolder keys = new GeneratedKeyHolder();
@@ -58,6 +64,8 @@ public class BookingRepository {
      * Adds one line: a seat, or the standing places of one coach. The line keeps what the passenger was shown (the seat number, the
      * coach and its class), so the booking stays readable whatever a later snapshot changes.
      */
+    // A booking line keeps copies of the seat number, coach code and class (V3), so a booking stays readable if a later snapshot changes
+    // them.
     public void insertItem(long bookingId, BookingPricing.Line line, InventoryRepository.SeatRef seat, InventoryRepository.CoachRef coach) {
         if (seat != null) {
             jdbc.sql("INSERT INTO booking_item (booking_id, item_type, seat_id, qty, price, seat_number, coach_code, coach_class) "
@@ -73,6 +81,7 @@ public class BookingRepository {
     }
 
     /** The standing places of a coach in a booking: how many, or empty if none. */
+    // How many standing places the booking already has in one coach (a pick in the same coach adds to this line).
     public Optional<Integer> findStandingQty(long bookingId, long coachId) {
         return jdbc.sql("SELECT qty FROM booking_item WHERE booking_id = :b AND item_type = 'STANDING' AND coach_id = :c").param("b", bookingId).param("c", coachId)
                 .query(Integer.class).optional();
@@ -105,24 +114,31 @@ public class BookingRepository {
     }
 
     /** Sets the amount of the booking to the sum of its lines: the amount is always worked out on the server from the lines. */
+    // The amount of a booking is always the sum of its lines, computed in SQL (NVL turns an empty sum into 0).
     public BigDecimal recomputeAmount(long bookingId) {
         BigDecimal total = jdbc.sql("SELECT NVL(SUM(price), 0) FROM booking_item WHERE booking_id = :b").param("b", bookingId).query(BigDecimal.class).single().setScale(2);
         jdbc.sql("UPDATE booking SET amount = :amount WHERE id = :b").param("amount", total).param("b", bookingId).update();
         return total;
     }
 
+    // payment_started is set to 1 under the booking lock when the user continues to payment, and is never set back to 0.
     public void setPaymentStarted(long bookingId, boolean started) {
         jdbc.sql("UPDATE booking SET payment_started = :v WHERE id = :b").param("v", started ? 1 : 0).param("b", bookingId).update();
     }
 
     /** The cancellation of a confirmed booking: who did it, when, and (for an admin) why. The refund starts as REFUND_PENDING. */
+    // next_attempt_at is cleared so the sweeper never looks at a cancelled booking again.
     public void markCancelled(long id, OffsetDateTime now, String cancelledBy, String role, String reason, RefundStatus refundStatus) {
         jdbc.sql("UPDATE booking SET status = 'CANCELLED', cancelled_at = :now, cancelled_by = :by, cancelled_by_role = :role, cancel_reason = :reason, "
                         + "refund_status = :refund, next_attempt_at = NULL WHERE id = :id")
                 .param("now", now).param("by", cancelledBy).param("role", role).param("reason", reason).param("refund", refundStatus.name()).param("id", id).update();
     }
 
-    /** The bookings of a user, newest first: holds, confirmed and cancelled ones, and any that has a refund (an expired hold that was paid). */
+    /**
+     * The bookings of a user, newest first: holds, confirmed and cancelled ones, and any that has a refund (an expired hold that was
+     * paid).
+     */
+    // FETCH FIRST n ROWS ONLY is Oracle's LIMIT. Expired and abandoned holds are hidden unless a refund exists for them.
     public List<Booking> findOfUser(String userId, int limit) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND (status IN ('PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED') OR refund_status <> 'NONE') "
                         + "ORDER BY created_at DESC, id DESC FETCH FIRST :limit ROWS ONLY")
@@ -130,13 +146,17 @@ public class BookingRepository {
     }
 
     /**
-     * Support search: every filter is optional. The email is a case-insensitive "contains" (LIKE characters in it are escaped), the reference an
-     * exact match ignoring case. The values are bound parameters; the SQL text only ever contains the fixed conditions of the filters that are set.
+      * Support search: every filter is optional. The email is a case-insensitive "contains" (LIKE characters in it are escaped), the
+      * reference an
+      * exact match ignoring case. The values are bound parameters; the SQL text only ever contains the fixed conditions of the filters
+      * that are set.
      */
     public List<Booking> search(String reference, String email, Long tripId, BookingStatus status, RefundStatus refundStatus, int limit) {
         return search(reference, email, tripId, status, refundStatus, null, limit);
     }
 
+    // The SQL text only ever contains the fixed condition strings of the filters that were set; every value is a bound parameter.
+    // ESCAPE '\' makes \% and \_ literal, so a % or _ typed by an admin matches itself and is not a wildcard.
     public List<Booking> search(String reference, String email, Long tripId, BookingStatus status, RefundStatus refundStatus, PaymentMethod method, int limit) {
         StringBuilder sql = new StringBuilder("SELECT " + COLUMNS + " FROM booking WHERE 1 = 1");
         java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
@@ -174,9 +194,11 @@ public class BookingRepository {
     }
 
     /**
-     * The users whose stored email equals the given one (case-insensitive, no partial match). Returns every distinct user so the caller can refuse an
+      * The users whose stored email equals the given one (case-insensitive, no partial match). Returns every distinct user so the caller
+      * can refuse an
      * ambiguous answer; the newest booking gives the name.
      */
+    // Email is exact (case-insensitive). The demo passenger id is excluded so seeded data never shows up as a real account.
     public List<KnownPassenger> findPassengersByEmail(String email) {
         return jdbc.sql("SELECT user_id, user_name, user_email FROM booking WHERE LOWER(user_email) = :e AND user_id <> 'demo-passenger' "
                         + "ORDER BY created_at DESC, id DESC FETCH FIRST 50 ROWS ONLY")
@@ -185,7 +207,12 @@ public class BookingRepository {
                 .collect(java.util.stream.Collectors.toMap(KnownPassenger::userId, p -> p, (a, b) -> a, java.util.LinkedHashMap::new)).values().stream().toList();
     }
 
-    /** Records how an admin issued the booking (the fields of docs/design/COUNTER-BOOKING.md); the owner changes only for an existing-account passenger. */
+    /**
+     * Records how an admin issued the booking (the fields of docs/design/COUNTER-BOOKING.md); the owner changes only for an
+     * existing-account passenger.
+     */
+    // NVL(:uid, user_id): the booking changes owner only when an existing account was chosen; for a walk-in the issuing admin stays the
+    // owner.
     public void markIssued(long id, PaymentMethod method, BigDecimal charged, String issuedBy, OffsetDateTime now, String note,
                            KnownPassenger owner, String walkInName, String walkInPhone, String walkInEmail) {
         jdbc.sql("UPDATE booking SET payment_method = :m, charged_amount = :charged, issued_by = :by, issued_at = :now, issue_note = :note, "
@@ -198,6 +225,7 @@ public class BookingRepository {
     }
 
     /** An admin returned the money of a cancelled counter booking at the counter. */
+    // Sets the refund state of a cancelled counter booking to REFUNDED_AT_COUNTER with who and when.
     public void markCounterRefunded(long id, String by, OffsetDateTime now) {
         jdbc.sql("UPDATE booking SET refund_status = 'REFUNDED_AT_COUNTER', counter_refunded_by = :by, counter_refunded_at = :now WHERE id = :id")
                 .param("by", by).param("now", now).param("id", id).update();
@@ -208,11 +236,13 @@ public class BookingRepository {
     }
 
     /** The active hold (PENDING_PAYMENT) of a user on a trip, if there is one. At most one exists: a unique index guarantees it. */
+    // At most one row exists because of the unique index uk_booking_active_hold.
     public Optional<Booking> findActiveHold(String userId, long tripId) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND trip_id = :t AND status = 'PENDING_PAYMENT'").param("u", userId).param("t", tripId)
                 .query((rs, row) -> map(rs)).optional();
     }
 
+    // FOR UPDATE locks the row until the end of the transaction, so two requests of the same user cannot change one hold at the same time.
     public Optional<Booking> findActiveHoldForUpdate(String userId, long tripId) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE user_id = :u AND trip_id = :t AND status = 'PENDING_PAYMENT' FOR UPDATE").param("u", userId).param("t", tripId)
                 .query((rs, row) -> map(rs)).optional();
@@ -223,6 +253,8 @@ public class BookingRepository {
     }
 
     /** Reads the booking and locks its row until the end of the transaction: every change of a booking starts with this. */
+    // The lock every state change starts with (see BookingLocks for the lock order: trip row, then booking row, then seat rows, then
+    // version).
     public Optional<Booking> findForUpdate(long id) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM booking WHERE id = :id FOR UPDATE").param("id", id).query((rs, row) -> map(rs)).optional();
     }
@@ -232,6 +264,7 @@ public class BookingRepository {
     }
 
     /** The holds that are past their expiry and whose next attempt is due, oldest first. */
+    // The sweeper's query: holds past their expiry whose retry time has come. The index ix_booking_due (status, expires_at) serves it.
     public List<Long> findDueHoldIds(OffsetDateTime now, int limit) {
         return jdbc.sql("SELECT id FROM booking WHERE status = 'PENDING_PAYMENT' AND expires_at <= :now AND (next_attempt_at IS NULL OR next_attempt_at <= :now) "
                         + "ORDER BY expires_at, id FETCH FIRST :limit ROWS ONLY")
@@ -239,23 +272,29 @@ public class BookingRepository {
     }
 
     /** The user ids and trip of the active holds of a trip (for cancelling the trip). */
+    // Live holds of a trip, for the whole-trip cancellation.
     public List<Long> findPendingIdsOfTrip(long tripId) {
         return jdbc.sql("SELECT id FROM booking WHERE trip_id = :t AND status = 'PENDING_PAYMENT' ORDER BY id").param("t", tripId).query(Long.class).list();
     }
 
+    // Used for EXPIRED and ABANDONED.
     public void markStatus(long id, BookingStatus status) {
         jdbc.sql("UPDATE booking SET status = :status, next_attempt_at = NULL WHERE id = :id").param("status", status.name()).param("id", id).update();
     }
 
+    // Sets CONFIRMED and the confirmation time. The only callers are ConfirmationService (card, after Payment reports) and
+    // BookingIssueService.
     public void markConfirmed(long id, OffsetDateTime now) {
         jdbc.sql("UPDATE booking SET status = 'CONFIRMED', confirmed_at = :now, next_attempt_at = NULL WHERE id = :id").param("now", now).param("id", id).update();
     }
 
     /** The sweeper will look at this hold again at {@code next}; {@code attempts} counts the tries, for the backoff. */
+    // The backoff: the sweeper will not look at this hold again before "next" (2, 4, 8 ... up to 60 seconds).
     public void scheduleRetry(long id, OffsetDateTime next, int attempts) {
         jdbc.sql("UPDATE booking SET next_attempt_at = :next, attempts = :attempts WHERE id = :id").param("next", next).param("attempts", attempts).param("id", id).update();
     }
 
+    // Items come from booking_item only, never from the trip copy.
     public List<BookingItemView> findItems(long bookingId) {
         // Everything comes from the line itself, not from the copy of the trip: a later snapshot cannot change or lose it.
         return jdbc.sql("SELECT item_type, seat_id, seat_number, coach_id, coach_code, coach_class, qty, price FROM booking_item WHERE booking_id = :b ORDER BY id")
@@ -265,6 +304,7 @@ public class BookingRepository {
                 .list();
     }
 
+    // Reads the trip header and the two stops of the journey from Booking's own copy.
     public Optional<BookingView.TripInfo> findTripInfo(long tripId, int fromStop, int toStop) {
         return jdbc.sql("SELECT t.train_number, t.train_name, t.route_name, t.departure_date FROM trip t WHERE t.id = :t").param("t", tripId)
                 .query((rs, row) -> new BookingView.TripInfo(rs.getString("train_number"), rs.getString("train_name"), rs.getString("route_name"),
@@ -294,6 +334,7 @@ public class BookingRepository {
         return rs.getBigDecimal(column).setScale(2);
     }
 
+    // Row mapper: one result row to a Booking record. The payment_started flag is stored as NUMBER(1) because Oracle has no boolean column.
     private static Booking map(ResultSet rs) throws SQLException {
         return new Booking(rs.getLong("id"), rs.getString("reference"), rs.getString("user_id"), rs.getString("user_email"), rs.getString("user_name"),
                 rs.getLong("trip_id"), rs.getInt("from_stop"), rs.getInt("to_stop"), BookingStatus.valueOf(rs.getString("status")),

@@ -17,6 +17,7 @@ import java.util.Map;
 public final class BookingPricing {
 
     /** A seat to price: its id, its coach and its class. */
+    // Plain records for the pricing input, so the logic is testable without a database.
     public record Seat(long seatId, long coachId, CoachClass coachClass) {
     }
 
@@ -31,6 +32,7 @@ public final class BookingPricing {
     private BookingPricing() {
     }
 
+    // A seat costs the journey fare of its class; standing places cost the journey fare of their coach's class times the quantity.
     public static List<Line> price(Journey journey, List<FareInfo> fares, List<Seat> seats, List<Standing> standing) {
         Map<CoachClass, BigDecimal> perClass = JourneyFares.perClass(journey, fares);
         List<Line> lines = new ArrayList<>();
@@ -44,6 +46,7 @@ public final class BookingPricing {
         return List.copyOf(lines);
     }
 
+    // Sum of line prices with two decimals.
     public static BigDecimal total(List<Line> lines) {
         return lines.stream().map(Line::price).reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2);
     }

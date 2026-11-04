@@ -6,6 +6,7 @@ import java.util.List;
  * Some of the seats or standing places asked for are not available on every segment of the journey (SRS FR-H2). Nothing was
  * held. Answered as 409 {@code seats_unavailable}, listing what was lost, so that the page can refresh the seat map.
  */
+// 409 seats_unavailable: the answer lists the items lost (type:id), see GlobalExceptionHandler.holdConflict.
 public class HoldConflictException extends RuntimeException {
 
     /** @param type SEAT or STANDING; @param id the seat id or the coach id; @param label for people, for example "seat 1A of coach A1" */

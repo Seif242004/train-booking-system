@@ -5,6 +5,7 @@ package com.trainbooking.bookingseat.booking.model;
  * it locked it. The open payment has not been cancelled yet, so the change is rolled back and tried again, this time cancelling the
  * payment first. It never reaches the client unless that keeps happening.
  */
+// Internal signal, used to retry a hold change after a concurrent "Continue to payment"; see HoldService.
 public class PaymentStartedMeanwhileException extends RuntimeException {
 
     public PaymentStartedMeanwhileException() {

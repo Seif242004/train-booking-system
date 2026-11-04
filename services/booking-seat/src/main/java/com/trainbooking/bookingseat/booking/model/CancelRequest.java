@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /** An admin cancels a booking on the passenger's request (support) and says why; the reason is recorded (SRS FR-C7). */
+// @NotBlank = not null and not only spaces; @Size(max = 500) matches the width of booking.cancel_reason. A missing reason answers 400.
 public record CancelRequest(
         @NotBlank(message = "is required") @Size(max = 500, message = "must be at most 500 characters") String reason) {
 }

@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The passenger's bookings (SRS 9.1). The caller is the Keycloak user of the token; nothing else identifies them. */
+// @RestController: JSON endpoints for the signed-in passenger. The caller is always taken from the verified token (@AuthenticationPrincipal
+// Jwt); the browser never sends a user id. Methods hold no logic.
 @RestController
 public class BookingController {
 
@@ -46,6 +48,9 @@ public class BookingController {
      * and its 5 minutes (201); every further pick joins the same booking and never extends the timer (200). 409
      * {@code seats_unavailable} when the pick lost a race: it changes nothing, the seats already held stay held.
      */
+    // 201 Created + Location header when the pick started the hold; 200 OK when it joined a running hold. ResponseEntity lets the method
+    // choose the status. Errors: 400 validation_failed, 404 trip_not_found, 409 seats_unavailable / trip_closed / trip_departed /
+    // hold_for_another_journey / payment_in_progress / already_paid, 410 hold_expired.
     @PostMapping("/bookings/pick")
     public ResponseEntity<BookingView> pick(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PickRequest request) {
         HoldService.PickResult result = holds.pick(AuthenticatedUser.of(jwt), request);
@@ -59,35 +64,42 @@ public class BookingController {
      * {@code POST /bookings/{id}/release}: deselects a seat or gives back standing places at once. Releasing the last item ends the hold:
      * the answer is then the booking with status ABANDONED.
      */
+    // Errors: 404 (not the caller's booking), 410 hold_expired, 409 payment_in_progress / already_paid.
     @PostMapping("/bookings/{id}/release")
     public BookingView release(@AuthenticationPrincipal Jwt jwt, @PathVariable long id, @Valid @RequestBody ReleaseRequest request) {
         return holds.release(AuthenticatedUser.of(jwt), id, request);
     }
 
     /** {@code DELETE /bookings/{id}/hold} (FR-H7): releases the whole hold at once. */
+    // DELETE = remove the hold: all items are released in one transaction and the booking becomes ABANDONED.
     @DeleteMapping("/bookings/{id}/hold")
     public BookingView releaseAll(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return holds.releaseAll(AuthenticatedUser.of(jwt), id);
     }
 
     /**
-     * {@code POST /bookings/{id}/payment} (Flow 4, SRS 7.1): "Continue to payment". Only while the hold is active (410 once it ran out); returns
+      * {@code POST /bookings/{id}/payment} (Flow 4, SRS 7.1): "Continue to payment". Only while the hold is active (410 once it ran out);
+      * returns
      * the client secret for the embedded Stripe form and the time left. The amount is the one the server worked out, never the client's.
      */
+    // Errors: 404, 410 hold_expired, 409 (payment closed, already paid), 503 payment service unavailable or stripe_not_configured.
     @PostMapping("/bookings/{id}/payment")
     public PaymentStart startPayment(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return paymentStarts.start(jwt.getSubject(), id);
     }
 
     /** {@code GET /bookings}: "My bookings" of the caller. */
+    // My bookings: holds, confirmed, cancelled and refund-bearing bookings of the caller, newest first.
     @GetMapping("/bookings")
     public java.util.List<com.trainbooking.bookingseat.booking.model.MyBooking> mine(@AuthenticationPrincipal Jwt jwt) {
         return queries.listOwn(jwt.getSubject());
     }
 
     /**
-     * {@code POST /bookings/{id}/cancel} (Flow 6, way A): the passenger cancels their own confirmed booking. Instant, no approval, refunded in full.
-     * 404 for another user's booking, 409 {@code not_cancellable} or {@code trip_departed} when it cannot be cancelled; an already cancelled
+      * {@code POST /bookings/{id}/cancel} (Flow 6, way A): the passenger cancels their own confirmed booking. Instant, no approval,
+      * refunded in full.
+      * 404 for another user's booking, 409 {@code not_cancellable} or {@code trip_departed} when it cannot be cancelled; an already
+      * cancelled
      * booking is returned as it is.
      */
     @PostMapping("/bookings/{id}/cancel")
@@ -96,15 +108,18 @@ public class BookingController {
     }
 
     /**
-     * {@code POST /bookings/{id}/resend-ticket} (FR-T4): emails the ticket again. 202 with {@code queued} (false if an email is already waiting),
+      * {@code POST /bookings/{id}/resend-ticket} (FR-T4): emails the ticket again. 202 with {@code queued} (false if an email is already
+      * waiting),
      * 409 {@code not_confirmed} for a booking without a ticket, 404 for another user's booking.
      */
+    // 202 Accepted = the work was queued in the outbox, not done yet.
     @PostMapping("/bookings/{id}/resend-ticket")
     public ResponseEntity<java.util.Map<String, Boolean>> resendTicket(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return ResponseEntity.accepted().body(java.util.Map.of("queued", resends.resend(jwt.getSubject(), id)));
     }
 
     /** {@code GET /bookings/{id}}: the booking, if it is the caller's (404 otherwise). The payment page also polls it. */
+    // The payment page polls this to learn that Stripe's webhook has confirmed the booking.
     @GetMapping("/bookings/{id}")
     public BookingView get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return queries.viewOwn(id, jwt.getSubject());

@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  * CONFIRMED and clear the expiry of its reservation rows, so the sweeper never releases them. It is called when Payment reports
  * that the payment succeeded (the one path that confirms a booking, SRS 7.1).
  */
+// @Service: bean. @Transactional on confirm(): Spring wraps the method in a database transaction. This is the ONLY place where a hold
+// becomes CONFIRMED (the card path through Payment's report and the counter path through BookingIssueService both end in confirmLocked).
 @Service
 public class ConfirmationService {
 
@@ -56,6 +58,7 @@ public class ConfirmationService {
     }
 
     @Transactional
+    // Locks first (trip row, booking row), then delegates. A booking that does not exist answers NOT_FOUND.
     public Result confirm(long bookingId) {
         Booking booking = locks.lock(bookingId).orElse(null); // the trip first, then the booking: the one lock order
         if (booking == null) {
@@ -65,10 +68,15 @@ public class ConfirmationService {
     }
 
     /**
-     * The confirmation of a booking whose trip and row are already locked by the caller's transaction. Both ways of paying use it: Payment's report
+      * The confirmation of a booking whose trip and row are already locked by the caller's transaction. Both ways of paying use it:
+      * Payment's report
      * (card) and an admin issuing a counter or complimentary booking, so there is one HELD to CONFIRMED transition.
      */
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    // MANDATORY: the caller already holds the locks. Idempotent: CONFIRMED again returns ALREADY_CONFIRMED. A booking that is not a hold
+    // any
+    // more (EXPIRED, ABANDONED, CANCELLED) returns NOT_CONFIRMABLE, which makes Payment refund the money. The expiry time is NOT checked
+    // here on purpose: payment wins over the clock as long as the sweeper has not released the hold.
     public Result confirmLocked(Booking booking) {
         long bookingId = booking.id();
         if (booking.status() == BookingStatus.CONFIRMED) {
@@ -80,6 +88,9 @@ public class ConfirmationService {
         // The payment wins even if the hold has just run out, as long as the sweeper has not released it yet: the money is taken.
         List<Long> seatIds = inventory.findReservedSeatIds(bookingId);
         List<Integer> segments = inventory.findReservedSegments(bookingId);
+        // Steps: clear expires_at on the reservation rows (they become bookings), set CONFIRMED, publish SEAT_BOOKED (delivered after
+        // commit),
+        // queue TICKET_EMAIL in the outbox (same transaction), write the audit row.
         inventory.confirmReservations(bookingId);
         bookings.markConfirmed(bookingId, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
         events.seats(SeatEvent.SEAT_BOOKED, booking.tripId(), seatIds, segments);

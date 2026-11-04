@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Reads a booking for the API. A booking that belongs to someone else is "not found", so its existence is never revealed. */
+// @Service: bean with the read side of bookings. The owner check compares the booking's user_id with the token's sub; a mismatch is
+// reported as 404 (not 403) so a stranger cannot learn that a booking id exists.
 @Service
 public class BookingQueryService {
 
@@ -45,13 +47,15 @@ public class BookingQueryService {
     public java.util.List<com.trainbooking.bookingseat.booking.model.MyBooking> listOwn(String userId) {
         return bookings.findOfUser(userId, 50).stream().map(booking -> {
             BookingView view = toView(booking);
-            // A counter or complimentary booking is cancelled at the support desk, never by the passenger (docs/design/COUNTER-BOOKING.md, 7).
+            // A counter or complimentary booking is cancelled at the support desk, never by the passenger
+            // (docs/design/COUNTER-BOOKING.md, 7).
             boolean cancellable = booking.status() == com.trainbooking.bookingseat.booking.model.BookingStatus.CONFIRMED && !booking.paymentMethod().issuedByAdmin()
                     && view.trip().from().departureTime() != null && view.trip().from().departureTime().toInstant().isAfter(clock.instant());
             return new com.trainbooking.bookingseat.booking.model.MyBooking(view, cancellable);
         }).toList();
     }
 
+    // serverTime lets the browser correct its countdown for a wrong clock; expiresAt is the server's own expiry time.
     public BookingView toView(Booking booking) {
         BookingView.TripInfo trip = bookings.findTripInfo(booking.tripId(), booking.fromStop(), booking.toStop()).orElseThrow();
         return new BookingView(booking.id(), booking.reference(), booking.status(), booking.refundStatus(), booking.tripId(), booking.fromStop(), booking.toStop(),

@@ -9,7 +9,7 @@ import { log } from './log.js';
 import { forwardTo } from './proxy.js';
 import { tripSearch } from './search.js';
 import { seatMap } from './seatmap.js';
-import { ticketPdf } from './ticket.js';
+import { ticketPdf, ticketQr } from './ticket.js';
 
 export function createApp() {
   const app = express();
@@ -77,6 +77,7 @@ export function createApp() {
   // to the caller (the token is forwarded), and answers 404 for anyone else's.
   // The ticket PDF (the one Ticket service route the browser can reach): checked here, then fetched from the internal Ticket service.
   app.get('/bookings/:id/ticket', requireAuth, ticketPdf());
+  app.get('/bookings/:id/ticket/qr', requireAuth, ticketQr());
   app.use('/bookings', requireAuth, passThroughBody, forwardTo(config.bookingSeatUrl, '/bookings'));
   // Support (Flow 6 way B, Flow 7): an admin cancels a booking on the passenger's request. The Gateway checks the ADMIN role first; Booking & Seat
   // checks it again.

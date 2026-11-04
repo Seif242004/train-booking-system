@@ -24,6 +24,9 @@ All of them need the shared key in `X-Internal-Api-Key`; a user's token is not a
 | PUT | `/internal/tickets/{bookingId}` | Makes the ticket (201) or returns the existing one (200). Body: `reference`, `passengerName`, `trainNumber`, `trainName`, `fromStation`, `departure`, `toStation`, `arrival`, `lines[{ type SEAT\|STANDING, coachCode, coachClass, seatNumber, qty, price }]`, `amount`, `currency: EGP`. The answer has `ticketId`, `bookingId`, `reference`, `status`, `createdAt`, `invalidatedAt` (never the QR token) |
 | GET | `/internal/tickets/{bookingId}` | The same fields; 404 `ticket_not_found` |
 | GET | `/internal/tickets/{bookingId}/pdf` | The PDF (`application/pdf`) |
+| GET | `/internal/tickets/{bookingId}/qr` | The QR code of the ticket as a PNG (`image/png`): the token that is in the PDF, dark modules on white with a quiet zone of 4 modules and a whole number of pixels per module (`QrImages`, the one method used for the page and the PDF; the page copy is about 280 px, the PDF copy about 900 px). 404 until the ticket exists |
+
+**Logo on the PDF.** The renderer draws a logo at the top of the page when the PNG `brand/logo-red.png` is on the classpath (`src/main/resources/brand/`, at least 1000 px wide so it stays sharp when printed; it is drawn 110 pt wide). OpenPDF cannot draw an SVG and no SVG library is added, so the official red logo has to be supplied as a PNG. Without the file the PDF uses the plain header and logs a warning.
 | POST | `/internal/tickets/{bookingId}/invalidate` | `INVALIDATED`; idempotent; 404 `ticket_not_found` if there is no ticket |
 
 ## Environment variables

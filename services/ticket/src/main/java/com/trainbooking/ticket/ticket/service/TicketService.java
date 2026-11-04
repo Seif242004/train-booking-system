@@ -76,6 +76,12 @@ public class TicketService {
         return tickets.findPdf(bookingId).orElseThrow(() -> new TicketNotFoundException(bookingId));
     }
 
+    /** The QR code of the ticket as a PNG for the ticket page: the token that is in the PDF, drawn by the same method. */
+    @Transactional(readOnly = true)
+    public byte[] qrPng(long bookingId) {
+        return QrImages.png(get(bookingId).qrToken(), QrImages.PAGE_SIZE);
+    }
+
     /** The booking was cancelled: the QR token stops being valid. Idempotent. */
     @Transactional
     public Ticket invalidate(long bookingId) {

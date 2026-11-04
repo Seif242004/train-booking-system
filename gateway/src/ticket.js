@@ -15,9 +15,8 @@ async function getJson(url, headers, timeoutMs, fetchImpl) {
   return { status: res.status, body };
 }
 
-/** GET /bookings/:id/ticket. Mount it after requireAuth and before the generic /bookings forwarding. */
-export function ticketPdf(options = {}) {
-  const settings = {
+function withDefaults(options) {
+  return {
     bookingSeatUrl: config.bookingSeatUrl,
     ticketUrl: config.ticketUrl,
     internalApiKey: config.internalApiKey,
@@ -25,7 +24,14 @@ export function ticketPdf(options = {}) {
     fetchImpl: fetch,
     ...options,
   };
+}
 
+/**
+ * The shared part of the two ticket routes (the PDF and the QR image): who may see it, and that the booking is confirmed. Then `deliver`
+ * fetches the file from the internal Ticket service and sends it. The decision is made by asking Booking & Seat for the booking WITH THE
+ * CALLER'S TOKEN, which answers 404 for anyone else's booking.
+ */
+function ticketRoute(settings, deliver) {
   return async (req, res) => {
     const { id } = req.params;
     if (!isId(id)) return sendError(res, 400, 'bad_request', 'The booking id is not valid.');
@@ -52,28 +58,57 @@ export function ticketPdf(options = {}) {
         return sendError(res, 409, 'ticket_not_available', 'The ticket is available once the booking is confirmed.');
       }
 
-      // 4. The PDF, from the internal Ticket service.
-      const pdf = await settings.fetchImpl(new URL(`/internal/tickets/${id}/pdf`, settings.ticketUrl), {
-        headers: { 'x-internal-api-key': settings.internalApiKey },
-        signal: AbortSignal.timeout(settings.upstreamTimeoutMs),
-      });
-      if (pdf.status === 404) {
-        // Tickets are made asynchronously after the payment: confirmed, but the PDF is not there yet.
-        return sendError(res, 409, 'ticket_not_ready', 'Your ticket is still being prepared. Try again in a moment.');
-      }
-      if (pdf.status !== 200) return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
-
-      const bytes = Buffer.from(await pdf.arrayBuffer());
-      const reference = String(booking.reference ?? id).replace(/[^A-Za-z0-9_-]/g, '');
-      res.status(200);
-      res.set('content-type', 'application/pdf');
-      res.set('content-disposition', `attachment; filename="ticket-${reference}.pdf"`);
-      res.set('cache-control', 'private, no-store');
-      res.send(bytes);
+      // 4. The file, from the internal Ticket service.
+      await deliver({ id, booking, res });
     } catch (err) {
       if (err?.name === 'TimeoutError') return sendError(res, 504, 'upstream_timeout', 'The service took too long to answer.');
       log('error', 'Service unreachable', { cause: String(err?.cause?.code ?? err) });
       return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
     }
   };
+}
+
+function fromTicketService(settings, path) {
+  return settings.fetchImpl(new URL(path, settings.ticketUrl), {
+    headers: { 'x-internal-api-key': settings.internalApiKey },
+    signal: AbortSignal.timeout(settings.upstreamTimeoutMs),
+  });
+}
+
+/** GET /bookings/:id/ticket. Mount it after requireAuth and before the generic /bookings forwarding. */
+export function ticketPdf(options = {}) {
+  const settings = withDefaults(options);
+  return ticketRoute(settings, async ({ id, booking, res }) => {
+    const pdf = await fromTicketService(settings, `/internal/tickets/${id}/pdf`);
+    if (pdf.status === 404) {
+      // Tickets are made asynchronously after the payment: confirmed, but the PDF is not there yet.
+      return sendError(res, 409, 'ticket_not_ready', 'Your ticket is still being prepared. Try again in a moment.');
+    }
+    if (pdf.status !== 200) return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
+
+    const bytes = Buffer.from(await pdf.arrayBuffer());
+    const reference = String(booking.reference ?? id).replace(/[^A-Za-z0-9_-]/g, '');
+    res.status(200);
+    res.set('content-type', 'application/pdf');
+    res.set('content-disposition', `attachment; filename="ticket-${reference}.pdf"`);
+    res.set('cache-control', 'private, no-store');
+    return res.send(bytes);
+  });
+}
+
+/**
+ * GET /bookings/:id/ticket/qr: the QR code of the ticket as a PNG, for the ticket page (an <img> cannot send the token, so the page fetches it).
+ * The same checks as the PDF; the Ticket service draws it from the same token that is in the PDF.
+ */
+export function ticketQr(options = {}) {
+  const settings = withDefaults(options);
+  return ticketRoute(settings, async ({ id, res }) => {
+    const qr = await fromTicketService(settings, `/internal/tickets/${id}/qr`);
+    if (qr.status === 404) return sendError(res, 409, 'ticket_not_ready', 'Your ticket is still being prepared. Try again in a moment.');
+    if (qr.status !== 200) return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
+    res.status(200);
+    res.set('content-type', 'image/png');
+    res.set('cache-control', 'private, no-store');
+    return res.send(Buffer.from(await qr.arrayBuffer()));
+  });
 }

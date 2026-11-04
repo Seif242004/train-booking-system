@@ -31,6 +31,7 @@ class TicketControllerDatabaseTest extends DatabaseTest {
         mvc.perform(issue(7, BODY).header("X-Internal-Api-Key", "wrong")).andExpect(status().isUnauthorized());
         mvc.perform(get("/internal/tickets/7")).andExpect(status().isUnauthorized());
         mvc.perform(get("/internal/tickets/7/pdf")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/internal/tickets/7/qr")).andExpect(status().isUnauthorized());
         mvc.perform(post("/internal/tickets/7/invalidate")).andExpect(status().isUnauthorized());
         mvc.perform(issue(7, BODY).header("Authorization", "Bearer a.user.token")).andExpect(status().isUnauthorized()); // a user's token is not a key
         assertThat(rows("ticket")).isZero();
@@ -45,6 +46,23 @@ class TicketControllerDatabaseTest extends DatabaseTest {
                 .andExpect(jsonPath("$.qrToken").doesNotExist()); // the token is only in the QR code on the PDF
         mvc.perform(issue(7, BODY).header("X-Internal-Api-Key", INTERNAL_KEY)).andExpect(status().isOk());
         assertThat(rows("ticket")).isEqualTo(1);
+    }
+
+    @Test
+    void theQrCode_isServedAsAPng_andCarriesTheTokenThatThePdfWasMadeWith() throws Exception {
+        mvc.perform(get("/internal/tickets/7/qr").header("X-Internal-Api-Key", INTERNAL_KEY)).andExpect(status().isNotFound());
+        mvc.perform(issue(7, BODY).header("X-Internal-Api-Key", INTERNAL_KEY)).andExpect(status().isCreated());
+
+        byte[] png = mvc.perform(get("/internal/tickets/7/qr").header("X-Internal-Api-Key", INTERNAL_KEY))
+                .andExpect(status().isOk()).andExpect(content().contentType(MediaType.IMAGE_PNG)).andReturn().getResponse().getContentAsByteArray();
+
+        var image = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(png));
+        String decoded = new com.google.zxing.qrcode.QRCodeReader().decode(new com.google.zxing.BinaryBitmap(new com.google.zxing.common.HybridBinarizer(
+                new com.google.zxing.client.j2se.BufferedImageLuminanceSource(image)))).getText();
+        // The token stored with the ticket is the one the PDF was drawn with (TicketService.issue passes the same value to both).
+        assertThat(decoded).isEqualTo(jdbc.sql("SELECT qr_token FROM ticket WHERE booking_id = 7").query(String.class).single());
+        assertThat(decoded).startsWith("TB-ABC234.");
+        assertThat(image.getWidth()).isGreaterThanOrEqualTo(168);
     }
 
     @Test

@@ -102,7 +102,7 @@ public class TicketPdfRenderer {
             head.addCell(left);
 
             PdfPCell right = noBorder();
-            Image qr = Image.getInstance(QrImages.png(qrToken, 260));
+            Image qr = Image.getInstance(QrImages.png(qrToken, QrImages.PRINT_SIZE));
             qr.scaleToFit(120, 120);
             qr.setAlignment(Element.ALIGN_CENTER);
             right.addElement(qr);

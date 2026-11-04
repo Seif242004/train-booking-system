@@ -45,6 +45,12 @@ public class TicketController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"ticket-" + bookingId + ".pdf\"").body(pdf);
     }
 
+    /** The QR code of the ticket as a PNG, for the ticket page. The Gateway decides who may see it. */
+    @GetMapping("/internal/tickets/{bookingId}/qr")
+    ResponseEntity<byte[]> qr(@PathVariable long bookingId) {
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).header(HttpHeaders.CACHE_CONTROL, "private, no-store").body(service.qrPng(bookingId));
+    }
+
     /** The booking was cancelled: the QR token is no longer valid. */
     @PostMapping("/internal/tickets/{bookingId}/invalidate")
     Map<String, Object> invalidate(@PathVariable long bookingId) {

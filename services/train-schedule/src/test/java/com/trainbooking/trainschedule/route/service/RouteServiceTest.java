@@ -34,6 +34,10 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Unit test of {@link RouteService} with mocks: stops are saved in order, a station may appear once, stop changes are blocked by existing
+ * fares (until clearFares) and by trips, renaming is always allowed, and deletes report "in use" from the database foreign key error.
+ */
 class RouteServiceTest {
 
     private final RouteRepository routes = mock(RouteRepository.class);
@@ -45,6 +49,7 @@ class RouteServiceTest {
     private final RouteService service =
             new RouteService(routes, fares, trips, stations, new AuditTrail(auditLog, JsonMapper.builder().build()), changes);
 
+    /** Builds a Route whose stops are the given station ids in order (code and name are made up from the id). */
     private static Route route(long id, String name, long... stationIds) {
         RouteStop[] stops = new RouteStop[stationIds.length];
         for (int i = 0; i < stationIds.length; i++) {
@@ -53,6 +58,7 @@ class RouteServiceTest {
         return new Route(id, name, List.of(stops));
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void create_savesTheRouteAndStopsInOrder_andAudits() {
         given(stations.existingIds(any())).willReturn(Set.of(1L, 2L, 3L));

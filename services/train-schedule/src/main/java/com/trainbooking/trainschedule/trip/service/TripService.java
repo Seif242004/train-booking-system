@@ -35,6 +35,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Trip rules (FR-A8). Every change and its audit row are written in one transaction. */
+// @Service: business-logic bean. Callers: TripController (admin CRUD), InternalTripController (markCancelled), TripLayoutService.
+// The key design rule: create, update and delete push the trip to Booking &amp; Seat as their LAST step, inside the same transaction
+// (@Transactional = commit on normal return, rollback on a RuntimeException). If Booking refuses or is down the exception rolls back the
+// trip
+// AND its audit row, so the two services never disagree about whether a trip exists.
 @Service
 public class TripService {
 
@@ -45,8 +50,10 @@ public class TripService {
     private final CoachService coaches;
     private final RouteService routes;
     private final FareService fares;
+    /** Builds and pushes the snapshot (see TripSnapshotPublisher); package-private, so only this feature can use it. */
     private final TripSnapshotPublisher snapshots;
     private final AuditTrail audit;
+    /** The railway time zone: stop times are entered as local clock times and stored with the offset of this zone. */
     private final ZoneId zone;
 
     public TripService(TripRepository trips, TrainService trains, CoachService coaches, RouteService routes, FareService fares,
@@ -62,6 +69,7 @@ public class TripService {
     }
 
     /** All trips by first departure, optionally only those leaving on one date. */
+    // @Transactional(readOnly = true): a read-only database transaction (a hint that no writes happen).
     @Transactional(readOnly = true)
     public List<Trip> list(LocalDate date) {
         return trips.findAll(date);
@@ -73,6 +81,9 @@ public class TripService {
      * cancelled trip keeps its copy there.
      */
     @Transactional
+    // Idempotent: a second call finds status CANCELLED and returns it unchanged. No snapshot is pushed back (Booking already has it
+    // cancelled).
+    // The actor is the admin's id passed by Booking in X-Acting-User, or "booking-seat" when absent, so the audit row names who caused it.
     public Trip markCancelled(long id, String actor) {
         Trip before = get(id);
         if (before.status() == TripStatus.CANCELLED) {
@@ -85,11 +96,19 @@ public class TripService {
     }
 
     @Transactional(readOnly = true)
+    /** One trip with its stops; @throws TripNotFoundException if the id is unknown */
     public Trip get(long id) {
         return trips.findById(id).orElseThrow(() -> new TripNotFoundException(id));
     }
 
     @Transactional
+    /**
+      * Creates an ACTIVE trip: checks everything (see plan), saves the trip row and its stops, writes the audit row, then pushes the
+      * snapshot.
+     * Errors: 400 validation_failed (unknown train or route, stop list or times wrong), 409 train_inactive / train_has_no_coaches /
+      * route_fares_incomplete, and from Booking: 409 booking_conflict, 502 booking_rejected_snapshot, 503 booking_unavailable (nothing
+      * saved).
+     */
     public Trip create(TripRequest request, String adminId) {
         Plan plan = plan(request, true);
         long id = trips.insert(request.trainId(), request.routeId(), request.departureDate());
@@ -139,10 +158,16 @@ public class TripService {
 
     // ---------------------------------------------------------------------------------------------------------------
 
+    /** The validated stop rows, ready to save; a record so that plan() can return them as one value. */
     private record Plan(List<TripRepository.StopRow> rows) {
     }
 
     /** Runs every check of a trip request and returns the stop rows to save. Nothing is saved if any check fails. */
+    // Order of the checks: train and route exist (400), train is ACTIVE when required (409), train has coaches (409), stop count matches
+    // the
+    // route (400), times are valid (400), route fares are complete (409). Only then are the rows built; nothing is written here.
+    // The local times become OffsetDateTime with the railway zone, because the database column keeps the offset (Egypt has daylight
+    // saving time).
     private Plan plan(TripRequest request, boolean trainMustBeActive) {
         Train train = lookupTrain(request.trainId());
         Route route = lookupRoute(request.routeId());
@@ -200,6 +225,7 @@ public class TripService {
         }
     }
 
+    /** Wraps "not found" into a 400 on the field trainId: for a request body an unknown id is bad input, not a missing URL (404). */
     private Train lookupTrain(long id) {
         try {
             return trains.get(id);
@@ -208,6 +234,7 @@ public class TripService {
         }
     }
 
+    /** Same as lookupTrain, for routeId. */
     private Route lookupRoute(long id) {
         try {
             return routes.get(id);

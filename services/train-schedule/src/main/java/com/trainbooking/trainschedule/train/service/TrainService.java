@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Train rules (FR-A1 to FR-A4). Every change and its audit row are written in one transaction. */
+// @Service: the business-logic layer (a Spring bean). Callers: TrainController, CoachService, TripService (via get()).
 @Service
 public class TrainService {
 
@@ -28,6 +29,7 @@ public class TrainService {
 
     private final TrainRepository trains;
     private final AuditTrail audit;
+    /** Pushes the changed train to Booking &amp; Seat (all future active trips of the train) before the commit. */
     private final SnapshotChanges changes;
 
     public TrainService(TrainRepository trains, AuditTrail audit, SnapshotChanges changes) {
@@ -37,17 +39,21 @@ public class TrainService {
     }
 
     /** @param status optional filter, ACTIVE or INACTIVE; anything else is a 400 */
+    // @Transactional(readOnly = true): a database transaction used as a "no writes" hint. @Transactional (no argument) is read-write:
+    // it commits when the method returns and rolls back on a RuntimeException, so the change and its audit row are one unit.
     @Transactional(readOnly = true)
     public List<Train> list(String number, String name, String status) {
         return trains.search(blankToNull(number), blankToNull(name), parseStatusFilter(status));
     }
 
     @Transactional(readOnly = true)
+    /** One train; @throws TrainNotFoundException if the id is unknown */
     public Train get(long id) {
         return trains.findById(id).orElseThrow(() -> new TrainNotFoundException(id));
     }
 
     @Transactional
+    /** Creates a train and its audit row. @throws TrainNumberTakenException if the number exists (unique constraint ORA-00001). */
     public Train create(TrainRequest request, String adminId) {
         String number = normalizeNumber(request.number());
         Train created;
@@ -62,6 +68,10 @@ public class TrainService {
     }
 
     @Transactional
+    /**
+     * Replaces a train's data (FR-A3). {@code changes.trainChanged} then re-pushes the future active trips of this train to Booking
+     * &amp; Seat as the last step before the commit, so a refusal of Booking rolls this update back.
+     */
     public Train update(long id, TrainRequest request, String adminId) {
         Train before = get(id);
         Train after = new Train(id, normalizeNumber(request.number()), request.name().strip(), request.type().strip(),
@@ -112,14 +122,17 @@ public class TrainService {
         audit.record(adminId, ENTITY, id, "DELETE", diff);
     }
 
+    /** Numbers are stored trimmed and upper-case. */
     private static String normalizeNumber(String number) {
         return number.strip().toUpperCase(Locale.ROOT);
     }
 
+    /** Empty filter fields mean "no filter". */
     private static String blankToNull(String text) {
         return text == null || text.isBlank() ? null : text;
     }
 
+    /** Turns the ?status= text into the enum. @throws RequestValidationException (400) for any other word */
     private static TrainStatus parseStatusFilter(String status) {
         String value = blankToNull(status);
         if (value == null) {

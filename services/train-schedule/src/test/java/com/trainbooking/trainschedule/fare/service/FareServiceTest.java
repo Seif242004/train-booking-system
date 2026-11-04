@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Unit test of {@link FareService} with mocked repositories: the whole fare set is replaced or nothing changes, every problem is
+ * reported with its list position, amounts become EGP with two decimals, and an audit row records before and after.
+ */
 class FareServiceTest {
 
     private final FareRepository fares = mock(FareRepository.class);
@@ -45,14 +49,17 @@ class FareServiceTest {
     private static final Route THREE_STOPS = new Route(4, "R", List.of(
             new RouteStop(0, 1, "A", "A", "A"), new RouteStop(1, 2, "B", "B", "B"), new RouteStop(2, 3, "C", "C", "C")));
 
+    /** Builds a request item; Integer/String/amount text so tests can also pass null or bad values. */
     private static FareRequest fare(Integer segment, String coachClass, String amount) {
         return new FareRequest(segment, coachClass, amount == null ? null : new BigDecimal(amount));
     }
 
+    /** Runs nothing: only reads the problem list out of a thrown RequestValidationException, for assertions. */
     private static List<ApiError.Detail> detailsOf(Throwable thrown) {
         return ((RequestValidationException) thrown).details();
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void replaceAll_savesTheWholeSetInEgp_withTwoDecimals_andAuditsBeforeAndAfter() {
         given(routes.get(4)).willReturn(THREE_STOPS);

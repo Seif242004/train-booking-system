@@ -22,6 +22,8 @@ public final class FieldProblems {
 
     /** From the field errors of a request body. {@code jsonName} maps a Java property name to the JSON field name. */
     public static List<ApiError.Detail> fromFieldErrors(List<FieldError> errors, UnaryOperator<String> jsonName) {
+        // One entry per field (insertion order kept). merge() decides between two errors of the same field:
+        // keep the first, unless the new one is the "is required" rule and the kept one is not.
         Map<String, FieldError> chosen = new LinkedHashMap<>();
         for (FieldError error : errors) {
             chosen.merge(error.getField(), error, (kept, next) -> isRequired(next.getCode()) && !isRequired(kept.getCode()) ? next : kept);

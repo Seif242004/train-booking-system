@@ -11,9 +11,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /** Data access for the fare table. Parameterised SQL only. */
+// @Repository: data-access bean of the fare table. Primary key (route_id, segment_index, coach_class) makes a repeat impossible.
 @Repository
 public class FareRepository {
 
+    // Hand-written RowMapper: one result row -> Fare (amount as BigDecimal, never double, for money).
     private static final RowMapper<Fare> FARE = (rs, row) -> new Fare(
             rs.getInt("segment_index"),
             CoachClass.valueOf(rs.getString("coach_class")),
@@ -21,6 +23,7 @@ public class FareRepository {
             rs.getString("currency"));
 
     private final JdbcClient jdbc;
+    /** Used for the JDBC batch insert of the whole fare list. */
     private final NamedParameterJdbcTemplate batchTemplate;
 
     public FareRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batchTemplate) {
@@ -37,6 +40,7 @@ public class FareRepository {
                 .list();
     }
 
+    /** How many fares a route has. Used before the stops of a route change and before a delete (for the audit row). */
     public int countByRoute(long routeId) {
         return jdbc.sql("SELECT COUNT(*) FROM fare WHERE route_id = :routeId").param("routeId", routeId).query(Integer.class).single();
     }

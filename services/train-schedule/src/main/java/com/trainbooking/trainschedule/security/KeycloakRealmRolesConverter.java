@@ -16,6 +16,11 @@ import org.springframework.security.oauth2.jwt.Jwt;
  */
 public class KeycloakRealmRolesConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 
+    /**
+     * @param jwt the already verified token
+     * @return one authority per realm role, or an empty list when the claim is missing or has an unexpected shape
+     *         (an unknown token shape therefore gets no role at all, never an accidental one)
+     */
     @Override
     public Collection<GrantedAuthority> convert(Jwt jwt) {
         Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");

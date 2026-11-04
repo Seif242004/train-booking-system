@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+// Validation annotations on the components (checked because the controller uses @Valid): @NotBlank = present and not only spaces,
+// @Size(max) = length limit, @Pattern = regular expression (status must be exactly ACTIVE or INACTIVE; the service turns it into the enum).
+// "type" is free text (Express, Sleeper, ...). The number is stored upper-case and is unique.
 /** Body of create and update (FR-A1, FR-A3). */
 public record TrainRequest(
         @NotBlank(message = "is required")

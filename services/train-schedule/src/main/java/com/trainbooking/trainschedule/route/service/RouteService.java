@@ -26,13 +26,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Route rules (FR-A8): a route is a name and an ordered list of stations. Changes and audit rows are saved together. */
+// @Service: business-logic bean. @Transactional on a method = one database transaction (commit on return, rollback on RuntimeException).
+// Callers: RouteController, FareService (get), TripService. Rule: a route is a name plus station ids in travel order; segment k = stop k
+// to k+1.
 @Service
 public class RouteService {
 
     private static final String ENTITY = "route";
 
     private final RouteRepository routes;
+    /** Used to count and clear the route's fares when its stops change. */
     private final FareRepository fares;
+    /** Used to refuse stop changes and deletes while trips use the route (their stops were copied from it). */
     private final TripRepository trips;
     private final StationService stations;
     private final AuditTrail audit;
@@ -48,17 +53,23 @@ public class RouteService {
         this.changes = changes;
     }
 
+    // @Transactional(readOnly = true): a read-only database transaction (a hint that no writes happen).
     @Transactional(readOnly = true)
     public List<Route> list() {
         return routes.findAll();
     }
 
     @Transactional(readOnly = true)
+    /** One route with stops; @throws RouteNotFoundException if the id is unknown */
     public Route get(long id) {
         return routes.findById(id).orElseThrow(() -> new RouteNotFoundException(id));
     }
 
     @Transactional
+    /**
+     * Creates the route row, then its stops, then the audit row, all in one transaction. @throws RequestValidationException for bad stops
+     * (400)
+     */
     public Route create(RouteRequest request, String adminId) {
         checkStops(request.stops());
         long id = routes.insert(request.name().strip());
@@ -138,6 +149,7 @@ public class RouteService {
     }
 
     /** Every stop must be an existing station, and a route may visit a station only once. Every problem is reported. */
+    // One query (existingIds) checks all stops, not one per stop. Both lists of problems are reported together.
     private void checkStops(List<Long> stops) {
         List<ApiError.Detail> problems = new ArrayList<>();
 

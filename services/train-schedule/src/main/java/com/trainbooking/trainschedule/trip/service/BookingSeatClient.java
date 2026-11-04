@@ -22,14 +22,22 @@ import org.springframework.web.client.RestClientResponseException;
  * 409 is {@link BookingConflictException}, 400 is {@link BookingSnapshotRejectedException}, and anything else
  * (no connection, timeout, 401, 5xx) is {@link BookingUnavailableException}.
  */
+// @Component: a plain Spring bean (package-private: only the trip package may use it; the publisher calls it).
+// Wire format: PUT /internal/trips/{id}/snapshot (idempotent; Booking upserts) and DELETE /internal/trips/{id}. The headers are
+// X-Internal-Api-Key (the shared secret from the property trainbooking.internal-api-key, never logged) and X-Acting-User (the admin's id,
+// so Booking's own audit log names the real actor).
 @Component
 class BookingSeatClient {
 
+    /** Logger of this class; used for the warnings and errors below, never with the API key. */
     private static final Logger log = LoggerFactory.getLogger(BookingSeatClient.class);
 
+    /** Spring's synchronous HTTP client, preconfigured in BookingSeatConfig with the base URL and 2 s connect / 5 s read timeouts. */
     private final RestClient http;
     private final String apiKey;
 
+    // @Qualifier("bookingSeatRestClient"): pick the RestClient bean with that name (there could be several). @Value("${...}"): inject a
+    // property.
     BookingSeatClient(@Qualifier("bookingSeatRestClient") RestClient http, @Value("${trainbooking.internal-api-key}") String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("INTERNAL_API_KEY must be set: it authorises the calls to Booking and Seat.");
@@ -39,6 +47,7 @@ class BookingSeatClient {
     }
 
     /** Stores or updates the copy of the trip. Returns normally only if Booking accepted the whole snapshot. */
+    // The lambda is passed to send() so all error handling is in one place.
     void putSnapshot(long tripId, BookingSnapshot snapshot, String adminId) {
         send(() -> http.put().uri("/internal/trips/{id}/snapshot", tripId)
                 .header("X-Internal-Api-Key", apiKey).header("X-Acting-User", adminId)
@@ -52,6 +61,9 @@ class BookingSeatClient {
                 .retrieve().toBodilessEntity(), "delete trip " + tripId);
     }
 
+    /**
+     * Runs one call and converts every failure into one of our three exceptions. Nothing is retried here: the admin repeats the request.
+     */
     private void send(Runnable call, String what) {
         try {
             call.run();
@@ -63,6 +75,7 @@ class BookingSeatClient {
         }
     }
 
+    /** Maps Booking's HTTP status to an exception: 409 = conflict, 400 = bad snapshot (our bug), anything else = unavailable. */
     private RuntimeException translate(RestClientResponseException e, String what) {
         HttpStatusCode status = e.getStatusCode();
         ApiError error = readError(e);
@@ -80,6 +93,7 @@ class BookingSeatClient {
         return new BookingUnavailableException("Booking and Seat answered " + status.value() + ".", e);
     }
 
+    /** Reads Booking's JSON error body if it has our shape; returns null for anything else (HTML from a proxy, empty body ...). */
     private static ApiError readError(RestClientResponseException e) {
         try {
             ApiError error = e.getResponseBodyAs(ApiError.class);

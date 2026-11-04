@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
+/** Unit test of {@link TripLayoutService} with mocked services: the layout has stops, coaches in order, seats and standing places. */
 class TripLayoutServiceTest {
 
     private static final LocalDate DAY = LocalDate.of(2026, 11, 2);
@@ -33,6 +34,7 @@ class TripLayoutServiceTest {
     private final SeatService seats = mock(SeatService.class);
     private final TripLayoutService service = new TripLayoutService(trips, trains, coaches, seats);
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void layout_hasTheTrainTheStopsAndEveryCoachWithItsSeatsAndStanding() {
         given(trips.findById(11)).willReturn(Optional.of(new Trip(11, 7, "T100", "Express", 4, "Cairo-Alexandria", DAY, TripStatus.ACTIVE,

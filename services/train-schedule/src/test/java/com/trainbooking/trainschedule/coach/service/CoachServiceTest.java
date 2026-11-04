@@ -30,8 +30,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Unit test of {@link CoachService} with Mockito mocks for the repositories: no Spring, no database. It checks the rules the service adds:
+ * the train must exist, codes are normalized, the seat class follows a coach class change, the audit row is written, and the train's
+ * trips are reported to the snapshot refresher.
+ */
 class CoachServiceTest {
 
+    // mock(X.class) = Mockito creates a fake X; given(...)/when(...) set its answers and verify(...) checks the calls. The audit trail is
+    // real
+    // but writes into a mocked AuditLogRepository, so the tests can read what would have been saved.
     private final CoachRepository coaches = mock(CoachRepository.class);
     private final SeatRepository seats = mock(SeatRepository.class);
     private final TrainService trains = mock(TrainService.class);
@@ -42,6 +50,7 @@ class CoachServiceTest {
 
     private static final Coach FIRST_CLASS = new Coach(9, 4, "A1", CoachClass.FIRST, 1, 20);
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void create_checksTheTrainExists_normalizesTheCode_andAudits() {
         given(coaches.insert(4, "A1", CoachClass.FIRST, 1, 20)).willReturn(FIRST_CLASS);

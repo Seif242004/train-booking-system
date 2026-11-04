@@ -18,6 +18,13 @@ import tools.jackson.databind.json.JsonMapper;
 @Configuration
 public class InternalSecurityConfig {
 
+    /**
+     * The security filter chain for {@code /internal/**} only. Spring Security picks the first chain whose securityMatcher
+     * fits the request, so the order matters.
+     */
+    // @Bean: registers the chain with Spring Security.
+    // @Order(1): lower numbers are tried first; this chain must be asked before the general one (SecurityConfig, order 2).
+    // @Value("${...}"): injects the shared key from the property trainbooking.internal-api-key (env INTERNAL_API_KEY).
     @Bean
     @Order(1)
     SecurityFilterChain internalChain(HttpSecurity http, JsonErrorHandlers errorHandlers, JsonMapper jsonMapper,

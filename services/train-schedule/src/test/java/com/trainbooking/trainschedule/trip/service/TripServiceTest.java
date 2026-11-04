@@ -51,6 +51,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Unit test of {@link TripService} with mocks (no database, no network): the create/update/delete rules (train active, has coaches, route
+ * fares complete), times saved with the zone offset, audit rows, markCancelled, and that failures of Booking &amp; Seat propagate so the
+ * surrounding transaction rolls back.
+ */
 class TripServiceTest {
 
     private static final ZoneId CAIRO = ZoneId.of("Africa/Cairo");
@@ -75,6 +80,7 @@ class TripServiceTest {
     private static final List<Coach> FIRST_AND_SECOND = List.of(
             new Coach(1, 7, "A1", CoachClass.FIRST, 1, 10), new Coach(2, 7, "B2", CoachClass.SECOND, 2, 30));
 
+    /** Fares for segment 0 of the route for each given class (the minimum a one-segment route needs). */
     private static List<Fare> fares(CoachClass... classes) {
         java.util.ArrayList<Fare> list = new java.util.ArrayList<>();
         for (int segment = 0; segment < 2; segment++) {
@@ -85,16 +91,19 @@ class TripServiceTest {
         return list;
     }
 
+    /** A valid request for the given train and route. */
     private static TripRequest request(long trainId, long routeId) {
         return new TripRequest(trainId, routeId, DAY, List.of(
                 new StopTimeRequest(null, "08:00"), new StopTimeRequest("08:40", "08:45"), new StopTimeRequest("10:45", null)));
     }
 
+    /** The Trip that the mocked repository returns after the insert. */
     private static Trip savedTrip(long id) {
         return new Trip(id, 7, "T100", "Express", 4, "Cairo-Alexandria", DAY, TripStatus.ACTIVE, List.of(
                 new TripStop(0, 1, "CAI", "Cairo", null, DAY.atTime(8, 0))));
     }
 
+    /** Sets the mocks so that every check passes; individual tests then break exactly one thing. */
     private void everythingValid() {
         given(trains.get(7)).willReturn(ACTIVE_TRAIN);
         given(routes.get(4)).willReturn(ROUTE);
@@ -102,6 +111,7 @@ class TripServiceTest {
         given(fares.list(4)).willReturn(fares(CoachClass.FIRST, CoachClass.SECOND));
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void create_savesTheTripWithTimesInTheServiceZone_audits_andHandsOverTheSnapshot() {
         everythingValid();

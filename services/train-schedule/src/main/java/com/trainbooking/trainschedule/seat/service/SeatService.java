@@ -26,6 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Seat rules (FR-A6). Every change and its audit row are written in one transaction. */
+// @Service: business-logic bean. @Transactional on a method = one database transaction: commit on return, rollback on a RuntimeException.
+// For bulk add that is what makes it all-or-nothing. Callers: SeatController. Every write ends with changes.trainChanged(...), which pushes
+// the train's future trips again to Booking &amp; Seat; its refusal (FR-A9) throws and rolls the whole edit back.
 @Service
 public class SeatService {
 
@@ -35,6 +38,7 @@ public class SeatService {
 
     private final SeatRepository seats;
     private final CoachService coaches;
+    /** Jakarta Bean Validation validator, used by hand to validate each seat of a list. */
     private final Validator validator;
     private final AuditTrail audit;
     private final SnapshotChanges changes;
@@ -60,6 +64,8 @@ public class SeatService {
      * already exists in the coach (409). The class of every new seat is the coach's class.
      */
     @Transactional
+    // Order matters: (1) coach exists, (2) validate every item, (3) clashes inside the list, (4) clashes with existing seats,
+    // (5) one batch insert (DuplicateKeyException = a concurrent admin took a number; nothing saved), (6) audit, (7) re-push the trips.
     public List<Seat> addSeats(long coachId, List<SeatRequest> requests, String adminId) {
         Coach coach = coaches.get(coachId); // 404 if the coach does not exist
 
@@ -96,6 +102,7 @@ public class SeatService {
     }
 
     @Transactional
+    /** Edits a seat's number and position; its class stays the coach's. @throws SeatNotFoundException @throws SeatConflictException */
     public Seat update(long id, SeatRequest request, String adminId) {
         Seat before = seats.findById(id).orElseThrow(() -> new SeatNotFoundException(id));
         SeatRequest clean = normalize(request);
@@ -120,6 +127,7 @@ public class SeatService {
     }
 
     @Transactional
+    /** Deletes one seat. Booking &amp; Seat decides (FR-A9) if the seat is in use, when the trips are pushed again. */
     public void delete(long id, String adminId) {
         Seat before = seats.findById(id).orElseThrow(() -> new SeatNotFoundException(id));
         // FR-A9: removing a seat that has holds or confirmed bookings on a future trip is refused by Booking & Seat when the changed
@@ -154,6 +162,7 @@ public class SeatService {
         }
     }
 
+    /** A seat number or position of the request that the coach already has -> 409 seat_conflict, listing each clash. */
     private static void rejectClashesWithExistingSeats(List<SeatRequest> requests, List<Seat> existing) {
         Set<String> numbers = new HashSet<>();
         Set<String> positions = new HashSet<>();
@@ -177,6 +186,7 @@ public class SeatService {
         }
     }
 
+    /** Seat numbers and columns are stored trimmed and upper-case. */
     private static SeatRequest normalize(SeatRequest request) {
         return new SeatRequest(request.seatNumber().strip().toUpperCase(Locale.ROOT), request.row(),
                 request.column().strip().toUpperCase(Locale.ROOT));

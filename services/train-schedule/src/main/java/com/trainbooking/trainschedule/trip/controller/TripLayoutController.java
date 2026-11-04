@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
  * The layout of a trip (SRS 9.1): coaches, seats and standing capacity. Any signed-in user may read it. It is called by the
  * Gateway, which composes the seat map from it and from the availability of Booking and Seat; the browser does not call it.
  */
+// Called by the Gateway (GET /trips/{id}/seat-map composes this with Booking's availability). 404 trip_not_found.
+// @RestController: JSON out. @GetMapping: HTTP GET + path. @PathVariable binds {id}.
 @RestController
 public class TripLayoutController {
 

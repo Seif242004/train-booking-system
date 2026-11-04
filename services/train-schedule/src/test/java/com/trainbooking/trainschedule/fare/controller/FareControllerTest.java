@@ -36,21 +36,32 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/**
+ * Web-layer test of {@link FareController}: the fares API: 403 for passengers, the list shape with EGP amounts, the PUT that
+ * takes a whole JSON list, list-position errors, 404 for an unknown route. Only the controller, the security chain and the
+ * error handler are loaded; the service is a mock.
+ */
+// @WebMvcTest(X.class): starts a slice of Spring with only the web layer (MockMvc, no real server, no database).
+// @Import: adds the security configuration and the JSON error handlers, so 401/403 and error bodies are the real ones.
 @WebMvcTest(FareController.class)
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class FareControllerTest {
 
     private static final String BODY = "[{\"segmentIndex\":0,\"class\":\"FIRST\",\"amount\":100.50},{\"segmentIndex\":0,\"class\":\"SECOND\",\"amount\":70}]";
 
+    // @Autowired: Spring puts its MockMvc bean here; MockMvc sends fake HTTP requests straight to the controller.
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: replaces the real bean in the Spring context with a Mockito mock, so each test decides what the service returns or
+    // throws.
     @MockitoBean
     FareService service;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // @Test: marks a JUnit 5 test method. Names read as sentences: who calls, what happens.
     @Test
     void asPassenger_returns403() throws Exception {
         mvc.perform(get("/admin/routes/4/fares").with(passenger())).andExpect(status().isForbidden());

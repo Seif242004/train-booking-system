@@ -15,10 +15,16 @@ import org.springframework.security.web.SecurityFilterChain;
  * any other path is still refused. Signature, expiry and issuer are validated by Spring from the configured
  * issuer-uri; there is deliberately no audience check, for the same reason as in the Gateway.
  */
+// @Configuration: declares beans by hand. @EnableWebSecurity: turns on Spring Security's web support with our chain below.
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
+    /**
+     * The chain for everything except {@code /internal/**}: {@code /admin/**} needs the ADMIN role, any other path needs a
+     * valid token (so {@code /trips}, {@code /stations} and {@code /trips/{id}/layout} are open to every signed-in user).
+     */
+    // @Bean registers the chain; @Order(2) makes it the fallback after the internal chain.
     @Bean
     @Order(2) // after the internal chain of InternalSecurityConfig, which takes /internal/** first
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonErrorHandlers errorHandlers) throws Exception {

@@ -9,6 +9,9 @@ import java.util.List;
  */
 public class BookingConflictException extends RuntimeException {
 
+    /**
+     * Booking's own reasons (for example which seat is reserved), passed through to the client. "transient": exceptions are serializable.
+     */
     private final transient List<ApiError.Detail> details;
 
     public BookingConflictException(String message, List<ApiError.Detail> details) {

@@ -15,6 +15,11 @@ import java.math.BigDecimal;
  * exists on this route is checked by the service, which knows the route.
  */
 public record FareRequest(
+        // Rules (Bean Validation, run per item by ListValidation): @NotNull = present; @Min/@Max = range of segmentIndex; @NotBlank +
+        // @Pattern = class
+        // word; @DecimalMin("0.01") = more than zero; @Digits(integer = 8, fraction = 2) = at most 8 whole digits and 2 decimals (money
+        // in EGP).
+        // @JsonProperty("class") maps the JSON field "class" to coachClass (a Java keyword cannot be a field name).
         @NotNull(message = "is required")
         @Min(value = 0, message = "must be 0 or more")
         @Max(value = 48, message = "must be at most 48")

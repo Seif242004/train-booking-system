@@ -10,6 +10,8 @@ public final class TestJwts {
 
     public static final String ADMIN_SUB = "admin-sub";
 
+    // Not instantiable: only static helpers. These build the fake authentication that Spring Security's test support puts into a request,
+    // so controller tests can act as an admin (ROLE_ADMIN) or an ordinary passenger (ROLE_USER) without a real Keycloak.
     private TestJwts() {
     }
 

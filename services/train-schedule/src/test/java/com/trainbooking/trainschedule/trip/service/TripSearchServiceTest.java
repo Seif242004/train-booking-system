@@ -35,6 +35,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+/**
+ * Unit test of {@link TripSearchService} with a fixed clock and mocked repositories: the local-day window in the railway zone, hiding trips
+ * that already left today, the "next available date", the journey fare as the sum of segment fares, and one stops query for all trips.
+ */
 class TripSearchServiceTest {
 
     private static final ZoneId CAIRO = ZoneId.of("Africa/Cairo");
@@ -52,15 +56,18 @@ class TripSearchServiceTest {
     private final TripSearchService service =
             new TripSearchService(trips, stations, fares, CAIRO, Clock.fixed(NOW.toInstant(), CAIRO));
 
+    /** Builds a route fare for a segment and class. */
     private static Fare fare(int segment, CoachClass coachClass, String amount) {
         return new Fare(segment, coachClass, new BigDecimal(amount), "EGP");
     }
 
+    /** Builds a raw search result row for a trip going from one stop index to another. */
     private static TripRepository.SearchRow row(long tripId, int fromIndex, int toIndex) {
         return new TripRepository.SearchRow(tripId, "T100", "Cairo-Alexandria Express", "Express", 4, "Cairo-Alexandria",
                 fromIndex, toIndex, LocalDateTime.of(2026, 11, 2, 8, 0), LocalDateTime.of(2026, 11, 2, 10, 45));
     }
 
+    /** Three stops (Cairo, Benha, Alexandria style) used to check that all stops come back whatever the journey. */
     private static List<TripStop> threeStops() {
         return List.of(
                 new TripStop(0, 1, "CAI", "Cairo", null, LocalDateTime.of(2026, 11, 2, 8, 0)),
@@ -68,6 +75,7 @@ class TripSearchServiceTest {
                 new TripStop(2, 3, "ALX", "Alexandria", LocalDateTime.of(2026, 11, 2, 10, 45), null));
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void search_asksForTheLocalDayInTheServiceZone_andFindsStationsByCodeInAnyCase() {
         given(stations.findByCode("cai")).willReturn(Optional.of(CAI));

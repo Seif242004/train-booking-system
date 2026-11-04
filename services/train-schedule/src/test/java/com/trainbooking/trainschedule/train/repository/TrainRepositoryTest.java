@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
+/** Unit test of the pure helper {@code TrainRepository.containsPattern} (the LIKE pattern for the train search); no database. */
 class TrainRepositoryTest {
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void containsPattern_matchesAnywhere_inUpperCase() {
         assertThat(TrainRepository.containsPattern(" e9 ")).isEqualTo("%E9%");

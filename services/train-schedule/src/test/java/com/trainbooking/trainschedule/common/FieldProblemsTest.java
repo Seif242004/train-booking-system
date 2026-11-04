@@ -10,6 +10,7 @@ import java.util.List;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
+/** Unit test of {@link FieldProblems}: which message wins when one field breaks several rules, and the JSON field name of coachClass. */
 class FieldProblemsTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
@@ -22,6 +23,8 @@ class FieldProblemsTest {
         assertThat(details).containsExactly(new ApiError.Detail("[0].seatNumber", "is required"));
     }
 
+    // @Test: marks a JUnit 5 test method. @RepeatedTest(10) above runs the same test ten times, because the order of the rules is not
+    // defined.
     @Test
     void aPresentButWrongValueReportsTheFormatRule() {
         List<ApiError.Detail> details = FieldProblems.fromViolations(validator.validate(new SeatRequest("1A!", 1, "A")), "");

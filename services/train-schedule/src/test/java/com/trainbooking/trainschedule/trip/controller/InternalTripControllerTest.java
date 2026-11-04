@@ -27,21 +27,32 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** The entry for Booking and Seat: only the shared API key opens it, a user's token (even an admin's) does not. */
+/**
+ * Web-layer test of {@link InternalTripController}: the internal cancel call: only the shared API key opens it (a wrong key or
+ * a user token gets 401), the acting admin header, 404. Only the controller, the security chain and the error handler are
+ * loaded; the service is a mock.
+ */
+// @WebMvcTest(X.class): starts a slice of Spring with only the web layer (MockMvc, no real server, no database).
+// @Import: adds the security configuration and the JSON error handlers, so 401/403 and error bodies are the real ones.
 @WebMvcTest(value = InternalTripController.class, properties = "trainbooking.internal-api-key=test-key")
 @Import({SecurityConfig.class, InternalSecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class InternalTripControllerTest {
 
     private static final Trip CANCELLED = new Trip(11, 7, "T100", "Express", 4, "Cairo-Alexandria", LocalDate.of(2026, 11, 2), TripStatus.CANCELLED, List.of());
 
+    // @Autowired: Spring puts its MockMvc bean here; MockMvc sends fake HTTP requests straight to the controller.
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: replaces the real bean in the Spring context with a Mockito mock, so each test decides what the service returns or
+    // throws.
     @MockitoBean
     TripService service;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // @Test: marks a JUnit 5 test method. Names read as sentences: who calls, what happens.
     @Test
     void withoutTheKey_orWithAWrongOne_or_aUsersToken_is401_andNothingHappens() throws Exception {
         mvc.perform(post("/internal/trips/11/cancel")).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.error.code").value("invalid_api_key"));

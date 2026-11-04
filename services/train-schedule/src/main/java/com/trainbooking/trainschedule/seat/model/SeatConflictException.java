@@ -6,6 +6,7 @@ import java.util.List;
 /** A seat number or a row and column position that already exists in the coach. Answered as 409 with the details. */
 public class SeatConflictException extends RuntimeException {
 
+    /** One entry per clashing seat, naming its position in the request list (for example {@code [3].seatNumber}). */
     private final transient List<ApiError.Detail> details;
 
     public SeatConflictException(List<ApiError.Detail> details) {
@@ -13,6 +14,7 @@ public class SeatConflictException extends RuntimeException {
         this.details = List.copyOf(details);
     }
 
+    /** The clashes, returned to the client in {@code error.details}. */
     public List<ApiError.Detail> details() {
         return details;
     }

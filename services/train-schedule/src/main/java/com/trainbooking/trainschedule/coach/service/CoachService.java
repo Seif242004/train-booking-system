@@ -20,12 +20,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Coach rules (FR-A5, FR-A7). Every change and its audit row are written in one transaction. */
+// @Service: business-logic bean. @Transactional on a method = one database transaction (commit on return, rollback on RuntimeException).
+// Every method that calls changes.trainChanged does it last, inside the transaction, so Booking's refusal rolls everything back.
 @Service
 public class CoachService {
 
     private static final String ENTITY = "coach";
 
     private final CoachRepository coaches;
+    /** Used to re-class the seats of a coach and to count them for the audit row. */
     private final SeatRepository seats;
     private final TrainService trains;
     private final AuditTrail audit;
@@ -47,11 +50,16 @@ public class CoachService {
     }
 
     @Transactional(readOnly = true)
+    /** One coach; @throws CoachNotFoundException if the id is unknown */
     public Coach get(long id) {
         return coaches.findById(id).orElseThrow(() -> new CoachNotFoundException(id));
     }
 
     @Transactional
+    /**
+     * Adds a coach to a train and pushes the train's trips again (new capacity can always be accepted). @throws CoachCodeTakenException
+     * @throws CoachPositionTakenException
+     */
     public Coach create(long trainId, CoachRequest request, String adminId) {
         trains.get(trainId); // 404 if the train does not exist
         String code = normalizeCode(request.code());
@@ -117,6 +125,7 @@ public class CoachService {
         changes.trainChanged(before.trainId(), adminId);
     }
 
+    /** Coach codes are stored trimmed and upper-case. */
     private static String normalizeCode(String code) {
         return code.strip().toUpperCase(Locale.ROOT);
     }

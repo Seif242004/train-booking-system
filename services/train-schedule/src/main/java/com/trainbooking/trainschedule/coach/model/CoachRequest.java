@@ -18,6 +18,10 @@ public record CoachRequest(
         @Pattern(regexp = "^(FIRST|SECOND|THIRD)$", message = "must be FIRST, SECOND or THIRD")
         String coachClass,
 
+        // Rules (checked because the controller uses @Valid): @NotBlank = present and not only spaces; @Pattern = regular expression;
+        // @NotNull = value present (for numbers, which cannot be "blank"); @Min/@Max = number range.
+        // @JsonProperty("class") maps the JSON field "class" to the component coachClass ("class" is a Java keyword).
+        // position: where the coach sits in the train, 1 to 99, unique per train. standingCapacity: standing places, 0 to 1000.
         @NotNull(message = "is required")
         @Min(value = 1, message = "must be 1 or more")
         @Max(value = 99, message = "must be at most 99")

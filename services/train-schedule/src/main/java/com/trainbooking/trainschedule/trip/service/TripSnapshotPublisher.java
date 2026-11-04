@@ -28,6 +28,8 @@ import org.springframework.stereotype.Component;
  * The one gap is Booking accepting the push and the commit here then failing; Booking would hold a copy of a trip that
  * does not exist, which nothing offers to passengers, and a later push of the same trip id would overwrite it.
  */
+// @Component: a plain Spring bean, package-private. Callers: TripService (create/update/delete) and TripSnapshotRefresher (edits of
+// trains etc.).
 @Component
 class TripSnapshotPublisher {
 
@@ -35,7 +37,9 @@ class TripSnapshotPublisher {
     private final CoachService coaches;
     private final SeatService seats;
     private final FareService fares;
+    /** The HTTP client for Booking &amp; Seat. */
     private final BookingSeatClient booking;
+    /** The railway time zone, used to give the local stop times back their offset. */
     private final ZoneId zone;
 
     TripSnapshotPublisher(TrainService trains, CoachService coaches, SeatService seats, FareService fares,
@@ -58,6 +62,10 @@ class TripSnapshotPublisher {
         booking.deleteTrip(tripId, adminId);
     }
 
+    /**
+     * Builds the immutable snapshot of a trip from the CURRENT data: train, the coaches in train order, every seat of every coach, and the
+     * fares of the route. Not cached on purpose: every push describes the state at that moment, and Booking applies it with MERGE.
+     */
     BookingSnapshot build(Trip trip) {
         Train train = trains.get(trip.trainId());
         List<Coach> trainCoaches = coaches.listByTrain(trip.trainId());

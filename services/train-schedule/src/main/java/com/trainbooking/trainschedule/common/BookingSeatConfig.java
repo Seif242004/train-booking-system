@@ -12,9 +12,18 @@ import org.springframework.web.client.RestClient;
  * The HTTP client for Booking and Seat. The timeouts are short on purpose: a trip is saved only after Booking accepts
  * its snapshot, so an admin request waits for the answer, and a slow Booking must turn into a clear error, not a hang.
  */
+// @Configuration: this class declares beans by hand (methods marked @Bean). Spring runs it once at start-up.
 @Configuration
 public class BookingSeatConfig {
 
+    /**
+     * Builds the single {@link RestClient} that {@code BookingSeatClient} uses.
+     * Timeouts: 2 s to connect, 5 s to read the answer.
+     *
+     * @param baseUrl address of Booking &amp; Seat, from the property {@code trainbooking.booking-seat.url}
+     */
+    // @Bean: the returned object becomes a Spring bean named after the method, injectable elsewhere.
+    // @Value("${...}"): injects a property from application.properties / the environment into this parameter.
     @Bean
     RestClient bookingSeatRestClient(@Value("${trainbooking.booking-seat.url}") String baseUrl) {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build());

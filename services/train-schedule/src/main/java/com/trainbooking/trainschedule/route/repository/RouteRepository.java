@@ -16,14 +16,17 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 /** Data access for the route and route_stop tables. Parameterised SQL only. */
+// @Repository: data-access bean of the route feature (tables route and route_stop).
 @Repository
 public class RouteRepository {
 
+    // Shared SELECT for stops: joins route_stop with station so each stop carries the station's code, name and city (one query, no N+1).
     private static final String STOPS_SELECT =
             "SELECT rs.route_id, rs.stop_index, rs.station_id, s.code, s.name, s.city "
                     + "FROM route_stop rs JOIN station s ON s.id = rs.station_id ";
 
     private final JdbcClient jdbc;
+    /** Used only for JDBC batch inserts (one statement, many rows); JdbcClient cannot batch. */
     private final NamedParameterJdbcTemplate batchTemplate;
 
     public RouteRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batchTemplate) {
@@ -50,11 +53,13 @@ public class RouteRepository {
         return routes;
     }
 
+    /** One route with its stops, or empty. */
     public Optional<Route> findById(long id) {
         Optional<String> name = jdbc.sql("SELECT name FROM route WHERE id = :id").param("id", id).query(String.class).optional();
         return name.map(n -> new Route(id, n, stopsOf(id)));
     }
 
+    /** The stops of one route in travel order (stop_index 0, 1, 2 ...). */
     public List<RouteStop> stopsOf(long routeId) {
         return jdbc.sql(STOPS_SELECT + "WHERE rs.route_id = :routeId ORDER BY rs.stop_index")
                 .param("routeId", routeId)
@@ -87,6 +92,7 @@ public class RouteRepository {
                 "INSERT INTO route_stop (route_id, stop_index, station_id) VALUES (:routeId, :stopIndex, :stationId)", batch);
     }
 
+    /** Removes all stops of a route; used just before the new stop list is inserted (inside the caller's transaction). */
     public void deleteStops(long routeId) {
         jdbc.sql("DELETE FROM route_stop WHERE route_id = :routeId").param("routeId", routeId).update();
     }
@@ -96,6 +102,7 @@ public class RouteRepository {
         return jdbc.sql("DELETE FROM route WHERE id = :id").param("id", id).update() == 1;
     }
 
+    /** Maps the current row of STOPS_SELECT to a RouteStop. */
     private static RouteStop stopFrom(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new RouteStop(rs.getInt("stop_index"), rs.getLong("station_id"), rs.getString("code"), rs.getString("name"),
                 rs.getString("city"));

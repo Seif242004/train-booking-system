@@ -35,7 +35,15 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-/** Turns every failure inside a controller into the shared JSON error shape. */
+/**
+ * Turns every failure inside a controller into the shared JSON error shape.
+ *
+ * <p>Services throw small typed exceptions (for example {@code StationNotFoundException}); controllers never catch them.
+ * This class is the single place that maps each exception to an HTTP status and a stable error {@code code}:
+ * 400 bad request, 404 not found, 409 conflict with existing data, 502/503 Booking &amp; Seat problems, 500 anything else.
+ * Security failures (401/403) happen earlier, in the filter chain, and are handled by {@code JsonErrorHandlers}.
+ */
+// @RestControllerAdvice: one class whose @ExceptionHandler methods apply to all controllers and write JSON bodies.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -43,6 +51,8 @@ public class GlobalExceptionHandler {
 
     // ---- 400: the request itself is not acceptable -------------------------------------------------------------
 
+    /** A request body failed Bean Validation ({@code @Valid}): 400 with one detail per field. */
+    // @ExceptionHandler(X.class): "when a controller throws X (or a subclass), run this method instead".
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ApiError> invalidBody(MethodArgumentNotValidException e) {
         List<ApiError.Detail> details = FieldProblems.fromFieldErrors(e.getBindingResult().getFieldErrors(), FieldProblems::jsonName);
@@ -54,22 +64,26 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("validation_failed", e.getMessage(), e.details()));
     }
 
+    /** Body missing or not parseable JSON (also an unknown enum value): 400 malformed_request. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiError> unreadableBody() {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("malformed_request", "The request body is missing or is not valid JSON."));
     }
 
+    /** A path or query value of the wrong type, for example {@code /admin/trains/abc} or {@code ?date=notadate}: 400 invalid_parameter. */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ResponseEntity<ApiError> badParameter(MethodArgumentTypeMismatchException e) {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("invalid_parameter", "The parameter '" + e.getName() + "' is not valid."));
     }
 
+    /** A required query parameter is absent (for example {@code from} in trip search): 400 missing_parameter. */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     ResponseEntity<ApiError> missingParameter(MissingServletRequestParameterException e) {
         return respond(HttpStatus.BAD_REQUEST, ApiError.of("missing_parameter", "The parameter '" + e.getParameterName() + "' is required."));
     }
 
     // ---- 404: the thing does not exist -------------------------------------------------------------------------
+    // Each *NotFoundException below is thrown by a service when an id is unknown; the handler keeps the exception's message.
 
     @ExceptionHandler(StationNotFoundException.class)
     ResponseEntity<ApiError> stationNotFound(StationNotFoundException e) {
@@ -101,12 +115,16 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("route_not_found", e.getMessage()));
     }
 
+    /** No controller matches the URL at all. */
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ApiError> noRoute() {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("not_found", "No such route."));
     }
 
     // ---- 409: the request clashes with existing data ----------------------------------------------------------
+    // *TakenException: a unique value (code, number, position) already exists. *InUseException: other rows still refer to it.
+    // train_inactive / train_has_no_coaches / route_fares_incomplete: a trip cannot be made yet (see TripService).
+    // route_has_fares: changing a route's stops would orphan its fares. seat_conflict: bulk seat add clashes with existing seats.
 
     @ExceptionHandler(StationCodeTakenException.class)
     ResponseEntity<ApiError> stationCodeTaken(StationCodeTakenException e) {
@@ -175,6 +193,9 @@ public class GlobalExceptionHandler {
     }
 
     // ---- 502 and 503: Booking and Seat, which keeps its own copy of every trip, did not accept the change ------------
+    // The edit is pushed to Booking as the last step before the commit, so in all three cases below nothing was saved:
+    // 409 booking_conflict = Booking refused with a conflict (holds or bookings exist); 502 = Booking refused for another reason;
+    // 503 = Booking could not be reached (timeout or connection error).
 
     @ExceptionHandler(BookingSnapshotRejectedException.class)
     ResponseEntity<ApiError> bookingRejected(BookingSnapshotRejectedException e) {
@@ -195,12 +216,14 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.METHOD_NOT_ALLOWED, ApiError.of("method_not_allowed", "This method is not supported for this route."));
     }
 
+    /** Safety net for any bug: logs the stack trace (once, here) and hides the details from the client. */
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiError> unexpected(Exception e) {
         log.error("Unhandled error", e);
         return respond(HttpStatus.INTERNAL_SERVER_ERROR, ApiError.of("internal_error", "Something went wrong."));
     }
 
+    /** Small helper: status plus JSON body. */
     private static ResponseEntity<ApiError> respond(HttpStatus status, ApiError body) {
         return ResponseEntity.status(status).body(body);
     }

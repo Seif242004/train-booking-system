@@ -17,7 +17,12 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Station rules. Every change and its audit row are written in one transaction: both happen or neither does. */
+/**
+ * Station rules. Every change and its audit row are written in one transaction: both happen or neither does.
+ * Callers: the two station controllers, the route service (to check stops) and trip search (find by code).
+ * Renaming a station is pushed to Booking &amp; Seat through {@link SnapshotChanges}, because stop names are part of the trip snapshot.
+ */
+// @Service: marks the business-logic layer (a Spring bean, same as @Component with a clearer name).
 @Service
 public class StationService {
 
@@ -33,16 +38,26 @@ public class StationService {
         this.changes = changes;
     }
 
+    /** All stations. */
+    // @Transactional(readOnly = true): runs inside a database transaction that is a hint "no writes here" (cheaper, safer).
     @Transactional(readOnly = true)
     public List<Station> list() {
         return stations.findAll();
     }
 
+    /** One station; @throws StationNotFoundException if the id is unknown */
     @Transactional(readOnly = true)
     public Station get(long id) {
         return stations.findById(id).orElseThrow(() -> new StationNotFoundException(id));
     }
 
+    /**
+     * Creates a station and its audit row in one transaction.
+     *
+     * @param adminId the caller's JWT subject, written to the audit log
+     * @throws StationCodeTakenException if the code exists (unique constraint)
+     */
+    // @Transactional (read-write): begins a transaction before the method, commits when it returns, rolls back on a RuntimeException.
     @Transactional
     public Station create(StationRequest request, String adminId) {
         String code = normalizeCode(request.code());
@@ -57,6 +72,13 @@ public class StationService {
         return created;
     }
 
+    /**
+     * Replaces a station's code, name and city. After the audit row, {@code changes.stationChanged} re-pushes every future active
+     * trip that stops here as the last step before the commit; if Booking &amp; Seat refuses, this whole update rolls back.
+     *
+     * @throws StationNotFoundException  unknown id
+     * @throws StationCodeTakenException the new code belongs to another station
+     */
     @Transactional
     public Station update(long id, StationRequest request, String adminId) {
         Station before = get(id);
@@ -85,6 +107,10 @@ public class StationService {
         return stations.findExistingIds(ids);
     }
 
+    /**
+     * Deletes a station. The database foreign key from route_stop is the real guard: if a route uses the station the DELETE fails
+     * with ORA-02292 (child record found) and we answer 409 station_in_use, so no check-then-delete race is possible.
+     */
     @Transactional
     public void delete(long id, String adminId) {
         Station before = get(id);
@@ -103,6 +129,7 @@ public class StationService {
         audit.change(adminId, ENTITY, id, "DELETE", before, null);
     }
 
+    /** Codes are stored trimmed and upper-case, so "cai" and "CAI" are the same station. */
     private static String normalizeCode(String code) {
         return code.strip().toUpperCase(Locale.ROOT);
     }

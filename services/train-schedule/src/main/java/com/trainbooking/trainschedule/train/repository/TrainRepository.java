@@ -13,10 +13,12 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 /** Data access for the train table. Parameterised SQL only: values are always bound, never concatenated. */
+// @Repository: the data-access bean of the train feature; SQL errors become Spring DataAccessException types.
 @Repository
 public class TrainRepository {
 
     // Explicit mapping because the column train_number is the API field number (NUMBER is reserved in Oracle).
+    // A RowMapper turns one JDBC result row into an object. Written by hand because the column name differs from the JSON name.
     private static final RowMapper<Train> TRAIN = (rs, row) -> new Train(
             rs.getLong("id"),
             rs.getString("train_number"),
@@ -24,8 +26,10 @@ public class TrainRepository {
             rs.getString("type"),
             TrainStatus.valueOf(rs.getString("status")));
 
+    /** The column list shared by every SELECT, so the mapper above always sees the same columns. */
     private static final String COLUMNS = "id, train_number, name, type, status";
 
+    /** Spring's fluent JDBC helper: .sql(...).param(name, value).query(mapper).list() / .update(). */
     private final JdbcClient jdbc;
 
     public TrainRepository(JdbcClient jdbc) {
@@ -55,11 +59,14 @@ public class TrainRepository {
         return jdbc.sql(sql.toString()).params(params).query(TRAIN).list();
     }
 
+    /** One train by id, or empty. */
     public Optional<Train> findById(long id) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM train WHERE id = :id").param("id", id).query(TRAIN).optional();
     }
 
     /** A duplicate number violates the unique constraint (ORA-00001), reported by Spring as DuplicateKeyException. */
+    // The INSERT lets Oracle generate the id (identity column); update(keys, "id") reads it back. No separate "exists" check is made:
+    // the unique constraint on train_number is the guard against duplicates.
     public Train insert(String number, String name, String type, TrainStatus status) {
         KeyHolder keys = new GeneratedKeyHolder();
         jdbc.sql("INSERT INTO train (train_number, name, type, status) VALUES (:number, :name, :type, :status)")
@@ -92,6 +99,7 @@ public class TrainRepository {
         return jdbc.sql("SELECT COUNT(*) FROM coach WHERE train_id = :id").param("id", trainId).query(Integer.class).single();
     }
 
+    /** Same purpose as countCoaches: the number of seats that the cascade will remove (a sub-select of the train's coach ids). */
     public int countSeats(long trainId) {
         return jdbc.sql("SELECT COUNT(*) FROM seat WHERE coach_id IN (SELECT id FROM coach WHERE train_id = :id)")
                 .param("id", trainId)
@@ -100,6 +108,8 @@ public class TrainRepository {
     }
 
     /** Turns user text into a LIKE pattern that matches it anywhere, treating % _ and \ literally. */
+    // In LIKE, % matches any text and _ any one character; the admin's text must match literally, so they are escaped with a backslash,
+    // and the SQL says ESCAPE '\'. UPPER on both sides makes the search case-insensitive.
     static String containsPattern(String text) {
         String escaped = text.strip().toUpperCase(java.util.Locale.ROOT)
                 .replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");

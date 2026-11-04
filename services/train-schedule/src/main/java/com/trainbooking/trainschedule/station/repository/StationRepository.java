@@ -12,15 +12,18 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 /** Data access for the station table. Plain parameterised SQL only: no value is ever concatenated into a statement. */
+// @Repository: the data-access bean of this feature (one shared instance; SQL errors become Spring's DataAccessException types).
 @Repository
 public class StationRepository {
 
+    /** JdbcClient: Spring's fluent JDBC helper. {@code .sql(...).param(...).query(Type.class)} maps columns to a record by name. */
     private final JdbcClient jdbc;
 
     public StationRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
 
+    /** All stations ordered by code. Plain read, no lock. */
     public List<Station> findAll() {
         return jdbc.sql("SELECT id, code, name, city FROM station ORDER BY code")
                 .query(Station.class)
@@ -38,6 +41,10 @@ public class StationRepository {
                 .list());
     }
 
+    /**
+     * Finds a station by code, ignoring case and surrounding spaces. UPPER() on the column makes the match case-insensitive even for
+     * old rows; codes are stored upper-case, so this is a safety net. Locale.ROOT avoids locale surprises such as the Turkish dotless i.
+     */
     public Optional<Station> findByCode(String code) {
         return jdbc.sql("SELECT id, code, name, city FROM station WHERE UPPER(code) = :code")
                 .param("code", code.strip().toUpperCase(java.util.Locale.ROOT))
@@ -45,6 +52,7 @@ public class StationRepository {
                 .optional();
     }
 
+    /** One station by id, or empty. */
     public Optional<Station> findById(long id) {
         return jdbc.sql("SELECT id, code, name, city FROM station WHERE id = :id")
                 .param("id", id)

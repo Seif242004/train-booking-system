@@ -8,15 +8,18 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+/** Unit test of {@link KeycloakRealmRolesConverter}: only realm_access.roles become ROLE_* authorities; anything odd gives none. */
 class KeycloakRealmRolesConverterTest {
 
     private final KeycloakRealmRolesConverter converter = new KeycloakRealmRolesConverter();
 
+    /** Builds a fake verified token with the given claims (no signature needed: the converter only reads claims). */
     private static Jwt tokenWith(Map<String, Object> claims) {
         return Jwt.withTokenValue("t").header("alg", "RS256").subject("sub-1").issuedAt(Instant.now())
                 .expiresAt(Instant.now().plusSeconds(60)).claims(c -> c.putAll(claims)).build();
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void realmRolesBecomeRolePrefixedAuthorities() {
         Jwt jwt = tokenWith(Map.of("realm_access", Map.of("roles", List.of("USER", "ADMIN"))));

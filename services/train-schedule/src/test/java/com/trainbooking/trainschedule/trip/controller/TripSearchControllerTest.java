@@ -32,6 +32,13 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/**
+ * Web-layer test of {@link TripSearchController}: GET /trips: any signed-in user, the result shape with fares per class and
+ * nextAvailableDate, and the 400 answers for missing or bad parameters. Only the controller, the security chain and the error
+ * handler are loaded; the service is a mock.
+ */
+// @WebMvcTest(X.class): starts a slice of Spring with only the web layer (MockMvc, no real server, no database).
+// @Import: adds the security configuration and the JSON error handlers, so 401/403 and error bodies are the real ones.
 @WebMvcTest(TripSearchController.class)
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class TripSearchControllerTest {
@@ -45,15 +52,19 @@ class TripSearchControllerTest {
                     new TripStop(2, 3, "ALX", "Alexandria", LocalDateTime.of(2026, 11, 2, 10, 45), null)),
             List.of(new JourneyFare(CoachClass.FIRST, new BigDecimal("230.00"), "EGP")));
 
+    // @Autowired: Spring puts its MockMvc bean here; MockMvc sends fake HTTP requests straight to the controller.
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: replaces the real bean in the Spring context with a Mockito mock, so each test decides what the service returns or
+    // throws.
     @MockitoBean
     TripSearchService service;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // @Test: marks a JUnit 5 test method. Names read as sentences: who calls, what happens.
     @Test
     void withoutAToken_returns401() throws Exception {
         mvc.perform(get("/trips").param("from", "CAI").param("to", "ALX").param("date", "2026-11-02"))

@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.json.JsonMapper;
 
+/** Unit test of {@link StationService} with mocks: code normalization, audit rows, "taken" and "in use" errors from database errors. */
 class StationServiceTest {
 
     private final StationRepository stations = mock(StationRepository.class);
@@ -30,6 +31,7 @@ class StationServiceTest {
     private final SnapshotChanges changes = mock(SnapshotChanges.class);
     private final StationService service = new StationService(stations, new AuditTrail(audit, JsonMapper.builder().build()), changes);
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void create_normalizesInput_andWritesAnAuditRowForTheAdmin() {
         given(stations.insert("CAI", "Cairo Ramses", "Cairo")).willReturn(new Station(5, "CAI", "Cairo Ramses", "Cairo"));
@@ -101,6 +103,7 @@ class StationServiceTest {
                 .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     }
 
+    /** Mockito helper: matches any long argument (a named wrapper, so the stubbing lines stay readable). */
     private static long anyLong() {
         return org.mockito.ArgumentMatchers.anyLong();
     }

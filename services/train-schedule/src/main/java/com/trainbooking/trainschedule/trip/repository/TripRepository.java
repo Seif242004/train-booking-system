@@ -27,10 +27,13 @@ import org.springframework.stereotype.Repository;
  * Data access for the trip and trip_stop tables, and for trip search. Parameterised SQL only. Times are stored as
  * TIMESTAMP WITH TIME ZONE and read back as local date-times in the service time zone.
  */
+// @Repository: data-access bean of the trip feature (tables trip and trip_stop). Callers: TripService, TripSearchService, TripLayoutService
+// and TripSnapshotRefresher. Every statement is parameterised. The pure rules (time order, journey fares) live in the services, not here.
 @Repository
 public class TripRepository {
 
     /** The data of one stop to save: times already converted to the zone offset. */
+    // (these small records are plain data carriers between the service and this class)
     public record StopRow(int stopIndex, long stationId, OffsetDateTime arrival, OffsetDateTime departure) {
     }
 
@@ -39,10 +42,14 @@ public class TripRepository {
                             int fromStopIndex, int toStopIndex, LocalDateTime departure, LocalDateTime arrival) {
     }
 
+    /** The trip row joined with the train and route names; the stops are loaded separately and added by withStops. */
     private record Head(long id, long trainId, String trainNumber, String trainName, long routeId, String routeName,
                         LocalDate departureDate, TripStatus status) {
     }
 
+    // SQL: one trip per row. Joins give the train number/name and the route name for display. The LEFT JOIN to the first stop (stop_index
+    // = 0)
+    // exists only so the callers can ORDER BY the trip's first departure time; a trip without stops would still be listed.
     private static final String HEAD_SELECT =
             "SELECT t.id, t.train_id, tr.train_number, tr.name AS train_name, t.route_id, r.name AS route_name, "
                     + "t.departure_date, t.status "
@@ -50,7 +57,9 @@ public class TripRepository {
                     + "LEFT JOIN trip_stop first_stop ON first_stop.trip_id = t.id AND first_stop.stop_index = 0 ";
 
     private final JdbcClient jdbc;
+    /** Used for the JDBC batch insert of stops (JdbcClient cannot batch). */
     private final NamedParameterJdbcTemplate batchTemplate;
+    /** The railway time zone (property trainbooking.timezone). Times are stored with an offset and converted to this zone when read. */
     private final ZoneId zone;
 
     public TripRepository(JdbcClient jdbc, NamedParameterJdbcTemplate batchTemplate, ZoneId zone) {
@@ -68,11 +77,15 @@ public class TripRepository {
         return withStops(heads);
     }
 
+    /** One trip with its stops, or empty. */
     public Optional<Trip> findById(long id) {
         List<Head> heads = jdbc.sql(HEAD_SELECT + "WHERE t.id = :id").param("id", id).query((rs, row) -> head(rs)).list();
         return withStops(heads).stream().findFirst();
     }
 
+    /**
+     * Inserts the trip row (status defaults to ACTIVE in the table) and returns the generated id. The stops are inserted by insertStops.
+     */
     public long insert(long trainId, long routeId, LocalDate departureDate) {
         KeyHolder keys = new GeneratedKeyHolder();
         jdbc.sql("INSERT INTO trip (train_id, route_id, departure_date) VALUES (:trainId, :routeId, :date)")
@@ -115,6 +128,7 @@ public class TripRepository {
                 batch);
     }
 
+    /** Removes all stops of a trip, before the new list is inserted on an update. Inside the caller's transaction. */
     public void deleteStops(long tripId) {
         jdbc.sql("DELETE FROM trip_stop WHERE trip_id = :tripId").param("tripId", tripId).update();
     }
@@ -126,6 +140,9 @@ public class TripRepository {
 
     // ---- the trips whose snapshot must be pushed again when something inside it was edited ----------------------------
 
+    // SQL fragment: ids of ACTIVE trips whose first stop (stop_index 0) departs after :now. These are the trips whose snapshot Booking
+    // still
+    // accepts changes for. A trip that has already left keeps the copy it had (see SnapshotChanges). The callers append one more condition.
     private static final String FUTURE_ACTIVE = "SELECT t.id FROM trip t JOIN trip_stop first_stop ON first_stop.trip_id = t.id AND first_stop.stop_index = 0 "
             + "WHERE t.status = 'ACTIVE' AND first_stop.departure_time > :now ";
 
@@ -145,6 +162,7 @@ public class TripRepository {
                 .param("now", now).param("id", stationId).query(Long.class).list();
     }
 
+    /** How many trips use a route (any status). Used to freeze the stops of a route that trips copied. */
     public int countByRoute(long routeId) {
         return jdbc.sql("SELECT COUNT(*) FROM trip WHERE route_id = :routeId").param("routeId", routeId).query(Integer.class).single();
     }
@@ -153,6 +171,11 @@ public class TripRepository {
      * Trips that make the journey from one station to another and leave the origin within [dayStart, dayEnd). Only ACTIVE
      * trips (cancelled trips are never returned), and only where the origin comes before the destination on the trip's route.
      */
+    // SQL (text block, a multi-line string): fs = the stop at the origin station, ts = the stop at the destination station of the SAME
+    // trip.
+    // "ts.stop_index > fs.stop_index" makes the origin come before the destination on the route (wrong direction = no row).
+    // status = 'ACTIVE' hides cancelled trips. The departure window [dayStart, dayEnd) is the local day in the service zone, expressed as
+    // instants.
     public List<SearchRow> search(long fromStationId, long toStationId, OffsetDateTime dayStart, OffsetDateTime dayEnd) {
         return jdbc.sql("""
                         SELECT t.id AS trip_id, tr.train_number, tr.name AS train_name, tr.type AS train_type,
@@ -183,6 +206,8 @@ public class TripRepository {
      * The first departure from the origin, not before {@code notBefore}, of an ACTIVE trip that goes on to the destination;
      * empty if there is none. The caller takes the date of it (in the service zone) as "the next date with a trip".
      */
+    // SQL: same joins, no day window; the earliest departure from the origin at or after notBefore. FETCH FIRST 1 ROWS ONLY is Oracle's
+    // standard "LIMIT 1" (no ROWNUM needed). The caller turns it into the "next available date" shown when a day has no trips.
     public Optional<LocalDateTime> findNextDeparture(long fromStationId, long toStationId, OffsetDateTime notBefore) {
         return jdbc.sql("""
                         SELECT fs.departure_time AS departure_time
@@ -202,6 +227,7 @@ public class TripRepository {
 
     // ---- reading
 
+    /** Maps the current row of HEAD_SELECT. departure_date is a plain DATE (no time zone), read as LocalDate. */
     private static Head head(ResultSet rs) throws SQLException {
         return new Head(rs.getLong("id"), rs.getLong("train_id"), rs.getString("train_number"), rs.getString("train_name"),
                 rs.getLong("route_id"), rs.getString("route_name"), rs.getObject("departure_date", LocalDate.class),
@@ -209,6 +235,9 @@ public class TripRepository {
     }
 
     /** Loads the stops of all the given trips with one query and assembles the trips, keeping the order of the heads. */
+    // Why two steps: one query for all trip heads, then ONE query for the stops of all of them (IN list), instead of one query per trip.
+    // Limit: Oracle accepts at most 1000 values in an IN list (ORA-01795); a list of more trips than that would fail (see guide chapter
+    // 13).
     private List<Trip> withStops(List<Head> heads) {
         if (heads.isEmpty()) {
             return List.of();
@@ -243,6 +272,7 @@ public class TripRepository {
         return stopsByTrip;
     }
 
+    /** Converts a stored timestamp (with offset) to a local date-time in the railway zone, keeping the same instant. NULL stays null. */
     private LocalDateTime local(ResultSet rs, String column) throws SQLException {
         OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
         return value == null ? null : value.atZoneSameInstant(zone).toLocalDateTime();

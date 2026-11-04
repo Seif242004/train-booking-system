@@ -20,8 +20,10 @@ import java.util.List;
  *   <li>the whole trip lasts at most 24 hours (a larger gap is almost certainly a typo that the "next day" rule hid).</li>
  * </ul>
  */
+// Pure logic (no database, no Spring): easy to test. Package-private; used only by TripService.plan.
 final class TripTimeline {
 
+    /** A trip longer than this is treated as a typo. */
     static final Duration MAX_TRIP_DURATION = Duration.ofHours(24);
 
     /** The resolved times of one stop. {@code arrival} is null at the first stop, {@code departure} at the last. */
@@ -31,6 +33,10 @@ final class TripTimeline {
     private TripTimeline() {
     }
 
+    /**
+     * Walks the stops in order, keeping the previous moment and the current calendar day. A clock time earlier than the previous moment
+     * moves the day forward by one. Throws RequestValidationException (400) listing every problem.
+     */
     static List<Times> resolve(LocalDate departureDate, List<StopTimeRequest> stops) {
         List<ApiError.Detail> problems = new ArrayList<>();
         checkShape(stops, problems);

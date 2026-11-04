@@ -19,6 +19,11 @@ public class StationListController {
         this.service = service;
     }
 
+    /**
+     * GET /stations: all stations ordered by code, for any signed-in user (no ADMIN role needed: see SecurityConfig, where only
+     * {@code /admin/**} requires it). Forwarded by the Gateway as an exact path. The one endpoint beyond the SRS list.
+     */
+    // @GetMapping("/stations"): HTTP GET on this exact path. @RestController: return value is written as JSON.
     @GetMapping("/stations")
     public List<Station> list() {
         return service.list();

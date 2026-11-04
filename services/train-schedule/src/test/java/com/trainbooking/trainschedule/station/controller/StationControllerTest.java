@@ -37,15 +37,23 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
  * Security and validation of the station API, with the service mocked so no database is needed.
  * The ADMIN rule is checked here exactly as the filter chain applies it in production.
  */
+// Web-layer test of {@link StationController}: the admin station API: 401 without a token, 403 for passengers, CRUD status
+// codes, validation details, 409 for a taken code or a station a route uses. Only the controller, the security chain and the
+// error handler are loaded; the service is a mock.
+// @WebMvcTest(X.class): starts a slice of Spring with only the web layer (MockMvc, no real server, no database).
+// @Import: adds the security configuration and the JSON error handlers, so 401/403 and error bodies are the real ones.
 @WebMvcTest(StationController.class)
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class StationControllerTest {
 
     private static final String VALID_BODY = "{\"code\":\"CAI\",\"name\":\"Cairo Ramses\",\"city\":\"Cairo\"}";
 
+    // @Autowired: Spring puts its MockMvc bean here; MockMvc sends fake HTTP requests straight to the controller.
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: replaces the real bean in the Spring context with a Mockito mock, so each test decides what the service returns or
+    // throws.
     @MockitoBean
     StationService service;
 
@@ -61,6 +69,7 @@ class StationControllerTest {
         return jwt().jwt(token -> token.subject("user-sub")).authorities(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
+    // @Test: marks a JUnit 5 test method. Names read as sentences: who calls, what happens.
     @Test
     void withoutToken_returns401() throws Exception {
         mvc.perform(get("/admin/stations"))

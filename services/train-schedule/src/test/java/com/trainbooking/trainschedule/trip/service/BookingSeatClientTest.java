@@ -42,15 +42,19 @@ class BookingSeatClientTest {
             List.of(new BookingSnapshot.Seat(1, 10, "A1", 1, "A", CoachClass.FIRST)),
             List.of(new BookingSnapshot.Fare(0, CoachClass.FIRST, new BigDecimal("80.00"), "EGP")));
 
+    // MockRestServiceServer replaces the network: the test declares which request it expects (URL, headers, body) and which answer to
+    // send back.
     private final RestClient.Builder builder = RestClient.builder().baseUrl("http://booking-seat");
     private final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
     private final BookingSeatClient client = new BookingSeatClient(builder.build(), "secret-key");
 
+    // A text block (triple quotes) holding the JSON error that Booking &amp; Seat sends for a 409.
     private static final String CONFLICT_BODY = """
             {"error":{"code":"capacity_conflict","message":"The change would remove capacity that has holds or bookings.",
              "details":[{"field":"seats","message":"seat B2 has holds or bookings and cannot be removed"}]}}
             """;
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void putSnapshot_sendsTheWholeSnapshot_withTheKeyAndTheAdmin() {
         server.expect(requestTo("http://booking-seat/internal/trips/21/snapshot"))

@@ -27,6 +27,10 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+/**
+ * Unit test of {@link TripSnapshotPublisher}: the snapshot holds the train, coaches, seats and fares of this trip only, with time
+ * offsets.
+ */
 class TripSnapshotPublisherTest {
 
     private static final ZoneId CAIRO = ZoneId.of("Africa/Cairo");
@@ -44,6 +48,7 @@ class TripSnapshotPublisherTest {
             new TripStop(1, 2, "GIZ", "Giza", DAY.atTime(8, 40), DAY.atTime(8, 45)),
             new TripStop(2, 3, "ALX", "Alexandria", DAY.plusDays(1).atTime(0, 15), null)));
 
+    /** Mocks a train with two coaches and their seats and fares. */
     private void trainWithTwoCoaches() {
         given(trains.get(7)).willReturn(new Train(7, "T100", "Cairo-Alexandria Express", "Express", TrainStatus.ACTIVE));
         given(coaches.listByTrain(7)).willReturn(List.of(new Coach(1, 7, "A", CoachClass.FIRST, 1, 0), new Coach(2, 7, "B", CoachClass.SECOND, 2, 12)));
@@ -52,6 +57,7 @@ class TripSnapshotPublisherTest {
         given(fares.list(4)).willReturn(List.of(new Fare(0, CoachClass.FIRST, new BigDecimal("80.00"), "EGP"), new Fare(0, CoachClass.SECOND, new BigDecimal("50.00"), "EGP")));
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void theSnapshotHasEverythingBookingNeeds_andNothingFromAnotherTrain() {
         trainWithTwoCoaches();

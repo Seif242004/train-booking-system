@@ -33,6 +33,9 @@ import org.springframework.transaction.support.TransactionSynchronizationUtils;
  * When a train, coach, seat, fare, route or station is edited, the snapshots of the future trips it touches are pushed
  * again just before the commit, once per trip, and a refusal of Booking and Seat reaches the transaction.
  */
+// @SuppressWarnings("unchecked"): silences the compiler warning for the generic mock of ObjectProvider.
+// These tests open a fake transaction by hand (TransactionSynchronizationManager.initSynchronization) so the beforeCommit callback
+// registered by the refresher can be triggered on purpose with commit(): that is what Spring does just before a real commit.
 @SuppressWarnings("unchecked")
 class TripSnapshotRefresherTest {
 
@@ -43,16 +46,19 @@ class TripSnapshotRefresherTest {
     private final ObjectProvider<TripSnapshotPublisher> provider = mock(ObjectProvider.class);
     private final TripSnapshotRefresher refresher = new TripSnapshotRefresher(trips, provider, NOW);
 
+    /** A future ACTIVE trip with this id. */
     private static Trip trip(long id) {
         return new Trip(id, 7, "T100", "Express", 4, "Route", LocalDate.of(2026, 11, 2), TripStatus.ACTIVE, List.of());
     }
 
+    // @BeforeEach: JUnit runs this before every test. It starts the fake transaction and wires the lazy publisher handle.
     @BeforeEach
     void inATransaction() {
         given(provider.getObject()).willReturn(publisher);
         TransactionSynchronizationManager.initSynchronization();
     }
 
+    // @AfterEach: runs after every test and always cleans the thread-bound transaction state, so tests cannot influence each other.
     @AfterEach
     void endTheTransaction() {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -62,10 +68,12 @@ class TripSnapshotRefresherTest {
         TransactionSynchronizationManager.unbindResourceIfPossible(TripSnapshotRefresher.class);
     }
 
+    /** Simulates the moment just before the commit: Spring calls beforeCommit on every registered callback. */
     private void commit() {
         TransactionSynchronizationUtils.triggerBeforeCommit(false);
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void nothingIsPushed_untilJustBeforeTheCommit() {
         refresher.trainChanged(7, "admin-1");

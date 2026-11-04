@@ -23,18 +23,29 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Only the path is logged, never the query string, a header or a body: tokens and card data must not reach the logs.
  */
+// @Component: as a servlet Filter bean Spring Boot adds it to the web server's filter chain automatically.
+// OncePerRequestFilter guarantees doFilterInternal runs exactly once per request, even with internal forwards.
 @Component
 class RequestLogContext extends OncePerRequestFilter {
 
+    /** Logger named "access": one line per request, kept apart from the application logs. */
     private static final Logger log = LoggerFactory.getLogger("access");
+    /** Finds the booking id in paths like /bookings/42/cancel. Train &amp; Schedule has none, but all services share this filter. */
     private static final Pattern BOOKING = Pattern.compile("/(?:bookings|payments|tickets|refunds)/(\\d+)");
+    /** Finds the trip id in paths like /admin/trips/7 or /trips/7/layout. */
     private static final Pattern TRIP = Pattern.compile("/trips/(\\d+)");
 
+    /**
+     * Fills the MDC (the per-thread map that the JSON log layout copies into every log record), runs the rest of the chain,
+     * then writes the access line and clears the MDC so ids never leak into the next request on the same pooled thread.
+     */
+    // @Override: replaces the abstract method of OncePerRequestFilter.
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         long start = System.nanoTime();
         String path = request.getRequestURI();
-        // The user is the Keycloak subject of the verified token (the same plain value the services store); calls with the internal key have none.
+        // The user is the Keycloak subject of the verified token (the same plain value the services store); calls with the internal key
+        // have none.
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof JwtAuthenticationToken token) {
             MDC.put("userId", token.getName());
@@ -44,6 +55,7 @@ class RequestLogContext extends OncePerRequestFilter {
         try {
             chain.doFilter(request, response);
         } finally {
+            // finally: the line is written even when the request failed with an exception.
             MDC.put("httpStatus", String.valueOf(response.getStatus()));
             log.info("{} {} -> {} in {} ms", request.getMethod(), path, response.getStatus(), (System.nanoTime() - start) / 1_000_000);
             MDC.remove("userId");
@@ -53,6 +65,7 @@ class RequestLogContext extends OncePerRequestFilter {
         }
     }
 
+    /** Puts the first captured group of {@code pattern} (a numeric id) into the MDC under {@code key}, if the path matches. */
     private static void put(String key, Pattern pattern, String path) {
         Matcher matcher = pattern.matcher(path);
         if (matcher.find()) {

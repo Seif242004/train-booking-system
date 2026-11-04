@@ -19,6 +19,8 @@ import tools.jackson.databind.json.JsonMapper;
  * them. These handlers write the same JSON error shape as the rest of the API:
  * 401 when the token is missing or invalid, 403 when it is valid but the role is missing.
  */
+// AuthenticationEntryPoint = "what to answer when nobody is logged in" (401). AccessDeniedHandler = "what to answer when a
+// logged-in user lacks the role" (403). One class does both and is wired in SecurityConfig and InternalSecurityConfig.
 @Component
 public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
 
@@ -30,6 +32,7 @@ public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDenied
         this.jsonMapper = jsonMapper;
     }
 
+    /** 401: no token ({@code unauthenticated}) or a bad/expired token ({@code invalid_token}). */
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
             throws IOException {
@@ -40,6 +43,7 @@ public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDenied
                 : ApiError.of("invalid_token", "The token is not valid."));
     }
 
+    /** 403: the token is fine but the user lacks the role (also used by the /internal chain when its authority is missing). */
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException)
             throws IOException {

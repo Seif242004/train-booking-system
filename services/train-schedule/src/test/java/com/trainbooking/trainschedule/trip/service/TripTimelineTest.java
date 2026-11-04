@@ -11,18 +11,25 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Unit test of the pure {@link TripTimeline}: clock times become date-times, past midnight rolls to the next day, bad shapes are
+ * rejected.
+ */
 class TripTimelineTest {
 
     private static final LocalDate DAY = LocalDate.of(2026, 11, 2);
 
+    /** Builds one stop's times (either may be null). */
     private static StopTimeRequest stop(String arrival, String departure) {
         return new StopTimeRequest(arrival, departure);
     }
 
+    /** The field names of the problems in a thrown exception, e.g. "stops[2].arrivalTime". */
     private static List<String> fieldsOf(Throwable thrown) {
         return ((RequestValidationException) thrown).details().stream().map(ApiError.Detail::field).toList();
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void aDaytimeTrip_getsTheDepartureDateOnEveryTime() {
         List<TripTimeline.Times> times = TripTimeline.resolve(DAY, List.of(stop(null, "08:00"), stop("08:40", "08:45"), stop("10:45", null)));

@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.json.JsonMapper;
 
+/** Unit test of {@link TrainService} with mocks: number normalization, audit rows (with cascade counts), error mapping, filter parsing. */
 class TrainServiceTest {
 
     private final TrainRepository trains = mock(TrainRepository.class);
@@ -36,6 +37,7 @@ class TrainServiceTest {
 
     private static final Train EXISTING = new Train(5, "E901", "Cairo Express", "Express", TrainStatus.ACTIVE);
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void create_normalizesTheNumber_andAuditsTheAdmin() {
         given(trains.insert("E901", "Cairo Express", "Express", TrainStatus.ACTIVE)).willReturn(EXISTING);

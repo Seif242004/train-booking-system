@@ -15,11 +15,15 @@ public final class ListValidation {
     }
 
     /**
+     * Checks the list size and validates every item with Bean Validation (the {@code @NotBlank}, {@code @Size} ... rules on the
+     * item's class). Nothing is returned: success means no exception.
+     *
      * @param listField name used for problems about the list as a whole (empty or too long)
      * @param max       the most items one request may carry
      * @throws RequestValidationException if the list or any item is not valid
      */
     public static <T> void require(Validator validator, List<T> items, String listField, int max) {
+        // Collect every problem first so the admin sees them all at once, then throw one exception.
         List<ApiError.Detail> problems = new ArrayList<>();
         if (items == null || items.isEmpty()) {
             problems.add(new ApiError.Detail(listField, "at least one item is required"));

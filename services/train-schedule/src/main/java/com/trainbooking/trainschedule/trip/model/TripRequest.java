@@ -11,6 +11,10 @@ import java.util.List;
  * is not part of the request: a trip starts ACTIVE and is only cancelled by the whole-trip cancel (slice 12).
  */
 public record TripRequest(
+        // Rules: @NotNull = present; @Size(min, max) = number of list entries; @Valid on the list element makes Bean Validation also
+        // check each StopTimeRequest.
+        // The service checks the rest: train and route exist, the list matches the route's stops, times make sense, a trip lasts at most
+        // 24 hours.
         @NotNull(message = "is required")
         Long trainId,
 

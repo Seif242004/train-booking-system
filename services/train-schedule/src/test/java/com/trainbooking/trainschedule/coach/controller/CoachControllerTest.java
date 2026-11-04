@@ -39,21 +39,32 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Web-layer test of {@link CoachController}: the admin coach API: 403 for passengers, the JSON field "class", validation errors
+ * that name the JSON field, 409 codes for a taken position or code, 404s. Only the controller, the security chain and the error
+ * handler are loaded; the service is a mock.
+ */
+// @WebMvcTest(X.class): starts a slice of Spring with only the web layer (MockMvc, no real server, no database).
+// @Import: adds the security configuration and the JSON error handlers, so 401/403 and error bodies are the real ones.
 @WebMvcTest(CoachController.class)
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class CoachControllerTest {
 
     private static final String BODY = "{\"code\":\"A1\",\"class\":\"FIRST\",\"position\":1,\"standingCapacity\":20}";
 
+    // @Autowired: Spring puts its MockMvc bean here; MockMvc sends fake HTTP requests straight to the controller.
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: replaces the real bean in the Spring context with a Mockito mock, so each test decides what the service returns or
+    // throws.
     @MockitoBean
     CoachService service;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // @Test: marks a JUnit 5 test method. Names read as sentences: who calls, what happens.
     @Test
     void asPassenger_returns403_forEveryOperation() throws Exception {
         mvc.perform(get("/admin/trains/1/coaches").with(passenger())).andExpect(status().isForbidden());

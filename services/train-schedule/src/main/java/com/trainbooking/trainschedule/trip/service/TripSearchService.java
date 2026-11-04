@@ -26,13 +26,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Trip search for passengers (FR-S1, FR-S2): trips from one station to another on a date. */
+// @Service: business-logic bean. Caller: TripSearchController. Read-only; the Gateway adds seats-left from Booking &amp; Seat afterwards.
 @Service
 public class TripSearchService {
 
     private final TripRepository trips;
     private final StationService stations;
+    /** Read directly (not through FareService) because search needs the raw fares of a route, many routes per request. */
     private final FareRepository fares;
     private final ZoneId zone;
+    /** Source of "now" (UTC); tests replace it. */
     private final Clock clock;
 
     public TripSearchService(TripRepository trips, StationService stations, FareRepository fares, ZoneId zone, Clock clock) {
@@ -52,6 +55,12 @@ public class TripSearchService {
      * The seats and standing places left are added by the Gateway, from Booking & Seat.
      */
     @Transactional(readOnly = true)
+    // Steps: (1) resolve both station codes (400 if unknown or equal); (2) the search window is the local day of `date` in the railway
+    // zone,
+    // but for today it starts at the current instant so trips that already left the origin are hidden; (3) one SQL query for the trips;
+    // (4) if none, look for the next date with a trip (never in the past); (5) otherwise load all stops with ONE query and the route
+    // fares once
+    // per route, then price each journey with journeyFares.
     public TripSearchResponse search(String fromCode, String toCode, LocalDate date) {
         Station from = station("from", fromCode);
         Station to = station("to", toCode);
@@ -92,6 +101,9 @@ public class TripSearchService {
      * The fare of a journey is the sum of the fares of the segments it uses (CLAUDE.md, "Fares"): segments
      * {@code fromStop} to {@code toStop - 1}. A class is listed only if every one of those segments has a fare for it.
      */
+    // Money rule: the journey price is the SUM of the fares of the segments fromStop..toStop-1, per class, in EGP with 2 decimals.
+    // If any segment lacks a fare for a class, that class is omitted (it cannot be priced). Package-private and static so it can be unit
+    // tested.
     static List<JourneyFare> journeyFares(List<Fare> routeFares, int fromStop, int toStop) {
         List<JourneyFare> result = new ArrayList<>();
         for (CoachClass coachClass : CoachClass.values()) {
@@ -112,6 +124,7 @@ public class TripSearchService {
         return result;
     }
 
+    /** The fare amount of one segment and class, or null if the route has none. */
     private static BigDecimal amountOf(List<Fare> routeFares, int segment, CoachClass coachClass) {
         for (Fare fare : routeFares) {
             if (fare.segmentIndex() == segment && fare.coachClass() == coachClass) {
@@ -121,6 +134,7 @@ public class TripSearchService {
         return null;
     }
 
+    /** Looks a station up by code (any case); an unknown code is a 400 naming the field (from or to). */
     private Station station(String field, String code) {
         return stations.findByCode(code)
                 .orElseThrow(() -> new RequestValidationException(List.of(new ApiError.Detail(field, "unknown station code " + code))));

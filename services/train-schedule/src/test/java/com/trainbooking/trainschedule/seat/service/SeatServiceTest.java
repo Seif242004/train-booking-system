@@ -34,6 +34,10 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * Unit test of {@link SeatService} with mocks and a real Bean Validation validator: bulk add is all or nothing, errors name the list
+ * position, duplicates inside the list (400) differ from clashes with existing seats (409), the coach's class is copied to new seats.
+ */
 class SeatServiceTest {
 
     private final SeatRepository seats = mock(SeatRepository.class);
@@ -45,18 +49,22 @@ class SeatServiceTest {
 
     private static final Coach SECOND_CLASS = new Coach(5, 1, "B2", CoachClass.SECOND, 2, 0);
 
+    /** Makes the mocked CoachService answer for coach 5 so tests can focus on the seat rules. */
     private void coachExists() {
         given(coaches.get(5)).willReturn(SECOND_CLASS);
     }
 
+    /** Builds a seat request item. */
     private static SeatRequest seat(String number, Integer row, String column) {
         return new SeatRequest(number, row, column);
     }
 
+    /** Reads the problem list out of a thrown exception (RequestValidationException or SeatConflictException) for assertions. */
     private List<ApiError.Detail> detailsOf(Throwable thrown) {
         return thrown instanceof RequestValidationException v ? v.details() : ((SeatConflictException) thrown).details();
     }
 
+    // @Test: marks a JUnit 5 test method.
     @Test
     void addSeats_savesAllWithTheCoachClass_normalizesThem_andWritesOneAuditRow() {
         coachExists();

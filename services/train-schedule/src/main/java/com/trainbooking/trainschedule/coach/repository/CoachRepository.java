@@ -11,9 +11,11 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 /** Data access for the coach table. Parameterised SQL only. */
+// @Repository: data-access bean of the coach feature.
 @Repository
 public class CoachRepository {
 
+    // Hand-written RowMapper: converts one result row to a Coach (the class column is read back into the CoachClass enum).
     private static final RowMapper<Coach> COACH = (rs, row) -> new Coach(
             rs.getLong("id"),
             rs.getLong("train_id"),
@@ -24,6 +26,7 @@ public class CoachRepository {
 
     private static final String COLUMNS = "id, train_id, code, class, position, standing_capacity";
 
+    /** Spring's fluent JDBC helper. */
     private final JdbcClient jdbc;
 
     public CoachRepository(JdbcClient jdbc) {
@@ -38,6 +41,7 @@ public class CoachRepository {
                 .list();
     }
 
+    /** One coach by id, or empty. */
     public Optional<Coach> findById(long id) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM coach WHERE id = :id").param("id", id).query(COACH).optional();
     }
@@ -60,6 +64,7 @@ public class CoachRepository {
     }
 
     /** @return true if a row was updated, false if the id does not exist */
+    // The UPDATE touches one row by id; a duplicate code or position again raises ORA-00001 (constraints uk_coach_code, uk_coach_position).
     public boolean update(long id, String code, CoachClass coachClass, int position, int standingCapacity) {
         return jdbc.sql("UPDATE coach SET code = :code, class = :class, position = :position, standing_capacity = :standing "
                         + "WHERE id = :id")

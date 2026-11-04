@@ -13,6 +13,8 @@ import java.util.List;
  * {@code PUT /internal/trips/{id}/snapshot} and has the same shape as the snapshot that Booking and Seat receives. Times
  * carry their offset, so they mean the same moment on both sides.
  */
+// Nested records give every part of the body its own typed shape; @JsonProperty("class") names the JSON field "class" for the Java
+// component coachClass. Built by TripSnapshotPublisher, sent by BookingSeatClient, read by Booking's SnapshotReceiver.
 public record BookingSnapshot(
         LocalDate departureDate,
         Train train,

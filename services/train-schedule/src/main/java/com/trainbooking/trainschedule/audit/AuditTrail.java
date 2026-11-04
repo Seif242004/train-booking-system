@@ -13,7 +13,12 @@ import tools.jackson.databind.json.JsonMapper;
 /**
  * Records admin changes (FR-A10). Services call it inside the transaction of the change itself, so the audit row
  * and the change are saved together or not at all.
+ *
+ * <p>Two copies of every fact are kept: a row in {@code audit_log} (via {@link AuditLogRepository}, same transaction) and a
+ * structured log line from the logger named "audit" (shipped to OpenObserve), which is written only after the commit.
+ * Callers: every admin write service (station, train, coach, seat, route, fare, trip).
  */
+// @Component = a generic Spring bean (not a controller, service or repository). Spring creates one shared instance.
 @Component
 public class AuditTrail {
 
@@ -21,6 +26,7 @@ public class AuditTrail {
     private static final Logger log = LoggerFactory.getLogger("audit");
 
     private final AuditLogRepository repository;
+    /** Jackson 3 mapper (package {@code tools.jackson}) that turns the diff map into the JSON text stored in the table. */
     private final JsonMapper jsonMapper;
 
     public AuditTrail(AuditLogRepository repository, JsonMapper jsonMapper) {
@@ -38,6 +44,7 @@ public class AuditTrail {
 
     /** A change with a free-form diff, for example a delete that also removed child rows. */
     public void record(String adminId, String entity, long entityId, String action, Map<String, Object> diff) {
+        // Database row first (inside the caller's transaction), log line later (after the commit, see logAfterCommit).
         String json = jsonMapper.writeValueAsString(diff);
         repository.record(adminId, entity, entityId, action, json);
         logAfterCommit(adminId, entity, entityId, action, json, diff);
@@ -49,7 +56,9 @@ public class AuditTrail {
      */
     private static void logAfterCommit(String actor, String entity, long entityId, String action, String json, Map<String, Object> diff) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            // A "synchronization" is a callback Spring runs at a transaction milestone. afterCommit runs only if the commit worked.
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                // @Override: this method replaces the empty default of the interface.
                 @Override
                 public void afterCommit() {
                     emit(actor, entity, entityId, action, json, diff);

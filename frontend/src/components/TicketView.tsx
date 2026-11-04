@@ -18,9 +18,8 @@ interface Props {
 }
 
 /**
- * The confirmed booking as a boarding pass: the check draws in, then the ticket rises. It shows the real data of the booking. The ticket's QR
- * code and PDF are made by the Ticket service and sent by e-mail: nothing in the Gateway serves them to the browser, so this page points to the
- * e-mail and offers to send it again.
+ * The confirmed booking as a boarding pass: the check draws in, then the ticket rises. It shows the real data of the booking, the QR code (fetched
+ * through the Gateway) and a Download PDF button; the PDF (the Ticket service's print of this same pass) is also e-mailed, and can be sent again.
  */
 export function TicketView({ booking, passenger, resend, onResend, onDownload, downloading }: Props) {
   const toast = useToast();

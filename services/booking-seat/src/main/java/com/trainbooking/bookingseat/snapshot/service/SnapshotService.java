@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Applies the snapshot that Train and Schedule pushes (CLAUDE.md, "Data copy"). The whole snapshot is applied in one
  * transaction: if anything fails, nothing of it is stored, and Train and Schedule does not commit the trip either.
  */
+// @Service: business-logic bean. The two public methods are @Transactional: Spring opens a database transaction before the method and
+// commits when it returns, or rolls back when it throws a RuntimeException. That is what makes the snapshot "all or nothing".
 @Service
 public class SnapshotService {
 
@@ -51,6 +53,9 @@ public class SnapshotService {
      * The row of the trip is locked first, so two pushes for the same trip are applied one after the other.
      */
     @Transactional
+    // Steps: (1) lock the trip row (SELECT ... FOR UPDATE); (2) refuse if the trip is not OPEN; (3) if reservations or paid bookings exist,
+    // refuse changes to the frozen facts; if reservations exist also refuse capacity losses (FR-A9); (4) MERGE the new data in FK order;
+    // (5) write the audit row. Any exception rolls everything back, and Train and Schedule then rolls its own change back too.
     public SnapshotResult apply(long tripId, TripSnapshot snapshot, String actor) {
         Optional<String> status = repository.lockTrip(tripId);
         boolean created = status.isEmpty();
@@ -78,6 +83,8 @@ public class SnapshotService {
             repository.replaceSeats(tripId, snapshot.seats());
             repository.deleteCoachesNotIn(tripId, snapshot.coaches());
             repository.replaceStanding(tripId, snapshot.coaches(), segments);
+        // A race: the Java checks read the data a moment before the writes. A hold that committed in between is caught here by the database
+        // constraints, so the guarantee does not depend on the timing of the checks.
         } catch (DataIntegrityViolationException e) {
             // The checks above make this unreachable in normal use. It is the database refusing what the checks did not
             // foresee, for example a hold that committed after the check: the foreign key of seat_reservation (ORA-02292)
@@ -96,6 +103,7 @@ public class SnapshotService {
      * a trip is cancelled (Flow 8), not deleted. A trip that Booking never had is not an error.
      */
     @Transactional
+    // Delete order: lock, refuse if any reservation or booking exists, take the counts for the audit, delete the trip (children cascade).
     public void delete(long tripId, String actor) {
         if (repository.lockTrip(tripId).isEmpty()) {
             return;
@@ -110,6 +118,7 @@ public class SnapshotService {
 
     // ---- the checks ---------------------------------------------------------------------------------------------------
 
+    // Compares the stored date, train number, stops (station, arrival, departure) and fares with the snapshot and lists every difference.
     private void requireFrozenFactsUnchanged(long tripId, TripSnapshot snapshot) {
         SnapshotRepository.FrozenFacts stored = repository.readFrozenFacts(tripId);
         List<ApiError.Detail> changed = new ArrayList<>();
@@ -151,6 +160,7 @@ public class SnapshotService {
         return time == null ? null : time.toInstant();
     }
 
+    // compareTo, not equals: 10.0 and 10.00 are the same amount for BigDecimal.compareTo but not for equals.
     private static boolean sameFares(SnapshotRepository.FrozenFacts stored, TripSnapshot snapshot) {
         if (stored.fares().size() != snapshot.fares().size()) {
             return false;
@@ -165,6 +175,8 @@ public class SnapshotService {
     }
 
     /** FR-A9: capacity changes that conflict with holds or bookings are refused, naming what is in the way. */
+    // A reserved seat must stay, in the same coach and class. A coach with standing places in use must stay, in the same class, with a
+    // capacity not below the highest "used" on any segment. Adding seats, coaches or capacity always passes.
     private void requireCapacityStillCoversTheReservations(long tripId, TripSnapshot snapshot) {
         List<ApiError.Detail> conflicts = new ArrayList<>();
 

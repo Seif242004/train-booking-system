@@ -28,10 +28,14 @@ import org.springframework.stereotype.Repository;
  * limited to 1000 items in Oracle, and a train can have more seats than that). Parameterised SQL only. All methods run
  * in the transaction of the caller.
  */
+// @Repository: data-access bean. MERGE is Oracle's "upsert": it updates the row if the key exists and inserts it otherwise, so a
+// snapshot can be applied again without errors (PostgreSQL's ON CONFLICT is not available in Oracle). The USING (SELECT ... FROM dual)
+// part is the way to give MERGE a one-row source made of bind values; "dual" is Oracle's built-in one-row table.
 @Repository
 public class SnapshotRepository {
 
     /** How many rows of each kind the copy of a trip has. */
+    // Small value records used by the service to compare what is stored with what arrives.
     public record Counts(int stops, int coaches, int seats, int fares, int standingCounters) {
     }
 
@@ -64,10 +68,15 @@ public class SnapshotRepository {
      * Locks the row of the trip until the end of the transaction, so two pushes for the same trip are applied one after
      * the other. Returns the status of the trip, or empty if Booking has no copy of it yet.
      */
+    // SELECT ... FOR UPDATE locks the trip row until the transaction ends. Every writer of this trip takes this lock first (see
+    // BookingLocks),
+    // so snapshots, holds and cancellation never run through the same trip at the same time.
     public Optional<String> lockTrip(long tripId) {
         return jdbc.sql("SELECT status FROM trip WHERE id = :id FOR UPDATE").param("id", tripId).query(String.class).optional();
     }
 
+    // One round trip: five scalar sub-queries on dual give the number of rows in each table for the trip (used for the result and the
+    // audit).
     public Counts counts(long tripId) {
         return jdbc.sql("SELECT (SELECT COUNT(*) FROM trip_stop WHERE trip_id = :t) AS stops, "
                         + "(SELECT COUNT(*) FROM trip_coach WHERE trip_id = :t) AS coaches, "
@@ -80,6 +89,7 @@ public class SnapshotRepository {
     }
 
     /** True if any seat is held or booked on any segment, or any standing place is in use. */
+    // True if a seat reservation row exists or a standing place is in use. EXISTS stops at the first row, so it is cheap.
     public boolean hasReservations(long tripId) {
         return jdbc.sql("SELECT CASE WHEN EXISTS (SELECT 1 FROM seat_reservation WHERE trip_id = :t) "
                         + "OR EXISTS (SELECT 1 FROM standing_usage WHERE trip_id = :t AND used > 0) THEN 1 ELSE 0 END FROM dual")
@@ -87,6 +97,7 @@ public class SnapshotRepository {
     }
 
     /** True if any booking, whatever its status, refers to the trip: the history of a trip is never deleted. */
+    // Any booking at all, including EXPIRED and ABANDONED ones: the history is kept, so a trip with history cannot be deleted.
     public boolean hasBookings(long tripId) {
         return jdbc.sql("SELECT COUNT(*) FROM booking WHERE trip_id = :t").param("t", tripId).query(Integer.class).single() > 0;
     }
@@ -95,15 +106,18 @@ public class SnapshotRepository {
      * True if the trip has a booking that was paid at some time (confirmed, or cancelled after it was confirmed). A hold that expired
      * or was given up was never paid and does not count. The stops, times and fares of such a trip never change: tickets were issued.
      */
+    // CONFIRMED or CANCELLED bookings were once paid (a ticket was issued), even if their seats are free again.
     public boolean hasPaidBookings(long tripId) {
         return jdbc.sql("SELECT COUNT(*) FROM booking WHERE trip_id = :t AND status IN ('CONFIRMED', 'CANCELLED')").param("t", tripId).query(Integer.class).single() > 0;
     }
 
+    // Distinct seats that have a reservation row on any segment.
     public Set<Long> findReservedSeatIds(long tripId) {
         return new HashSet<>(jdbc.sql("SELECT DISTINCT seat_id FROM seat_reservation WHERE trip_id = :t").param("t", tripId).query(Long.class).list());
     }
 
     /** The most standing places in use on any segment, per coach, for the coaches that have any in use. */
+    // GROUP BY coach with HAVING: only coaches that have places in use, with the highest use over all segments.
     public Map<Long, Integer> findMaxStandingUsed(long tripId) {
         Map<Long, Integer> used = new HashMap<>();
         jdbc.sql("SELECT coach_id, MAX(used) AS max_used FROM standing_usage WHERE trip_id = :t GROUP BY coach_id HAVING MAX(used) > 0")
@@ -129,6 +143,7 @@ public class SnapshotRepository {
         return coaches;
     }
 
+    // Reads the facts that must not change once passengers have seen or paid them.
     public FrozenFacts readFrozenFacts(long tripId) {
         var header = jdbc.sql("SELECT departure_date, train_number FROM trip WHERE id = :t").param("t", tripId)
                 .query((rs, row) -> Map.entry(rs.getObject("departure_date", LocalDate.class), rs.getString("train_number"))).single();
@@ -153,6 +168,7 @@ public class SnapshotRepository {
      * Inserts the trip or updates it. The status is deliberately not touched on update: it is OPEN for a new trip and is
      * changed only by the trip cancellation (slice 12), never by a snapshot.
      */
+    // Does not touch status on update: OPEN is the default for a new copy and only the trip cancellation changes it.
     public void mergeTrip(long tripId, TripSnapshot s) {
         jdbc.sql("MERGE INTO trip t USING (SELECT :id AS id FROM dual) src ON (t.id = src.id) "
                         + "WHEN MATCHED THEN UPDATE SET t.departure_date = :date, t.train_number = :trainNumber, t.train_name = :trainName, "
@@ -167,12 +183,14 @@ public class SnapshotRepository {
                 .param("routeName", s.routeName())
                 .update();
         // The counter of live updates (SRS section 6) starts at 0 with the copy and is never reset by a later snapshot.
+        // The live-update counter row is created once (WHEN NOT MATCHED only), at version 0, and is never reset by a later snapshot.
         jdbc.sql("MERGE INTO trip_version v USING (SELECT :id AS trip_id FROM dual) src ON (v.trip_id = src.trip_id) "
                         + "WHEN NOT MATCHED THEN INSERT (trip_id, version) VALUES (:id, 0)")
                 .param("id", tripId)
                 .update();
     }
 
+    // A batch MERGE (one round trip for all rows) followed by deleting the stops that are no longer in the snapshot.
     public void replaceStops(long tripId, List<TripSnapshot.Stop> stops) {
         List<SqlParameterSource> rows = new ArrayList<>();
         for (TripSnapshot.Stop stop : stops) {
@@ -193,6 +211,8 @@ public class SnapshotRepository {
     }
 
     /** Inserts and updates the coaches only. Coaches that are gone are deleted later, after their seats (see deleteCoachesNotIn). */
+    // Coaches are only inserted or updated here: removal happens after the seats are removed (deleteCoachesNotIn), because of the foreign
+    // key.
     public void mergeCoaches(long tripId, List<TripSnapshot.Coach> coaches) {
         List<SqlParameterSource> rows = new ArrayList<>();
         for (TripSnapshot.Coach coach : coaches) {
@@ -207,6 +227,8 @@ public class SnapshotRepository {
     }
 
     /** Inserts and updates the seats, then deletes the seats that are not in the snapshot any more. */
+    // Seats: batch MERGE, then delete the missing ones. If a deleted seat has reservations, the foreign key from seat_reservation
+    // makes Oracle raise ORA-02292, which SnapshotService turns into 409 capacity_conflict.
     public void replaceSeats(long tripId, List<TripSnapshot.Seat> seats) {
         List<SqlParameterSource> rows = new ArrayList<>();
         for (TripSnapshot.Seat seat : seats) {
@@ -236,6 +258,8 @@ public class SnapshotRepository {
      * refuses a capacity below the places in use); a new counter starts at 0; a counter of a coach without standing
      * places is deleted.
      */
+    // One standing_usage row per coach with standing places and per segment. MATCHED keeps "used" and only changes the capacity; the table
+    // CHECK (used <= capacity) rejects a capacity below the places in use (ORA-02290). New rows start with used = 0.
     public void replaceStanding(long tripId, List<TripSnapshot.Coach> coaches, int segments) {
         List<SqlParameterSource> rows = new ArrayList<>();
         Set<String> wanted = new HashSet<>();
@@ -270,6 +294,7 @@ public class SnapshotRepository {
         }
     }
 
+    // Same pattern: batch MERGE of the fares, then delete the (segment, class) pairs that are not in the snapshot.
     public void replaceFares(long tripId, List<TripSnapshot.Fare> fares) {
         List<SqlParameterSource> rows = new ArrayList<>();
         Set<String> wanted = new HashSet<>();
@@ -300,12 +325,14 @@ public class SnapshotRepository {
     }
 
     /** Deletes the trip; the stops, coaches, seats, fares and counters go with it (ON DELETE CASCADE). */
+    // ON DELETE CASCADE on the child tables removes stops, coaches, seats, fares and standing counters with the trip.
     public void deleteTrip(long tripId) {
         jdbc.sql("DELETE FROM trip WHERE id = :t").param("t", tripId).update();
     }
 
     // ---- helpers ------------------------------------------------------------------------------------------------------
 
+    // Collects the primary keys of the incoming rows so stale stored rows can be found.
     private static <T> Set<Long> keysOf(List<T> items, Function<T, Long> key) {
         Set<Long> keys = new HashSet<>();
         items.forEach(item -> keys.add(key.apply(item)));
@@ -313,6 +340,9 @@ public class SnapshotRepository {
     }
 
     /** Deletes, in one batch, the rows whose key is stored but is not in {@code keep}. */
+    // Reads the stored keys, keeps those not in the snapshot, and deletes them in one batch. Done in Java instead of NOT IN (...),
+    // because an
+    // Oracle IN list holds at most 1000 values and a train can have more seats.
     private void deleteRowsNotIn(String selectKeys, long tripId, Set<Long> keep, String deleteOne) {
         List<SqlParameterSource> stale = new ArrayList<>();
         jdbc.sql(selectKeys).param("t", tripId).query((rs, row) -> {

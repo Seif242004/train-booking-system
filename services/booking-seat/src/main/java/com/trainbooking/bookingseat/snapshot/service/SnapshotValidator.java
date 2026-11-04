@@ -21,6 +21,7 @@ public final class SnapshotValidator {
     }
 
     /** @return every problem found, with the path of the field that causes it; empty if the snapshot is consistent */
+    // Pure function (no database): the same snapshot always gives the same problems, so it is easy to unit test.
     public static List<ApiError.Detail> check(TripSnapshot snapshot) {
         List<ApiError.Detail> problems = new ArrayList<>();
         checkStops(snapshot.stops(), problems);
@@ -30,6 +31,7 @@ public final class SnapshotValidator {
         return problems;
     }
 
+    // Stops are numbered 0..N-1 in order, each station once, the first stop has no arrival and the last no departure.
     private static void checkStops(List<TripSnapshot.Stop> stops, List<ApiError.Detail> problems) {
         Set<Long> stations = new HashSet<>();
         for (int i = 0; i < stops.size(); i++) {
@@ -58,6 +60,7 @@ public final class SnapshotValidator {
         }
     }
 
+    // Coach id, code and position must each be unique inside the snapshot. The returned map is used to check the seats.
     private static Map<Long, TripSnapshot.Coach> checkCoaches(List<TripSnapshot.Coach> coaches, List<ApiError.Detail> problems) {
         Map<Long, TripSnapshot.Coach> byId = new HashMap<>();
         Set<String> codes = new HashSet<>();
@@ -78,6 +81,7 @@ public final class SnapshotValidator {
         return byId;
     }
 
+    // Each seat must belong to a coach of the snapshot, have the class of that coach, and have a number that is unique inside its coach.
     private static void checkSeats(List<TripSnapshot.Seat> seats, Map<Long, TripSnapshot.Coach> coachById, List<ApiError.Detail> problems) {
         Set<Long> ids = new HashSet<>();
         Set<String> numbers = new HashSet<>();

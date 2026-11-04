@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
  * The service-to-service endpoints that Train and Schedule uses to keep Booking's copy of its trips up to date (CLAUDE.md,
  * "Data copy"). They are under /internal, need the shared API key, and are never routed by the Gateway.
  */
+// @RestController: JSON endpoints. Both methods are under /internal, so the first security filter chain (shared API key) protects them.
+// The only caller is Train and Schedule (TripSnapshotPublisher), synchronously, as the last step of its own transaction.
 @RestController
 public class SnapshotController {
 
@@ -39,7 +41,11 @@ public class SnapshotController {
      * Idempotent: the same snapshot can be pushed again. {@code X-Acting-User} is the Keycloak id of the admin whose action
      * caused the push; it is only written to the audit log.
      */
+    // PUT = "store this whole resource": the same body can be sent again and gives the same rows (idempotent). Responses: 200 with a
+    // SnapshotResult; 400 validation_failed (field or cross-field problems); 409 trip_not_open, trip_has_reservations or capacity_conflict.
     @PutMapping("/internal/trips/{id}/snapshot")
+    // @Valid makes Spring run the Bean Validation annotations of TripSnapshot (field level). @RequestBody reads the JSON body.
+    // @RequestHeader reads the optional X-Acting-User header (the admin who caused the change; used only for the audit trail).
     public SnapshotResult put(@PathVariable long id, @Valid @RequestBody TripSnapshot snapshot,
                               @RequestHeader(value = "X-Acting-User", required = false) String actingUser) {
         List<ApiError.Detail> problems = SnapshotValidator.check(snapshot);
@@ -50,12 +56,15 @@ public class SnapshotController {
     }
 
     /** {@code DELETE /internal/trips/{id}}: removes the copy of a trip that was deleted in Train and Schedule. */
+    // 204 No Content on success, also when Booking has no copy (deleting twice is harmless). 409 trip_has_reservations if the trip has
+    // holds or any booking (a trip with history is cancelled, never deleted).
     @DeleteMapping("/internal/trips/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id, @RequestHeader(value = "X-Acting-User", required = false) String actingUser) {
         service.delete(id, actor(actingUser));
         return ResponseEntity.noContent().build();
     }
 
+    // Falls back to "train-schedule" and cuts the value to 64 characters, the width of audit_log.admin_id.
     private static String actor(String actingUser) {
         if (actingUser == null || actingUser.isBlank()) {
             return DEFAULT_ACTOR;

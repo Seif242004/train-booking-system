@@ -18,6 +18,10 @@ import java.util.List;
  * of the trip is the one in the URL. Field rules that need more than one field (stops numbered in order, every seat in a
  * coach of the snapshot, a fare for every segment and class) are checked by {@link SnapshotValidator}.
  */
+// Bean Validation annotations on the record components check each field before the controller body runs: @NotNull (must be present),
+// @NotBlank (a non-empty string), @Size (length or list size), @Min (smallest number), @Valid (also validate the nested record or
+// list element). The "message" is what the caller reads in the 400 answer. @JsonProperty("class") maps the JSON name "class"
+// (a Java keyword) to the component coachClass.
 public record TripSnapshot(
         @NotNull(message = "is required")
         LocalDate departureDate,
@@ -40,6 +44,8 @@ public record TripSnapshot(
         @NotNull(message = "is required") @Size(max = 1000, message = "must have at most 1000 fares")
         List<@NotNull(message = "is required") @Valid Fare> fares) {
 
+    // The train of the trip: number, name and type are copied as text, so a later rename in Train and Schedule does not change old trips
+    // unless a new snapshot is pushed.
     public record Train(
             @NotBlank(message = "is required") @Size(max = 20, message = "must be at most 20 characters") String number,
             @NotBlank(message = "is required") @Size(max = 100, message = "must be at most 100 characters") String name,

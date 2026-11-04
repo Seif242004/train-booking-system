@@ -14,6 +14,7 @@ import java.util.List;
  *       would drop below the places already used (FR-A9).</li>
  * </ul>
  */
+// Unchecked. GlobalExceptionHandler turns it into 409 with the code below and the list of conflicting items in "details".
 public class SnapshotConflictException extends RuntimeException {
 
     private final String code;

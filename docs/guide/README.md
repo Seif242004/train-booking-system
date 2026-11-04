@@ -9,7 +9,7 @@ which files to open. Paths are in code font so you can open them.
 | 0. How to read this guide, the project on one page | [00-how-to-read.md](00-how-to-read.md) | written |
 | 1. Architecture overview | `01-architecture.md` | to write |
 | 2. End-to-end walkthroughs | `02-walkthroughs.md` | to write |
-| 3. Train & Schedule | `03-train-schedule.md` | to write |
+| 3. Train & Schedule | [03-train-schedule.md](03-train-schedule.md) | written |
 | 4. Booking & Seat | `04-booking-seat.md` | to write |
 | 5. Payment | `05-payment.md` | to write |
 | 6. Ticket | `06-ticket.md` | to write |

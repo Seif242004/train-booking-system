@@ -11,6 +11,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 /** Calls the internal endpoint of Train & Schedule with the shared API key. */
+// @Component: HTTP adapter (RestClient) for POST /internal/trips/{id}/cancel of Train & Schedule. X-Acting-User carries the admin for
+// that service's audit log. Failures become RemoteServiceException; TripCancellationService repeats the call on its next pass.
 @Component
 class TrainScheduleClient implements TrainSchedulePort {
 

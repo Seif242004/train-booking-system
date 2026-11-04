@@ -5,8 +5,11 @@ package com.trainbooking.bookingseat.schedule;
  * An interface so that the cancellation of a trip can be tested without it. Throws
  * {@link com.trainbooking.bookingseat.common.RemoteServiceException} when the answer is not known; the call is repeated until accepted.
  */
+// Port for the one call Booking makes to Train & Schedule.
 public interface TrainSchedulePort {
 
-    /** The trip is cancelled: it leaves the search results. Idempotent. {@code adminId} is the admin who cancelled it, for the audit log. */
+    /**
+     * The trip is cancelled: it leaves the search results. Idempotent. {@code adminId} is the admin who cancelled it, for the audit log.
+     */
     void markTripCancelled(long tripId, String adminId);
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import { gatewayGet, gatewayRequest, readError } from '../api';
-import type { Booking, BookingItem, BookingStatus, RefundStatus } from '../bookingTypes';
+import { METHOD_PAID_LABEL, type Booking, type BookingItem, type BookingStatus, type RefundStatus } from '../bookingTypes';
 import { remainingMs, startCountdown } from '../countdown';
 import { money } from '../format';
 import { clock, dayLabel } from '../time';
@@ -31,13 +31,17 @@ const REFUND_LABEL: Record<RefundStatus, string> = {
   REFUND_PENDING: 'Refund in progress',
   REFUNDED: 'Refunded in full',
   REFUND_FAILED: 'Refund failed: contact support',
+  NOT_APPLICABLE: 'Nothing was charged',
+  MANUAL_REFUND_DUE: 'Refund at the support desk',
+  REFUNDED_AT_COUNTER: 'Refunded at the support desk',
 };
 
-const REFUND_TONE: Record<RefundStatus, string> = { NONE: '', REFUND_PENDING: 'is-warn', REFUNDED: 'is-ok', REFUND_FAILED: 'is-danger' };
+const REFUND_TONE: Record<RefundStatus, string> = { NONE: '', REFUND_PENDING: 'is-warn', REFUNDED: 'is-ok', REFUND_FAILED: 'is-danger', NOT_APPLICABLE: '', MANUAL_REFUND_DUE: 'is-warn', REFUNDED_AT_COUNTER: 'is-ok' };
 
 /** The reasons a cancellation can be refused, in words for the passenger. */
 function cancelProblem(code: string, fallback: string): string {
   if (code === 'trip_departed') return 'The train has already left your boarding stop, so this booking can no longer be cancelled.';
+  if (code === 'cancel_at_desk') return 'This booking was issued at the support desk. Ask the support desk to cancel it.';
   if (code === 'not_cancellable') return 'Only a confirmed booking can be cancelled.';
   return fallback;
 }
@@ -198,6 +202,7 @@ export function MyBookingsPage() {
                 <div className="booking-card-top">
                   <div className="booking-chips">
                     <span className={`status-chip ${statusTone}`}>{statusText}</span>
+                    {booking.paymentMethod && booking.paymentMethod !== 'CARD' && <span className="status-chip">{METHOD_PAID_LABEL[booking.paymentMethod]}</span>}
                     {refund && <span className={`status-chip ${REFUND_TONE[booking.refundStatus]}`}>{refund}</span>}
                   </div>
                   <span className="booking-ref">Reference <span className="mono">{booking.reference}</span></span>
@@ -230,7 +235,8 @@ export function MyBookingsPage() {
                     {cancellable && confirming !== booking.id && (
                       <button type="button" className="button button-danger" disabled={busy === booking.id} onClick={() => setConfirming(booking.id)}>Cancel booking</button>
                     )}
-                    {!cancellable && !departed && <span className="muted">The train has left your boarding stop: this booking can no longer be cancelled.</span>}
+                    {!cancellable && !departed && booking.status === 'CONFIRMED' && booking.paymentMethod && booking.paymentMethod !== 'CARD' && <span className="muted">Cancel at the support desk: this booking was issued there.</span>}
+                    {!cancellable && !departed && !(booking.status === 'CONFIRMED' && booking.paymentMethod && booking.paymentMethod !== 'CARD') && <span className="muted">The train has left your boarding stop: this booking can no longer be cancelled.</span>}
                   </div>
                 )}
 

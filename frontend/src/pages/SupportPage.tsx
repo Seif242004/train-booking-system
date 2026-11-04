@@ -3,28 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import { AdminHeader } from '../components/AdminHeader';
 import { gatewayGet, gatewayRequest, readError } from '../api';
-import type { Booking, BookingStatus, RefundStatus } from '../bookingTypes';
+import type { AdminBooking, BookingStatus } from '../bookingTypes';
+import { MethodChip, REFUND_TEXT as REFUND_LABEL } from '../components/BookingAdminPanel';
 import { clock } from '../time';
 import { label } from '../format';
 import { EmptyState } from '../components/EmptyState';
 import { TripsBoard } from './TripsBoard';
 
-interface AdminBooking {
-  booking: Booking;
-  userId: string;
-  userEmail: string;
-  userName: string | null;
-  paymentStatus: 'PAID' | 'NOT_PAID';
-  confirmedAt: string | null;
-  cancelledAt: string | null;
-  cancelledBy: string | null;
-  cancelledByRole: 'USER' | 'ADMIN' | null;
-  cancelReason: string | null;
-  cancellable: boolean;
-}
-
 const STATUSES: BookingStatus[] = ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'EXPIRED', 'ABANDONED'];
-const REFUND_LABEL: Record<RefundStatus, string> = { NONE: 'No refund', REFUND_PENDING: 'Refund pending', REFUNDED: 'Refunded', REFUND_FAILED: 'REFUND FAILED' };
 
 /**
  * Admin support (Flow 7, FR-C6, FR-C7): find a booking by reference, passenger email, trip or status, see the payment and refund status, and cancel
@@ -36,6 +22,7 @@ function BookingSearch() {
   const [email, setEmail] = useState('');
   const [tripId, setTripId] = useState('');
   const [status, setStatus] = useState('');
+  const [method, setMethod] = useState('');
   const [results, setResults] = useState<AdminBooking[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminBooking | null>(null);
@@ -60,7 +47,7 @@ function BookingSearch() {
 
   function onSearch(event: FormEvent) {
     event.preventDefault();
-    void search({ ref: reference, email, tripId, status });
+    void search({ ref: reference, email, tripId, status, method });
   }
 
   async function open(row: AdminBooking) {
@@ -100,6 +87,14 @@ function BookingSearch() {
             {STATUSES.map((s) => <option key={s} value={s}>{label(s)}</option>)}
           </select>
         </label>
+        <label>Paid by
+          <select value={method} onChange={(event) => setMethod(event.target.value)}>
+            <option value="">Any</option>
+            <option value="CARD">Card</option>
+            <option value="COUNTER">Counter</option>
+            <option value="COMPLIMENTARY">Complimentary</option>
+          </select>
+        </label>
         <span className="actions filters-actions">
           <button type="submit" className="button button-primary">Search</button>
           <button type="button" className="button" onClick={() => void search({ refundStatus: 'REFUND_FAILED' })}>Failed refunds</button>
@@ -111,7 +106,7 @@ function BookingSearch() {
       {results && results.length > 0 && (
         <div className="table-wrap"><table className="table">
           <thead>
-            <tr><th scope="col">Reference</th><th scope="col">Passenger</th><th scope="col">Journey</th><th scope="col">Status</th><th scope="col">Refund</th><th scope="col"><span className="visually-hidden">Open</span></th></tr>
+            <tr><th scope="col">Reference</th><th scope="col">Passenger</th><th scope="col">Journey</th><th scope="col">Status</th><th scope="col">Paid by</th><th scope="col">Refund</th><th scope="col"><span className="visually-hidden">Open</span></th></tr>
           </thead>
           <tbody>
             {results.map((row) => (
@@ -120,6 +115,7 @@ function BookingSearch() {
                 <td>{row.userEmail}</td>
                 <td>{row.booking.trip.from.stationName} → {row.booking.trip.to.stationName}<div className="muted">{row.booking.trip.departureDate} · trip {row.booking.tripId}</div></td>
                 <td><span className={`status-chip ${row.booking.status === 'CONFIRMED' ? 'is-ok' : ''}`}>{label(row.booking.status)}</span></td>
+                <td><MethodChip method={row.booking.paymentMethod} /></td>
                 <td className={row.booking.refundStatus === 'REFUND_FAILED' ? 'status-fail' : ''}>{row.booking.refundStatus === 'NONE' ? '' : REFUND_LABEL[row.booking.refundStatus]}</td>
                 <td><button type="button" className="button" onClick={() => void open(row)}>Open</button></td>
               </tr>
@@ -151,6 +147,13 @@ function BookingSearch() {
             Total <strong>{selected.booking.amount.toFixed(2)}</strong> {selected.booking.currency} · payment <strong>{selected.paymentStatus === 'PAID' ? 'paid' : 'not paid'}</strong> ·{' '}
             refund <strong className={selected.booking.refundStatus === 'REFUND_FAILED' ? 'status-fail' : ''}>{REFUND_LABEL[selected.booking.refundStatus]}</strong>
           </p>
+          {selected.issue && (
+            <p className="muted">
+              Paid by <MethodChip method={selected.issue.method} /> · issued by <span className="mono">{selected.issue.issuedBy}</span> on {selected.issue.issuedAt.slice(0, 10)}
+              {selected.issue.note ? ` · ${selected.issue.method === 'COMPLIMENTARY' ? 'reason' : 'note'}: ${selected.issue.note}` : ''}
+              {selected.issue.walkInName ? ` · walk-in: ${selected.issue.walkInName}${selected.issue.walkInPhone ? ', ' + selected.issue.walkInPhone : ''}` : ''}
+            </p>
+          )}
           {selected.cancelledAt && (
             <p className="muted">
               Cancelled by {selected.cancelledByRole === 'ADMIN' ? 'an admin' : 'the passenger'} <span className="mono">({selected.cancelledBy})</span>

@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
 import { STATE_LABEL, type BoardTrip, type SeatCounts, type TripState } from '../boardTypes';
+import type { Booking } from '../bookingTypes';
 import { BoardDetailPanel } from '../components/BoardDetailPanel';
 import { EmptyState } from '../components/EmptyState';
 import { ErrorState } from '../components/ErrorState';
@@ -98,6 +99,26 @@ export function TripsBoard() {
   const board = useBoardData(query);
 
   const [openId, setOpenId] = useState<number | null>(null);
+  // A seat hold that this admin runs inside the slide-over: closing the panel (or the page) asks first.
+  const [activeHold, setActiveHold] = useState<Booking | null>(null);
+  const [askClose, setAskClose] = useState(false);
+  useEffect(() => {
+    if (!activeHold) return undefined;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [activeHold]);
+  function requestClose() {
+    if (activeHold) setAskClose(true);
+    else setOpenId(null);
+  }
+  function answerClose(answer: 'stay' | 'keep' | 'release') {
+    setAskClose(false);
+    if (answer !== 'stay') {
+      setActiveHold(null);
+      setOpenId(null);
+    }
+  }
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -275,8 +296,8 @@ export function TripsBoard() {
         <p className="muted"><button type="button" className="button" onClick={clearFilters}>Clear filters</button></p>
       )}
 
-      <SlideOver open={openId !== null} title="Trip seats" wide onClose={() => setOpenId(null)}>
-        {openId !== null && <BoardDetailPanel tripId={openId} refreshKey={board.updatedAt} />}
+      <SlideOver open={openId !== null} title="Trip seats" wide onClose={requestClose}>
+        {openId !== null && <BoardDetailPanel tripId={openId} refreshKey={board.updatedAt} onChanged={board.refresh} onHoldChange={setActiveHold} askClose={askClose} onAnswerClose={answerClose} />}
       </SlideOver>
     </div>
   );

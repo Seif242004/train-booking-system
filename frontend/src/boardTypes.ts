@@ -59,6 +59,8 @@ export interface BoardDetailSeat {
   state: BoardSeatState;
   /** Only on TAKEN seats. */
   reference: string | null;
+  /** For a HELD seat: when the hold ends. */
+  holdExpiresAt: string | null;
 }
 
 export interface BoardDetailCoach {

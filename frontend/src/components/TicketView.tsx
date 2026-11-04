@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CLASS_LABEL } from '../adminTypes';
-import type { Booking } from '../bookingTypes';
+import { METHOD_PAID_LABEL, type Booking } from '../bookingTypes';
 import { calendarFile, saveFile } from '../ics';
 import { clock, fullDay } from '../time';
 import { BrandLogo } from './BrandLogo';
@@ -42,6 +42,7 @@ export function TicketView({ booking, passenger, resend, onResend, onDownload, d
     ['Date', fullDay(booking.trip.departureDate)],
     ['Train', `${booking.trip.trainNumber} ${booking.trip.trainName}`],
     ['Passenger', passenger ?? 'Passenger'],
+    ...(booking.paymentMethod && booking.paymentMethod !== 'CARD' ? [['Payment', METHOD_PAID_LABEL[booking.paymentMethod]] as [string, string]] : []),
     ['Class', classes.join(', ')],
     ['Coach', coaches.join(', ')],
     [seats.length > 0 ? 'Seats' : 'Places', places],

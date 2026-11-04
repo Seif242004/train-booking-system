@@ -20,6 +20,8 @@ import org.springframework.stereotype.Component;
  * done here with retries. Each job is idempotent, because the dispatcher repeats a job until it succeeds. None of them can change whether
  * the booking is cancelled: that was decided, and committed, before they ran.
  */
+// A holder class (it cannot be instantiated) for the four jobs that follow a cancellation. Each nested class is a Spring bean found by the
+// dispatcher through the OutboxJob interface.
 public final class CancellationJobs {
 
     private CancellationJobs() {
@@ -27,6 +29,7 @@ public final class CancellationJobs {
 
     /** The QR code of the ticket stops working. */
     @Component
+    // @Component: a bean. Idempotent: invalidating twice, or a booking without a ticket, is not an error.
     static class TicketInvalidateJob implements OutboxJob {
 
         private final TicketPort tickets;
@@ -47,10 +50,14 @@ public final class CancellationJobs {
     }
 
     /**
-     * Asks Payment for the full refund. Payment keeps one refund per booking, so repeating the request returns the same refund. If the booking
+      * Asks Payment for the full refund. Payment keeps one refund per booking, so repeating the request returns the same refund. If the
+      * booking
      * has no payment that was taken there is nothing to refund: the refund is flagged REFUND_FAILED so an admin looks at it.
      */
     @Component
+    // Never gives up (retryForever): the passenger's money is owed. After 8 failed attempts the booking is flagged REFUND_FAILED so an
+    // admin
+    // sees it in support, while the retries go on. If Payment says there is no payment to refund, it is flagged at once.
     static class RefundRequestJob implements OutboxJob {
 
         private static final Logger log = LoggerFactory.getLogger(RefundRequestJob.class);
@@ -80,10 +87,13 @@ public final class CancellationJobs {
         }
 
         /**
-         * A refund request that keeps failing must leave a trace on the booking, not only in a log: after a few attempts the refund is flagged
-         * REFUND_FAILED for the admin (Flow 7, support) while the retries go on. If the refund then goes through, Payment's report changes it again.
+          * A refund request that keeps failing must leave a trace on the booking, not only in a log: after a few attempts the refund is
+          * flagged
+          * REFUND_FAILED for the admin (Flow 7, support) while the retries go on. If the refund then goes through, Payment's report
+          * changes it again.
          */
         @Override
+        // The hook of OutboxJob: called by the dispatcher after every failed attempt, with the attempt number starting at 1.
         public void onFailure(OutboxMessage message, int attempt, RuntimeException failure) {
             if (attempt == FLAG_AFTER_ATTEMPTS) {
                 log.error("The refund of booking {} could not be requested after {} attempts: flagged REFUND_FAILED for an admin, retrying", message.bookingId(), attempt);
@@ -107,6 +117,9 @@ public final class CancellationJobs {
 
     /** Tells the passenger the booking is cancelled, and that the whole amount is being refunded. */
     @Component
+    // Builds the cancellation e-mail. Admin cancellation says so and gives the reason. A walk-in passenger gets the mail at the address
+    // they
+    // left at the counter (if any); the dedupe key "cancel:<bookingId>" makes Notification store it once.
     static class CancellationEmailJob implements OutboxJob {
 
         private final BookingRepository bookings;
@@ -150,6 +163,7 @@ public final class CancellationJobs {
 
     /** Tells the passenger the refund is done (queued when Payment reports REFUNDED). */
     @Component
+    // Queued when Payment reports REFUNDED. Dedupe key "refund:<bookingId>".
     static class RefundEmailJob implements OutboxJob {
 
         private final BookingRepository bookings;
@@ -178,6 +192,7 @@ public final class CancellationJobs {
         }
     }
 
+    // Shared helper: the train, stations and times for the e-mail.
     private static NotificationPort.Trip trip(BookingView view) {
         return new NotificationPort.Trip(view.trip().trainNumber() + " " + view.trip().trainName(), view.trip().from().stationName(), view.trip().from().departureTime(),
                 view.trip().to().stationName(), view.trip().to().arrivalTime());

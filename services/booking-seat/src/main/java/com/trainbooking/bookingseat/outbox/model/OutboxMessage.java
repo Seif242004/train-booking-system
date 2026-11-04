@@ -3,6 +3,8 @@ package com.trainbooking.bookingseat.outbox.model;
 import java.time.OffsetDateTime;
 
 /** One job for Ticket or Notification that has not been done yet. */
+// One row of the outbox table (V5/V6). Fields: id, kind (what to do), bookingId, payload (JSON, currently unused), attempts so far and the
+// time of the next try. A record is an immutable data holder.
 public record OutboxMessage(long id, Kind kind, long bookingId, String payload, int attempts, OffsetDateTime nextAttemptAt) {
 
     public enum Kind {

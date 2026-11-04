@@ -18,11 +18,13 @@ import org.springframework.stereotype.Component;
  * error. The jobs of one booking run in the order they were queued. Nothing here can change a booking: a ticket or an email that cannot be
  * made never cancels a booking (CLAUDE.md).
  */
+// @Component: a bean. The constructor receives ALL beans that implement OutboxJob (Spring injects the list) and indexes them by kind.
 @Component
 public class OutboxDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxDispatcher.class);
 
+    // 300 attempts with a backoff that grows to 300 seconds (about a day) before an ordinary job is marked FAILED.
     static final int MAX_ATTEMPTS = 300;
     private static final long MAX_BACKOFF_SECONDS = 300;
 
@@ -37,6 +39,10 @@ public class OutboxDispatcher {
     }
 
     /** @return how many jobs were done */
+    // One pass: up to 20 due jobs, each run OUTSIDE any transaction (the jobs call other services). On success the job is marked SENT; on
+    // failure the hook runs, then the job is rescheduled with 2^attempt seconds (max 300) or marked FAILED. A job that is not found (a
+    // kind with
+    // no bean) is treated as a failure too.
     public int dispatchDue() {
         int done = 0;
         for (OutboxMessage message : outbox.findDue(now(), 20)) {

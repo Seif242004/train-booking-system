@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
  * change and its job are saved together or not at all: a confirmed booking always gets its ticket email, and a rolled-back
  * confirmation never sends one.
  */
+// @Component: a bean. Both methods are MANDATORY: they throw if there is no running transaction, so a job can never be queued without
+// the change that causes it, nor the other way round.
 @Component
 public class OutboxWriter {
 

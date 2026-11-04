@@ -22,6 +22,9 @@ import org.springframework.stereotype.Component;
  * after a failure in the middle never makes two tickets or sends two emails. If the booking is not confirmed any more (it was cancelled in
  * the meantime) there is nothing to send: a ticket that is already invalid must not be mailed.
  */
+// @Component: a bean found by the dispatcher. The job: (1) re-read the booking and stop if it is no longer CONFIRMED; (2) ask the Ticket
+// service to issue the PDF (idempotent per booking); (3) read the PDF; (4) ask Notification to e-mail it (idempotent by the dedupe key
+// ticket:<bookingId>:<outboxId>). Any failure throws, and the dispatcher retries the whole job; both calls are safe to repeat.
 @Component
 class TicketEmailJob implements OutboxJob {
 
@@ -75,6 +78,7 @@ class TicketEmailJob implements OutboxJob {
                 new NotificationPort.Attachment("ticket-" + booking.reference() + ".pdf", "application/pdf", Base64.getEncoder().encodeToString(pdf)), booking.paymentMethod().name()));
     }
 
+    // One text line per booking item for the e-mail body, for example "Seat 1A, coach A1 (second): 90.00 EGP".
     static List<String> describe(List<BookingItemView> items, String currency) {
         return items.stream().map(item -> ("SEAT".equals(item.type()) ? "Seat " + item.seatNumber()
                 : item.qty() + " standing " + (item.qty() == 1 ? "place" : "places"))

@@ -4,6 +4,7 @@ import type { Booking } from '../bookingTypes';
 import { calendarFile, saveFile } from '../ics';
 import { clock, fullDay } from '../time';
 import { BrandLogo } from './BrandLogo';
+import { TicketQr } from './TicketQr';
 import { useToast } from './Toasts';
 
 interface Props {
@@ -90,13 +91,7 @@ export function TicketView({ booking, passenger, resend, onResend, onDownload, d
           </div>
           <div className="ticket-perforation" aria-hidden="true" />
           <div className="ticket-code">
-            <div className="ticket-qr-note">
-              <svg aria-hidden="true" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="5" width="18" height="14" rx="3" />
-                <path d="M4 7l8 6 8-6" />
-              </svg>
-              <p>Your QR code is in the PDF. Download it here or find it in your email.</p>
-            </div>
+            <TicketQr bookingId={booking.id} reference={booking.reference} />
             <p className="ticket-ref-label">Booking reference</p>
             <p className="ticket-ref">{booking.reference}</p>
             <button type="button" className="link-button" onClick={() => void copyReference()}>Copy reference</button>

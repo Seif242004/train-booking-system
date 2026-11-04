@@ -734,12 +734,67 @@
 
 .ticket-code {
   display: flex;
-  flex: 0 1 200px;
+  flex: 0 1 240px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   margin: 0 auto;
+}
+
+.ticket-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+}
+
+/* The code is black on white with its own quiet zone inside the image; the white behind it keeps it scannable on any card colour. */
+.ticket-qr-image {
+  display: block;
+  /* Shown at its own size (the service draws whole pixels per module, about 200 to 270 px): never stretched, and at least 168 px. */
+  min-width: 168px;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  image-rendering: pixelated;
+}
+
+.ticket-qr-skeleton {
+  width: 224px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+}
+
+.ticket-qr-failed {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  width: 224px;
+  max-width: 100%;
+  padding: 16px;
+  text-align: center;
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+}
+
+.ticket-qr-failed p,
+.ticket-qr-ref,
+.ticket-qr-help {
+  margin: 0;
+}
+
+.ticket-qr-ref {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ticket-qr-help {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .ticket-qr-note {

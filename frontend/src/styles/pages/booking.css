@@ -633,8 +633,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 20px 32px;
-  color: #fff;
-  background: var(--red);
+  color: var(--ink);
+  background: var(--white); /* a white boarding-pass header with the red logo */
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .ticket-top span {

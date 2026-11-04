@@ -58,8 +58,8 @@ export function TicketView({ booking, passenger, resend, onResend, onDownload, d
       </div>
 
       <article className="ticket" aria-label="Ticket">
-        <div className="ticket-top on-dark">
-          <BrandLogo height={26} home={false} />
+        <div className="ticket-top">
+          <BrandLogo height={34} home={false} variant="red" />
           <span>Train ticket</span>
         </div>
         <div className="ticket-body">

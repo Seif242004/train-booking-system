@@ -55,4 +55,51 @@ class TicketPdfRendererTest {
             reader.close();
         }
     }
+
+    private static byte[] png(int width, int height) throws Exception {
+        var image = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        var graphics = image.createGraphics();
+        graphics.setColor(java.awt.Color.RED);
+        graphics.fillRect(0, 0, width, height);
+        graphics.dispose();
+        var out = new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "PNG", out);
+        return out.toByteArray();
+    }
+
+    private static int images(byte[] pdf) throws Exception {
+        PdfReader reader = new PdfReader(pdf);
+        try {
+            return reader.getPageN(1).getAsDict(PdfName.RESOURCES).getAsDict(PdfName.XOBJECT).size();
+        } finally {
+            reader.close();
+        }
+    }
+
+    @Test
+    void withALogo_itIsDrawnAtTheTop_besidesTheQrCode() throws Exception {
+        byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo"), png(1200, 336)).render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
+
+        assertThat(new String(pdf, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
+        assertThat(images(pdf)).isEqualTo(2); // the logo and the QR code
+        assertThat(text(pdf)).contains("TB-ABC234", "Total paid  530.00 EGP");
+    }
+
+    @Test
+    void aLogoThatIsNotAnImage_isSkipped_theTicketIsStillMade() throws Exception {
+        byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo"), "not an image".getBytes(StandardCharsets.UTF_8))
+                .render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
+
+        assertThat(images(pdf)).isEqualTo(1);
+        assertThat(text(pdf)).contains("TB-ABC234");
+    }
+
+    @Test
+    void aMissingLogoResource_givesNull_andTheDefaultRendererStillWorks() throws Exception {
+        assertThat(TicketPdfRenderer.loadLogo("brand/does-not-exist.png")).isNull();
+        // The resource the service looks for: when the official PNG is added it must load; until then the header is plain.
+        byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo")).render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
+        assertThat(new String(pdf, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
+        assertThat(pdf.length).isPositive();
+    }
 }

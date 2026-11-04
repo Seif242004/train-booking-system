@@ -1,5 +1,6 @@
 package com.trainbooking.ticket.ticket.service;
 
+import com.lowagie.text.BadElementException;
 import com.lowagie.text.Document;
 import com.lowagie.text.DocumentException;
 import com.lowagie.text.Element;
@@ -17,9 +18,12 @@ import com.trainbooking.ticket.ticket.model.TicketRequest;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Draws the PDF of a ticket (SRS FR-T2): booking reference, passenger, train, date, origin and destination with times, the coach and
@@ -37,10 +41,42 @@ public class TicketPdfRenderer {
     private static final Font BOLD = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11);
     private static final Font SMALL = FontFactory.getFont(FontFactory.HELVETICA, 8, Color.GRAY);
 
+    private static final Logger LOG = LoggerFactory.getLogger(TicketPdfRenderer.class);
+
+    /**
+     * The ONE place the PDF takes its logo from: a PNG on the classpath (at least 1000 px wide, so it stays sharp when printed). OpenPDF cannot draw
+     * an SVG and no SVG library is added, so the official file is dropped here as a PNG; swapping the logo is a change of this file only.
+     */
+    public static final String LOGO_RESOURCE = "brand/logo-red.png";
+
+    /** How wide the logo is drawn on the page, in points (the PNG has about 3 times as many pixels). */
+    private static final float LOGO_WIDTH = 110;
+
     private final ZoneId zone;
+    private final byte[] logo;
 
     public TicketPdfRenderer(ZoneId zone) {
+        this(zone, loadLogo(LOGO_RESOURCE));
+    }
+
+    /** {@code logo} is the PNG bytes, or null for the plain header (the layout is valid with and without it). */
+    public TicketPdfRenderer(ZoneId zone, byte[] logo) {
         this.zone = zone;
+        this.logo = logo;
+    }
+
+    /** The logo resource, or null with a warning when it is missing: a ticket without the logo is better than no ticket. */
+    public static byte[] loadLogo(String resource) {
+        try (InputStream in = TicketPdfRenderer.class.getClassLoader().getResourceAsStream(resource)) {
+            if (in == null) {
+                LOG.warn("The ticket logo {} is not on the classpath: the PDF is drawn with the plain header", resource);
+                return null;
+            }
+            return in.readAllBytes();
+        } catch (IOException e) {
+            LOG.warn("The ticket logo {} could not be read: the PDF is drawn with the plain header", resource, e);
+            return null;
+        }
     }
 
     public byte[] render(TicketRequest ticket, String qrToken) {
@@ -50,6 +86,7 @@ public class TicketPdfRenderer {
             PdfWriter.getInstance(document, out);
             document.open();
 
+            addLogo(document);
             document.add(new Paragraph("Train ticket", TITLE));
             document.add(labelled("BOOKING REFERENCE", ticket.reference(), REFERENCE));
 
@@ -105,6 +142,22 @@ public class TicketPdfRenderer {
             throw new IllegalStateException("The ticket PDF could not be made.", e);
         }
         return out.toByteArray();
+    }
+
+    /** The logo at the top of the page, with its own aspect ratio. A logo that cannot be read is skipped, never fatal. */
+    private void addLogo(Document document) throws DocumentException {
+        if (logo == null) {
+            return;
+        }
+        try {
+            Image image = Image.getInstance(logo);
+            image.scaleToFit(LOGO_WIDTH, LOGO_WIDTH * 0.6f);
+            image.setAlignment(Element.ALIGN_LEFT);
+            image.setSpacingAfter(8);
+            document.add(image);
+        } catch (IOException | BadElementException e) {
+            LOG.warn("The ticket logo could not be drawn: the PDF is drawn with the plain header", e);
+        }
     }
 
     private static Paragraph labelled(String label, String value, Font valueFont) {

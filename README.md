@@ -41,7 +41,7 @@ Start only the infrastructure (`docker compose --profile dev up -d oracle keyclo
 
 - `./gradlew test` runs the Spring services' tests. The database tests need the `*_test` schemas (optional, see `.env.example`) and are reported as SKIPPED without them.
 - `cd gateway && npm test` and `cd frontend && npm run build` (type-check and build).
-- `node scripts/smoke-test.mjs` runs the whole journey against the running stack, through the Gateway, with real Keycloak logins, the Stripe sandbox's test cards, Mailpit and OpenObserve: it builds a trip, holds and pays seats (success card, declined card, 3D Secure), cancels as passenger and as admin, cancels a whole trip, and checks the audit trail and traces in OpenObserve.
+- `node scripts/smoke-test.mjs` runs the whole journey against the running stack, through the Gateway, with real Keycloak logins, the Stripe sandbox's test cards, Mailpit and OpenObserve: it builds a trip, holds and pays seats (success card, declined card, 3D Secure), cancels as passenger and as admin, cancels a whole trip, issues a counter booking (existing account) and a complimentary one (walk-in) as an admin and cancels them, and checks the audit trail and traces in OpenObserve. It removes its own data at the end.
 
 ## Demo data and cleaning up test data
 
@@ -56,7 +56,7 @@ Start only the infrastructure (`docker compose --profile dev up -d oracle keyclo
 
 `--dry-run` (on `reset-test-data` and `reset-demo`) only writes the audit file. Before anything is deleted the counts and ids go to `.local/` (git-ignored). The smoke test runs `reset-test-data` at its end (`--keep` skips that).
 
-Demo bookings (reference `DEMO-<trip>-<n>`, passenger `demo-passenger`) are written straight into the Booking & Seat tables, because the API cannot book a train that has already left or fill a trip in one go. That path is dev-only: it refuses to run unless the containers `tbs-oracle` and `tbs-mailpit` are up and the Stripe keys in `.env` are test keys. It uses the service's own keys and checks (one reservation per seat and segment, standing places within capacity), never disables a constraint, and the demo bookings have no payment or ticket.
+Demo bookings for trips that have not left yet are made through the real admin endpoint (the admin holds the seats and issues a complimentary booking with the reason `DEMO data` for the walk-in passenger "Demo Passenger"; nothing touches the database). Only trips that have already left cannot be booked through the API, so for those the demo bookings (reference `DEMO-<trip>-<n>`, passenger `demo-passenger`) are written straight into the Booking & Seat tables. That database path is dev-only: it refuses to run unless the containers `tbs-oracle` and `tbs-mailpit` are up and the Stripe keys in `.env` are test keys. It uses the service's own keys and checks (one reservation per seat and segment, standing places within capacity), never disables a constraint, and the demo bookings have no payment or ticket.
 
 ## Documentation
 

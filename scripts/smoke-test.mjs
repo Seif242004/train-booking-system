@@ -9,6 +9,7 @@
 //
 // Not covered here (covered by the automated tests): the 5-minute hold timeout, which would make this script run for five minutes.
 import { createHash, randomBytes } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -79,6 +80,20 @@ const stripe = async (path, form) => (await fetch(`https://api.stripe.com/v1/${p
   body: form ? new URLSearchParams(form) : undefined,
 })).json();
 const mails = async () => (await (await fetch(`${MAILPIT}/messages?limit=200`)).json()).messages ?? [];
+
+/** The text of the content streams of a PDF made by OpenPDF (Flate-compressed, text in literal strings), the number of pages and of images. */
+function inspectPdf(buffer) {
+  const raw = buffer.toString('latin1');
+  const pages = (raw.match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length;
+  const images = (raw.match(/\/Subtype\s*\/Image/g) ?? []).length;
+  let text = '';
+  for (const m of raw.matchAll(/stream\r?\n/g)) {
+    const start = m.index + m[0].length;
+    const end = raw.indexOf('endstream', start);
+    try { text += inflateSync(buffer.subarray(start, end)).toString('latin1'); } catch { /* an image or a font: not text */ }
+  }
+  return { pages, images, text };
+}
 
 // ---- start --------------------------------------------------------------------------------------------------------------------------
 console.log('--- the stack is up, and the doors are locked');
@@ -176,6 +191,47 @@ check('the admin finds the booking in support search', (await call('GET', `/admi
 const adminCancelled = await call('POST', `/admin/bookings/${hold2.body.id}/cancel`, admin, { reason: 'Passenger asked by phone' });
 check('the admin cancels it with a reason', adminCancelled.status === 200 && adminCancelled.body.status === 'CANCELLED');
 check('it records who cancelled and why', (await call('GET', `/admin/bookings/${hold2.body.id}`, admin)).body?.cancelledByRole === 'ADMIN');
+
+// ---- Counter and complimentary bookings (docs/design/COUNTER-BOOKING.md) -------------------------------------------------------------------
+console.log('--- the admin issues a counter booking and a complimentary one, without Stripe');
+const boardSeat = async (seatNumber) => {
+  const detail = (await call('GET', `/admin/board/trips/${tripId}`, admin)).body;
+  return detail?.coaches?.flatMap((c) => c.seats).find((s) => s.seatNumber === seatNumber);
+};
+check('a passenger cannot look up passengers (403)', (await call('GET', '/admin/passengers/lookup?q=dev.user@example.com', user)).status === 403);
+const lookedUp = await call('GET', '/admin/passengers/lookup?q=dev.user@example.com', admin);
+check('the lookup finds exactly one passenger by exact email', lookedUp.status === 200 && lookedUp.body?.email === 'dev.user@example.com' && !Array.isArray(lookedUp.body));
+check('a partial email finds nobody (404)', (await call('GET', '/admin/passengers/lookup?q=dev.user', admin)).status === 404);
+const counterHold = await call('POST', '/bookings/pick', admin, { ...journey, seatId: seat['1D'] });
+check('the admin holds a seat', counterHold.status === 201, JSON.stringify(counterHold.body)?.slice(0, 120));
+const counterBody = { method: 'COUNTER', note: `smoke ${tag}`, passenger: { mode: 'ACCOUNT', email: 'dev.user@example.com' } };
+check('a passenger cannot issue a booking (403)', (await call('POST', `/admin/bookings/${counterHold.body.id}/issue`, user, counterBody)).status === 403);
+const counter = await call('POST', `/admin/bookings/${counterHold.body.id}/issue`, admin, counterBody);
+check('the admin issues it as COUNTER for an existing account (CONFIRMED, no Stripe)', counter.status === 200 && counter.body.status === 'CONFIRMED' && counter.body.paymentMethod === 'COUNTER', JSON.stringify(counter.body)?.slice(0, 150));
+check('a second submit gives the same booking', (await call('POST', `/admin/bookings/${counterHold.body.id}/issue`, admin, counterBody)).body?.id === counter.body.id);
+const taken = await boardSeat('1D');
+check('the board shows the seat TAKEN with the booking reference', taken?.state === 'TAKEN' && taken.reference === counter.body.reference, JSON.stringify(taken));
+check('the booking is in the passenger\'s My bookings', (await call('GET', '/bookings', user)).body?.some((x) => x.booking.id === counter.body.id && x.cancellable === false));
+check('the passenger cannot cancel it themselves (409 cancel_at_desk)', (await call('POST', `/bookings/${counter.body.id}/cancel`, user)).body?.error?.code === 'cancel_at_desk');
+const pdf = await waitFor(async () => { const r = await fetch(`${GW}/bookings/${counter.body.id}/ticket`, { headers: { authorization: `Bearer ${admin}` } }); return r.status === 200 ? Buffer.from(await r.arrayBuffer()) : null; }, 30000, 1000);
+check('the admin downloads the ticket PDF', Boolean(pdf) && pdf.subarray(0, 5).toString() === '%PDF-');
+const pdfInfo = pdf ? inspectPdf(pdf) : { pages: 0, images: 0, text: '' };
+check('the PDF is one page, shows the reference and "Paid at counter", and has the logo and the QR code', pdfInfo.pages === 1 && pdfInfo.text.includes(counter.body.reference) && pdfInfo.text.includes('Paid at counter') && pdfInfo.images >= 2,
+  JSON.stringify({ pages: pdfInfo.pages, images: pdfInfo.images, hasRef: pdfInfo.text.includes(counter.body.reference) }));
+const counterCancelled = await call('POST', `/admin/bookings/${counter.body.id}/cancel`, admin, { reason: 'Smoke test: passenger changed plans' });
+check('the admin cancels it: MANUAL_REFUND_DUE, no card refund', counterCancelled.status === 200 && counterCancelled.body.refundStatus === 'MANUAL_REFUND_DUE', JSON.stringify(counterCancelled.body)?.slice(0, 120));
+check('the seat is FREE again on the board', (await boardSeat('1D'))?.state === 'FREE');
+const marked = await call('POST', `/admin/bookings/${counter.body.id}/refunded-at-counter`, admin);
+check('marked refunded at the counter', marked.status === 200 && marked.body.refundStatus === 'REFUNDED_AT_COUNTER');
+check('marking it again changes nothing (200)', (await call('POST', `/admin/bookings/${counter.body.id}/refunded-at-counter`, admin)).status === 200);
+
+const freeHold = await call('POST', '/bookings/pick', admin, { ...journey, seatId: seat['1C'] });
+const withoutReason = await call('POST', `/admin/bookings/${freeHold.body.id}/issue`, admin, { method: 'COMPLIMENTARY', passenger: { mode: 'WALK_IN', name: `Smoke Guest ${tag}` } });
+check('a complimentary booking without a reason is refused (400)', withoutReason.status === 400);
+const complimentary = await call('POST', `/admin/bookings/${freeHold.body.id}/issue`, admin, { method: 'COMPLIMENTARY', reason: 'Smoke test guest', passenger: { mode: 'WALK_IN', name: `Smoke Guest ${tag}` } });
+check('then with a reason it is issued (walk-in, COMPLIMENTARY)', complimentary.status === 200 && complimentary.body.paymentMethod === 'COMPLIMENTARY');
+const freeCancelled = await call('POST', `/admin/bookings/${complimentary.body.id}/cancel`, admin, { reason: 'Smoke test: guest cancelled' });
+check('cancelling it gives NOT_APPLICABLE and the seat is FREE', freeCancelled.body?.refundStatus === 'NOT_APPLICABLE' && (await boardSeat('1C'))?.state === 'FREE');
 
 // ---- Whole-trip cancellation ----------------------------------------------------------------------------------------------------------
 console.log('--- the admin cancels the whole trip');

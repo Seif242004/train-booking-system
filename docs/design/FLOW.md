@@ -56,3 +56,15 @@ Decision: the board and the booking search are two **views** (chips at the top, 
 - **States**: Upcoming, Departed (left the first stop, not yet at the last), Arrived, Cancelled (a trip being cancelled counts as cancelled), plus the Full flag on an upcoming trip. **Full means no seat (and no standing place) is free for the whole journey.**
 - **Rows** keep the order of the departure time; a row whose numbers changed is highlighted for two seconds (no motion with reduced motion). Enter or click on a row opens the trip in a slide-over (counts per class, a read-only coach plan with free / held / taken seats, the booking reference as plain text on taken seats, the data time); Escape closes it and focus returns to the row.
 - **New Gateway routes**: `GET /admin/board/trips`, `GET /admin/board/trips/{id}`, `GET /bookings/{id}/ticket/qr`.
+
+## Booking and cancelling from the board (admin)
+
+The full rule is in `docs/design/COUNTER-BOOKING.md`. In the trip slide-over of the live trips board:
+
+- **A taken seat** (a button) opens its booking: reference, status, a payment chip (Card, Counter, Complimentary), the seats of the booking (all highlighted), the journey, the refund status as it really is (pending, failed, due at the counter), and for an admin-issued booking "Issued by <admin> on <date>, reason or note". **Cancel booking** asks for a reason and names what happens: card = refunded in full to the card; counter = paid at the counter and returned at the counter; complimentary = nothing was charged. A cancelled counter booking offers **Mark refunded at counter**. Cancelling is by booking (all its seats); there is no partial seat cancellation.
+- **A held seat** says "held, expires in 3:42" and has no action (releasing someone else's hold is not offered).
+- **Cancel trip** (the existing whole-trip cancellation) first says how many confirmed bookings it cancels: by card, at the counter, complimentary.
+- **Book seats** switches to a selectable seat view (same plan and live updates as the passenger map; origin and destination can be changed until the first pick). A slim banner shows the 5:00 hold. **Issue booking** is a second step in the same panel: passenger (Existing account by exact email, or Walk-in with a required name), payment (Paid at counter with the amount to collect, or Complimentary with a required reason), the order summary and the hold timer. On success: "View booking", "Download ticket PDF", "Open to print", "Book more seats". Closing the panel while a hold runs asks: keep the hold, release the seats, or stay. Departed, arrived and cancelled trips cannot be booked; a full trip shows "No seats left".
+- After any action the board and the seat view refresh at once and a toast says what happened; a pending refund is never shown as a plain success.
+- **Passengers** see "Paid at counter" or "Complimentary" on My bookings and the ticket page, and cannot cancel such a booking themselves ("Cancel at the support desk").
+- New Gateway routes: `GET /admin/passengers/lookup`, `POST /admin/bookings/{id}/issue`, `POST /admin/bookings/{id}/refunded-at-counter`.

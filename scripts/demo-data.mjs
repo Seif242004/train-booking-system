@@ -29,6 +29,10 @@ const ZONE = process.env.TIMEZONE ?? 'Africa/Cairo';
 const DEMO_PASSENGER = 'demo-passenger';
 const DEMO_EMAIL = 'demo.passenger@example.com';
 const REF_PREFIX = 'DEMO-';
+// Demo bookings made through the admin endpoint (POST /admin/bookings/{id}/issue, complimentary) carry this walk-in name and the reason DEMO.
+const DEMO_WALK_IN = 'Demo Passenger';
+const DEMO_REASON = 'DEMO data'; // at least 5 characters, as the issue endpoint asks for a complimentary booking
+const DEMO_MARKER_SQL = `((user_id = '${DEMO_PASSENGER}' AND reference LIKE '${REF_PREFIX}%') OR (payment_method = 'COMPLIMENTARY' AND issue_note = '${DEMO_REASON}' AND walk_in_name = '${DEMO_WALK_IN}'))`;
 const TEST_USERS = ['dev.user@example.com', 'dev.admin@example.com']; // the accounts the smoke and check scripts log in as (the accounts themselves stay)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
@@ -313,7 +317,7 @@ function rng(seed) { // small deterministic generator, so a re-run picks the sam
 
 /** Confirmed demo bookings on one trip, written with the same keys and checks as the service (never a seat twice, never above capacity). */
 function fillTrip(tripId, fraction) {
-  const already = num('booking_seat', `select count(*) from booking where trip_id = ${tripId} and user_id = '${DEMO_PASSENGER}'`);
+  const already = num('booking_seat', `select count(*) from booking where trip_id = ${tripId} and ${DEMO_MARKER_SQL}`);
   if (already > 0 || fraction === 0) return 0;
   const stopCount = num('booking_seat', `select count(*) from trip_stop where trip_id = ${tripId}`);
   const last = stopCount - 1; // the journey is stop 0 to the last stop: segments 0..last-1
@@ -368,6 +372,50 @@ function fillTrip(tripId, fraction) {
   }
   sql('booking_seat', `${blocks.join('\n')}\ncommit;`);
   return bookings.length;
+}
+
+/**
+ * Demo bookings for a trip that has NOT left yet, through the real endpoints: the admin holds the seats (the normal pick, with the 5-minute hold and the
+ * database keys) and issues a complimentary booking with the reason DEMO. No database access. Same seeded choice of seats as fillTrip.
+ */
+async function fillTripApi(tripId, fraction, stopCount) {
+  if (fraction === 0 || num('booking_seat', `select count(*) from booking where trip_id = ${tripId} and ${DEMO_MARKER_SQL}`) > 0) return 0;
+  const mapRes = await call('GET', `/trips/${tripId}/seat-map?from=0&to=${stopCount - 1}`);
+  if (mapRes.status !== 200) return 0;
+  const map = mapRes.body;
+  const journey = { tripId, fromStop: 0, toStop: stopCount - 1 };
+  const r = rng(tripId);
+  const free = map.coaches.flatMap((c) => c.seats.filter((s) => s.state === 'AVAILABLE').map((s) => s.id));
+  const order = free.map((id) => [r(), id]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  const want = fraction === 'FULL' ? order.length : fraction === 'NEARLY' ? Math.max(order.length - 3, 0) : Math.round(order.length * fraction);
+  const chosen = order.slice(0, want);
+
+  const issue = async (holdId) => {
+    const res = await call('POST', `/admin/bookings/${holdId}/issue`, { method: 'COMPLIMENTARY', reason: DEMO_REASON, passenger: { mode: 'WALK_IN', name: DEMO_WALK_IN } });
+    if (res.status !== 200) { await call('DELETE', `/bookings/${holdId}/hold`); return 0; }
+    return 1;
+  };
+  let made = 0;
+  for (let i = 0; i < chosen.length;) {
+    const size = Math.min(1 + Math.floor(r() * 4), chosen.length - i);
+    let holdId = null;
+    for (const seatId of chosen.slice(i, i + size)) {
+      const res = await call('POST', '/bookings/pick', { ...journey, seatId });
+      if (res.status === 200 || res.status === 201) holdId = res.body.id;
+    }
+    i += size;
+    if (holdId) made += await issue(holdId);
+  }
+  for (const coach of map.coaches) {
+    let left = fraction === 'FULL' || fraction === 'NEARLY' ? coach.standing.remaining : Math.round(coach.standing.remaining * fraction);
+    while (left > 0) {
+      const qty = Math.min(left, 20);
+      const res = await call('POST', '/bookings/pick', { ...journey, coachId: coach.id, qty });
+      left -= qty;
+      if (res.status === 200 || res.status === 201) made += await issue(res.body.id);
+    }
+  }
+  return made;
 }
 
 async function waitForTripCopy(tripId) { // Booking has its copy as soon as the create returned (the snapshot is pushed in the same call)
@@ -455,7 +503,10 @@ async function seedDemo() {
     const fraction = fillFraction(null, t.trainNumber, dayIndex, time, t.id);
     if (fraction === 0) continue;
     if (!(await waitForTripCopy(t.id))) continue;
-    const made = fillTrip(t.id, fraction);
+    // A trip that has not left is filled through the issue endpoint; one that has left cannot be booked, so only that uses the database.
+    const departureLocal = (t.stops[0].departureTime ?? '').slice(0, 16);
+    const nowLocal = `${localParts(Date.now()).date}T${hhmm(localParts(Date.now()).hour * 60 + localParts(Date.now()).minute)}`;
+    const made = departureLocal > nowLocal ? await fillTripApi(t.id, fraction, t.stops.length) : fillTrip(t.id, fraction);
     if (made > 0) { filledTrips += 1; bookingCount += made; }
   }
   log(`  ${bookingCount} demo bookings on ${filledTrips} trips`);
@@ -549,7 +600,7 @@ function resetTestData({ dryRun }) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 async function resetDemo({ dryRun }) {
   requireDevStack();
-  const bookingRows = rows('booking_seat', `select id||'|'||trip_id||'|'||reference from booking where user_id = '${DEMO_PASSENGER}' and reference like '${REF_PREFIX}%'`).map((l) => l.split('|'));
+  const bookingRows = rows('booking_seat', `select id||'|'||trip_id||'|'||reference from booking where ${DEMO_MARKER_SQL}`).map((l) => l.split('|'));
   const bookingIds = bookingRows.map((b) => Number(b[0]));
   const references = bookingRows.map((b) => b[2]);
   const trips = (await must('list trips', call('GET', '/admin/trips'))).filter((t) => DEMO_TRAIN_NUMBERS.includes(t.trainNumber));

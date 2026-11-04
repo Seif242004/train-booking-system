@@ -23,7 +23,15 @@ public record BookingView(
         OffsetDateTime serverTime,
         OffsetDateTime createdAt,
         TripInfo trip,
-        List<BookingItemView> items) {
+        List<BookingItemView> items,
+        PaymentMethod paymentMethod) {
+
+    /** A card booking (the original shape of the view). */
+    public BookingView(long id, String reference, BookingStatus status, RefundStatus refundStatus, long tripId, int fromStop, int toStop, BigDecimal amount,
+                       String currency, OffsetDateTime expiresAt, OffsetDateTime serverTime, OffsetDateTime createdAt, TripInfo trip, List<BookingItemView> items) {
+        this(id, reference, status, refundStatus, tripId, fromStop, toStop, amount, currency, expiresAt, serverTime, createdAt, trip, items, PaymentMethod.CARD);
+    }
+
 
     /** The trip and the stops of the journey, for the payment page and "My bookings". */
     public record TripInfo(String trainNumber, String trainName, String routeName, LocalDate departureDate, StopInfo from, StopInfo to) {

@@ -93,7 +93,8 @@ public class BoardService {
         TripRow row = repository.findTrip(tripId).orElseThrow(() -> new TripNotFoundException(tripId));
         BoardTrip trip = build(List.of(row), now).get(0);
         List<BoardSeat> seats = repository.seatStates(tripId).stream()
-                .map(s -> new BoardSeat(s.seatId(), s.coachId(), s.state(), "TAKEN".equals(s.state()) ? s.reference() : null)).toList();
+                .map(s -> new BoardSeat(s.seatId(), s.coachId(), s.state(), "TAKEN".equals(s.state()) ? s.reference() : null,
+                        s.holdExpiresAt() == null ? null : s.holdExpiresAt().atZoneSameInstant(zone).toOffsetDateTime())).toList();
         List<StandingBookingRow> bookings = repository.standingBookings(List.of(tripId));
         Map<Long, List<StandingRow>> byCoach = new TreeMap<>();
         repository.standingUsage(List.of(tripId)).forEach(u -> byCoach.computeIfAbsent(u.coachId(), id -> new ArrayList<>()).add(u));

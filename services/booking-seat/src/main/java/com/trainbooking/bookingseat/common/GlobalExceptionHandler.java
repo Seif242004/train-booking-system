@@ -63,6 +63,11 @@ public class GlobalExceptionHandler {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("trip_not_found", e.getMessage()));
     }
 
+    @ExceptionHandler(com.trainbooking.bookingseat.booking.model.PassengerNotFoundException.class)
+    ResponseEntity<ApiError> passengerNotFound(com.trainbooking.bookingseat.booking.model.PassengerNotFoundException e) {
+        return respond(HttpStatus.NOT_FOUND, ApiError.of("passenger_not_found", e.getMessage()));
+    }
+
     @ExceptionHandler(BookingNotFoundException.class)
     ResponseEntity<ApiError> bookingNotFound(BookingNotFoundException e) {
         return respond(HttpStatus.NOT_FOUND, ApiError.of("booking_not_found", e.getMessage()));

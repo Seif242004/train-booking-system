@@ -137,8 +137,14 @@ public final class CancellationJobs {
                 detail = "You cancelled this booking.";
             }
             BookingView view = queries.toView(booking);
-            notifications.send(new NotificationPort.Email("cancel:" + booking.id(), NotificationPort.Kind.CANCELLATION, booking.userEmail(), booking.userName(),
-                    booking.reference(), trip(view), TicketEmailJob.describe(view.items(), booking.currency()), booking.amount(), booking.currency(), detail, null));
+            boolean walkIn = booking.walkInName() != null;
+            String recipient = walkIn ? booking.walkInEmail() : booking.userEmail();
+            if (recipient == null || recipient.isBlank()) {
+                return; // a walk-in passenger who gave no email
+            }
+            notifications.send(new NotificationPort.Email("cancel:" + booking.id(), NotificationPort.Kind.CANCELLATION, recipient, walkIn ? booking.walkInName() : booking.userName(),
+                    booking.reference(), trip(view), TicketEmailJob.describe(view.items(), booking.currency()), booking.amount(), booking.currency(), detail, null,
+                    booking.paymentMethod().name()));
         }
     }
 

@@ -3,6 +3,8 @@ package com.trainbooking.bookingseat.booking.controller;
 import com.trainbooking.bookingseat.booking.model.AdminBookingView;
 import com.trainbooking.bookingseat.booking.model.BookingView;
 import com.trainbooking.bookingseat.booking.model.CancelRequest;
+import com.trainbooking.bookingseat.booking.model.IssueRequest;
+import com.trainbooking.bookingseat.booking.service.BookingIssueService;
 import com.trainbooking.bookingseat.booking.service.AdminBookingQueryService;
 import com.trainbooking.bookingseat.booking.service.CancellationService;
 import jakarta.validation.Valid;
@@ -21,10 +23,12 @@ public class AdminBookingController {
 
     private final CancellationService cancellations;
     private final AdminBookingQueryService queries;
+    private final BookingIssueService issues;
 
-    public AdminBookingController(CancellationService cancellations, AdminBookingQueryService queries) {
+    public AdminBookingController(CancellationService cancellations, AdminBookingQueryService queries, BookingIssueService issues) {
         this.cancellations = cancellations;
         this.queries = queries;
+        this.issues = issues;
     }
 
     /**
@@ -34,8 +38,28 @@ public class AdminBookingController {
     @GetMapping("/admin/bookings")
     public java.util.List<AdminBookingView> search(@RequestParam(required = false) String ref, @RequestParam(required = false) String email,
                                                    @RequestParam(required = false) Long tripId, @RequestParam(required = false) String status,
-                                                   @RequestParam(required = false) String refundStatus) {
-        return queries.search(ref, email, tripId, status, refundStatus);
+                                                   @RequestParam(required = false) String refundStatus,
+                                                   @RequestParam(required = false) String method) {
+        return queries.search(ref, email, tripId, status, refundStatus, method);
+    }
+
+    /** {@code GET /admin/passengers/lookup?q=}: the one passenger with exactly this email (id, name, email), or 404. Never a list. */
+    @GetMapping("/admin/passengers/lookup")
+    public java.util.Map<String, String> lookup(@RequestParam String q) {
+        var found = issues.lookup(q).orElseThrow(com.trainbooking.bookingseat.booking.model.PassengerNotFoundException::new);
+        return java.util.Map.of("id", found.userId(), "name", found.name() == null || found.name().isBlank() ? found.email() : found.name(), "email", found.email());
+    }
+
+    /** {@code POST /admin/bookings/{id}/issue}: confirms the admin's own hold without Stripe (counter or complimentary). */
+    @PostMapping("/admin/bookings/{id}/issue")
+    public BookingView issue(@AuthenticationPrincipal Jwt jwt, @PathVariable long id, @Valid @RequestBody IssueRequest request) {
+        return issues.issue(jwt.getSubject(), id, request);
+    }
+
+    /** {@code POST /admin/bookings/{id}/refunded-at-counter}: the money of a cancelled counter booking was returned at the counter. */
+    @PostMapping("/admin/bookings/{id}/refunded-at-counter")
+    public BookingView refundedAtCounter(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
+        return issues.markRefundedAtCounter(jwt.getSubject(), id);
     }
 
     /** {@code GET /admin/bookings/{id}}: the booking with the passenger, the payment and refund status, and who cancelled it. */

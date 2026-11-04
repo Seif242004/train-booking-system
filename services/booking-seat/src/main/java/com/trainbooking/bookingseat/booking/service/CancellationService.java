@@ -106,6 +106,10 @@ public class CancellationService {
         if (booking.status() == BookingStatus.CANCELLED) {
             return; // a retry, or two clicks: the current state is the answer
         }
+        if (actor.role() == Actor.Role.USER && booking.paymentMethod().issuedByAdmin()) {
+            // The money of a counter booking is returned at the counter, and a complimentary one was given by staff: the support desk cancels them.
+            throw new BookingConflictException("cancel_at_desk", "This booking was issued at the support desk. Ask the support desk to cancel it.");
+        }
         if (booking.status() != BookingStatus.CONFIRMED) {
             throw new BookingConflictException("not_cancellable", "Only a confirmed booking can be cancelled.");
         }
@@ -118,16 +122,25 @@ public class CancellationService {
 
         inventory.giveBack(booking);
         boolean byAdmin = actor.role() == Actor.Role.ADMIN;
-        bookings.markCancelled(bookingId, now, actor.id(), actor.role().name(), byAdmin ? reason : null, RefundStatus.REFUND_PENDING);
+        // The refund depends on how it was paid: card = a full Stripe refund; counter = returned at the counter; complimentary = nothing to return.
+        RefundStatus refund = switch (booking.paymentMethod()) {
+            case CARD -> RefundStatus.REFUND_PENDING;
+            case COUNTER -> RefundStatus.MANUAL_REFUND_DUE;
+            case COMPLIMENTARY -> RefundStatus.NOT_APPLICABLE;
+        };
+        bookings.markCancelled(bookingId, now, actor.id(), actor.role().name(), byAdmin ? reason : null, refund);
         // In this order, per booking: the QR stops working, the money is asked back, the passenger is told.
         outbox.queue(OutboxMessage.Kind.TICKET_INVALIDATE, bookingId);
-        outbox.queue(OutboxMessage.Kind.REFUND_REQUEST, bookingId);
+        if (booking.paymentMethod() == com.trainbooking.bookingseat.booking.model.PaymentMethod.CARD) {
+            outbox.queue(OutboxMessage.Kind.REFUND_REQUEST, bookingId); // Stripe is only ever asked for a card payment
+        }
         outbox.queue(OutboxMessage.Kind.CANCELLATION_EMAIL, bookingId);
 
         Map<String, Object> diff = new LinkedHashMap<>();
         diff.put("role", actor.role().name());
         diff.put("tripId", booking.tripId());
         diff.put("amount", booking.amount());
+        diff.put("method", booking.paymentMethod().name());
         if (byAdmin) {
             diff.put("reason", reason);
         }

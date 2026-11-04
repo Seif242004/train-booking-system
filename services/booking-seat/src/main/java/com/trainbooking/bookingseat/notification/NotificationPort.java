@@ -20,7 +20,13 @@ public interface NotificationPort {
     }
 
     record Email(String dedupeKey, Kind kind, String to, String toName, String reference, Trip trip, List<String> lines, BigDecimal amount,
-                 String currency, String detail, Attachment attachment) {
+                 String currency, String detail, Attachment attachment, String paymentMethod) {
+
+        /** A card payment (the original shape). */
+        public Email(String dedupeKey, Kind kind, String to, String toName, String reference, Trip trip, List<String> lines, BigDecimal amount,
+                     String currency, String detail, Attachment attachment) {
+            this(dedupeKey, kind, to, toName, reference, trip, lines, amount, currency, detail, attachment, "CARD");
+        }
     }
 
     void send(Email email);

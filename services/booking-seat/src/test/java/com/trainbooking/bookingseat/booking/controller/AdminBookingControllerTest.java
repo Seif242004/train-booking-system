@@ -47,6 +47,9 @@ class AdminBookingControllerTest {
     MockMvc mvc;
 
     @MockitoBean
+    com.trainbooking.bookingseat.booking.service.BookingIssueService issues;
+
+    @MockitoBean
     CancellationService cancellations;
 
     @MockitoBean
@@ -94,7 +97,7 @@ class AdminBookingControllerTest {
 
     @Test
     void search_passesTheFiltersOn_andReturnsTheList() throws Exception {
-        given(queries.search("TB-ABC234", "alice", 2L, "CONFIRMED", "REFUND_FAILED")).willReturn(List.of(DETAILS));
+        given(queries.search("TB-ABC234", "alice", 2L, "CONFIRMED", "REFUND_FAILED", null)).willReturn(List.of(DETAILS));
 
         mvc.perform(get("/admin/bookings").param("ref", "TB-ABC234").param("email", "alice").param("tripId", "2").param("status", "CONFIRMED")
                         .param("refundStatus", "REFUND_FAILED").with(as("ADMIN")))

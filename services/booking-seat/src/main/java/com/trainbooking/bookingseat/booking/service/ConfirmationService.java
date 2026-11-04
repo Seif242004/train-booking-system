@@ -61,6 +61,16 @@ public class ConfirmationService {
         if (booking == null) {
             return Result.NOT_FOUND;
         }
+        return confirmLocked(booking);
+    }
+
+    /**
+     * The confirmation of a booking whose trip and row are already locked by the caller's transaction. Both ways of paying use it: Payment's report
+     * (card) and an admin issuing a counter or complimentary booking, so there is one HELD to CONFIRMED transition.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.MANDATORY)
+    public Result confirmLocked(Booking booking) {
+        long bookingId = booking.id();
         if (booking.status() == BookingStatus.CONFIRMED) {
             return Result.ALREADY_CONFIRMED;
         }

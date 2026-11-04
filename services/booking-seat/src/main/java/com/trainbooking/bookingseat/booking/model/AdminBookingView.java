@@ -18,5 +18,17 @@ public record AdminBookingView(
         String cancelledBy,
         String cancelledByRole,
         String cancelReason,
-        boolean cancellable) {
+        boolean cancellable,
+        Issue issue) {
+
+    /** How an admin-issued booking was issued (null for a card booking): the audit that support sees. */
+    public record Issue(PaymentMethod method, java.math.BigDecimal chargedAmount, String issuedBy, OffsetDateTime issuedAt, String note,
+                        String walkInName, String walkInPhone, String walkInEmail, String counterRefundedBy, OffsetDateTime counterRefundedAt) {
+    }
+
+    public AdminBookingView(BookingView booking, String userId, String userEmail, String userName, String paymentStatus, OffsetDateTime confirmedAt,
+                            OffsetDateTime cancelledAt, String cancelledBy, String cancelledByRole, String cancelReason, boolean cancellable) {
+        this(booking, userId, userEmail, userName, paymentStatus, confirmedAt, cancelledAt, cancelledBy, cancelledByRole, cancelReason, cancellable, null);
+    }
+
 }

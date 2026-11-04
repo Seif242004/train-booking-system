@@ -26,5 +26,15 @@ public record Booking(
         String cancelReason,
         OffsetDateTime nextAttemptAt,
         int attempts,
-        boolean paymentStarted) {
+        boolean paymentStarted,
+        PaymentMethod paymentMethod,
+        BigDecimal chargedAmount,
+        String issuedBy,
+        OffsetDateTime issuedAt,
+        String issueNote,
+        String walkInName,
+        String walkInPhone,
+        String walkInEmail,
+        String counterRefundedBy,
+        OffsetDateTime counterRefundedAt) {
 }

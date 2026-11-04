@@ -5,6 +5,7 @@ import com.trainbooking.bookingseat.booking.model.Booking;
 import com.trainbooking.bookingseat.booking.model.BookingNotFoundException;
 import com.trainbooking.bookingseat.booking.model.BookingStatus;
 import com.trainbooking.bookingseat.booking.model.BookingView;
+import com.trainbooking.bookingseat.booking.model.PaymentMethod;
 import com.trainbooking.bookingseat.booking.model.RefundStatus;
 import com.trainbooking.bookingseat.booking.repository.BookingRepository;
 import com.trainbooking.bookingseat.common.ApiError;
@@ -34,9 +35,15 @@ public class AdminBookingQueryService {
     /** Every filter is optional and they combine (AND). The newest bookings come first. */
     @Transactional(readOnly = true)
     public List<AdminBookingView> search(String reference, String email, Long tripId, String status, String refundStatus) {
+        return search(reference, email, tripId, status, refundStatus, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AdminBookingView> search(String reference, String email, Long tripId, String status, String refundStatus, String method) {
+        PaymentMethod parsedMethod = parse(PaymentMethod.class, "method", method);
         BookingStatus parsedStatus = parse(BookingStatus.class, "status", status);
         RefundStatus parsedRefund = parse(RefundStatus.class, "refundStatus", refundStatus);
-        return bookings.search(blankToNull(reference), blankToNull(email), tripId, parsedStatus, parsedRefund, LIMIT).stream().map(this::toAdminView).toList();
+        return bookings.search(blankToNull(reference), blankToNull(email), tripId, parsedStatus, parsedRefund, parsedMethod, LIMIT).stream().map(this::toAdminView).toList();
     }
 
     @Transactional(readOnly = true)
@@ -49,7 +56,9 @@ public class AdminBookingQueryService {
         boolean cancellable = booking.status() == BookingStatus.CONFIRMED && view.trip().from().departureTime() != null
                 && view.trip().from().departureTime().toInstant().isAfter(clock.instant());
         return new AdminBookingView(view, booking.userId(), booking.userEmail(), booking.userName(), booking.confirmedAt() != null ? "PAID" : "NOT_PAID",
-                booking.confirmedAt(), booking.cancelledAt(), booking.cancelledBy(), booking.cancelledByRole(), booking.cancelReason(), cancellable);
+                booking.confirmedAt(), booking.cancelledAt(), booking.cancelledBy(), booking.cancelledByRole(), booking.cancelReason(), cancellable,
+                booking.paymentMethod().issuedByAdmin() ? new AdminBookingView.Issue(booking.paymentMethod(), booking.chargedAmount(), booking.issuedBy(), booking.issuedAt(), booking.issueNote(),
+                        booking.walkInName(), booking.walkInPhone(), booking.walkInEmail(), booking.counterRefundedBy(), booking.counterRefundedAt()) : null);
     }
 
     private static String blankToNull(String value) {

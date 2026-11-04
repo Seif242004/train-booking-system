@@ -45,7 +45,8 @@ public class BookingQueryService {
     public java.util.List<com.trainbooking.bookingseat.booking.model.MyBooking> listOwn(String userId) {
         return bookings.findOfUser(userId, 50).stream().map(booking -> {
             BookingView view = toView(booking);
-            boolean cancellable = booking.status() == com.trainbooking.bookingseat.booking.model.BookingStatus.CONFIRMED
+            // A counter or complimentary booking is cancelled at the support desk, never by the passenger (docs/design/COUNTER-BOOKING.md, 7).
+            boolean cancellable = booking.status() == com.trainbooking.bookingseat.booking.model.BookingStatus.CONFIRMED && !booking.paymentMethod().issuedByAdmin()
                     && view.trip().from().departureTime() != null && view.trip().from().departureTime().toInstant().isAfter(clock.instant());
             return new com.trainbooking.bookingseat.booking.model.MyBooking(view, cancellable);
         }).toList();
@@ -55,6 +56,6 @@ public class BookingQueryService {
         BookingView.TripInfo trip = bookings.findTripInfo(booking.tripId(), booking.fromStop(), booking.toStop()).orElseThrow();
         return new BookingView(booking.id(), booking.reference(), booking.status(), booking.refundStatus(), booking.tripId(), booking.fromStop(), booking.toStop(),
                 booking.amount(), booking.currency(), booking.expiresAt(), OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC), booking.createdAt(),
-                trip, bookings.findItems(booking.id()));
+                trip, bookings.findItems(booking.id()), booking.paymentMethod());
     }
 }

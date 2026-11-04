@@ -4,6 +4,7 @@ import com.trainbooking.bookingseat.booking.model.Booking;
 import com.trainbooking.bookingseat.booking.model.BookingItemView;
 import com.trainbooking.bookingseat.booking.model.BookingStatus;
 import com.trainbooking.bookingseat.booking.model.BookingView;
+import com.trainbooking.bookingseat.booking.model.PaymentMethod;
 import com.trainbooking.bookingseat.booking.model.RefundStatus;
 import com.trainbooking.bookingseat.booking.service.BookingPricing;
 import com.trainbooking.bookingseat.common.CoachClass;
@@ -28,7 +29,8 @@ public class BookingRepository {
 
     private static final String COLUMNS = "id, reference, user_id, user_email, user_name, trip_id, from_stop, to_stop, status, refund_status, amount, "
             + "currency, expires_at, created_at, confirmed_at, cancelled_at, cancelled_by, cancelled_by_role, cancel_reason, next_attempt_at, attempts, "
-            + "payment_started";
+            + "payment_started, payment_method, charged_amount, issued_by, issued_at, issue_note, walk_in_name, walk_in_phone, walk_in_email, "
+            + "counter_refunded_by, counter_refunded_at";
 
     private final JdbcClient jdbc;
     private final NamedParameterJdbcTemplate batch;
@@ -132,6 +134,10 @@ public class BookingRepository {
      * exact match ignoring case. The values are bound parameters; the SQL text only ever contains the fixed conditions of the filters that are set.
      */
     public List<Booking> search(String reference, String email, Long tripId, BookingStatus status, RefundStatus refundStatus, int limit) {
+        return search(reference, email, tripId, status, refundStatus, null, limit);
+    }
+
+    public List<Booking> search(String reference, String email, Long tripId, BookingStatus status, RefundStatus refundStatus, PaymentMethod method, int limit) {
         StringBuilder sql = new StringBuilder("SELECT " + COLUMNS + " FROM booking WHERE 1 = 1");
         java.util.Map<String, Object> params = new java.util.LinkedHashMap<>();
         if (reference != null) {
@@ -154,9 +160,47 @@ public class BookingRepository {
             sql.append(" AND refund_status = :refund");
             params.put("refund", refundStatus.name());
         }
+        if (method != null) {
+            sql.append(" AND payment_method = :method");
+            params.put("method", method.name());
+        }
         sql.append(" ORDER BY created_at DESC, id DESC FETCH FIRST :limit ROWS ONLY");
         params.put("limit", limit);
         return batch.query(sql.toString(), params, (rs, row) -> map(rs));
+    }
+
+    /** A passenger found by exact email among the users this service has already seen (the email and name of their bookings). */
+    public record KnownPassenger(String userId, String name, String email) {
+    }
+
+    /**
+     * The users whose stored email equals the given one (case-insensitive, no partial match). Returns every distinct user so the caller can refuse an
+     * ambiguous answer; the newest booking gives the name.
+     */
+    public List<KnownPassenger> findPassengersByEmail(String email) {
+        return jdbc.sql("SELECT user_id, user_name, user_email FROM booking WHERE LOWER(user_email) = :e AND user_id <> 'demo-passenger' "
+                        + "ORDER BY created_at DESC, id DESC FETCH FIRST 50 ROWS ONLY")
+                .param("e", email.toLowerCase())
+                .query((rs, row) -> new KnownPassenger(rs.getString("user_id"), rs.getString("user_name"), rs.getString("user_email"))).list().stream()
+                .collect(java.util.stream.Collectors.toMap(KnownPassenger::userId, p -> p, (a, b) -> a, java.util.LinkedHashMap::new)).values().stream().toList();
+    }
+
+    /** Records how an admin issued the booking (the fields of docs/design/COUNTER-BOOKING.md); the owner changes only for an existing-account passenger. */
+    public void markIssued(long id, PaymentMethod method, BigDecimal charged, String issuedBy, OffsetDateTime now, String note,
+                           KnownPassenger owner, String walkInName, String walkInPhone, String walkInEmail) {
+        jdbc.sql("UPDATE booking SET payment_method = :m, charged_amount = :charged, issued_by = :by, issued_at = :now, issue_note = :note, "
+                        + "walk_in_name = :wn, walk_in_phone = :wp, walk_in_email = :we, "
+                        + "user_id = NVL(:uid, user_id), user_email = NVL(:uemail, user_email), user_name = NVL(:uname, user_name) WHERE id = :id")
+                .param("m", method.name()).param("charged", charged).param("by", issuedBy).param("now", now).param("note", note)
+                .param("wn", walkInName).param("wp", walkInPhone).param("we", walkInEmail)
+                .param("uid", owner == null ? null : owner.userId()).param("uemail", owner == null ? null : owner.email())
+                .param("uname", owner == null ? null : (owner.name() == null || owner.name().isBlank() ? owner.email() : owner.name())).param("id", id).update();
+    }
+
+    /** An admin returned the money of a cancelled counter booking at the counter. */
+    public void markCounterRefunded(long id, String by, OffsetDateTime now) {
+        jdbc.sql("UPDATE booking SET refund_status = 'REFUNDED_AT_COUNTER', counter_refunded_by = :by, counter_refunded_at = :now WHERE id = :id")
+                .param("by", by).param("now", now).param("id", id).update();
     }
 
     public void setRefundStatus(long bookingId, RefundStatus status) {
@@ -257,6 +301,10 @@ public class BookingRepository {
                 rs.getObject("expires_at", OffsetDateTime.class), rs.getObject("created_at", OffsetDateTime.class),
                 rs.getObject("confirmed_at", OffsetDateTime.class), rs.getObject("cancelled_at", OffsetDateTime.class),
                 rs.getString("cancelled_by"), rs.getString("cancelled_by_role"), rs.getString("cancel_reason"),
-                rs.getObject("next_attempt_at", OffsetDateTime.class), rs.getInt("attempts"), rs.getInt("payment_started") == 1);
+                rs.getObject("next_attempt_at", OffsetDateTime.class), rs.getInt("attempts"), rs.getInt("payment_started") == 1,
+                PaymentMethod.valueOf(rs.getString("payment_method")), rs.getBigDecimal("charged_amount") == null ? null : money(rs, "charged_amount"),
+                rs.getString("issued_by"), rs.getObject("issued_at", OffsetDateTime.class), rs.getString("issue_note"),
+                rs.getString("walk_in_name"), rs.getString("walk_in_phone"), rs.getString("walk_in_email"),
+                rs.getString("counter_refunded_by"), rs.getObject("counter_refunded_at", OffsetDateTime.class));
     }
 }

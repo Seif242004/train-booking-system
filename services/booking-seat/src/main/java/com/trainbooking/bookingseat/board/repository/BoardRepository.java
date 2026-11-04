@@ -25,7 +25,7 @@ public class BoardRepository {
     public record StandingBookingRow(long tripId, long coachId, String status, int fromStop, int toStop, int qty) {
     }
 
-    public record SeatRow(long seatId, long coachId, String state, String reference) {
+    public record SeatRow(long seatId, long coachId, String state, String reference, OffsetDateTime holdExpiresAt) {
     }
 
     private static final String TRIP_COLUMNS = "SELECT t.id, t.train_number, t.train_name, t.route_name, t.status, o.station_name AS origin, "
@@ -110,18 +110,19 @@ public class BoardRepository {
 
     /** One row per seat of the trip: TAKEN (with the reference of the first confirmed booking), HELD or FREE. */
     public List<SeatRow> seatStates(long tripId) {
-        return jdbc.sql("SELECT s.seat_id, s.coach_id, "
+        return jdbc.sql("SELECT s.seat_id, s.coach_id, CASE WHEN r.confirmed = 0 AND r.held > 0 THEN r.expires END AS hold_expires, "
                         + "CASE WHEN r.confirmed > 0 THEN 'TAKEN' WHEN r.held > 0 THEN 'HELD' ELSE 'FREE' END AS state, "
                         + "CASE WHEN r.confirmed > 0 THEN (SELECT MIN(b.reference) KEEP (DENSE_RANK FIRST ORDER BY x.segment_index) "
                         + "   FROM seat_reservation x JOIN booking b ON b.id = x.booking_id "
                         + "   WHERE x.trip_id = s.trip_id AND x.seat_id = s.seat_id AND x.expires_at IS NULL) END AS reference "
                         + "FROM trip_seat s JOIN trip_coach c ON c.trip_id = s.trip_id AND c.coach_id = s.coach_id "
                         + "LEFT JOIN (SELECT seat_id, SUM(CASE WHEN expires_at IS NULL THEN 1 ELSE 0 END) AS confirmed, "
-                        + "  SUM(CASE WHEN expires_at IS NULL THEN 0 ELSE 1 END) AS held FROM seat_reservation WHERE trip_id = :t GROUP BY seat_id) r "
+                        + "  SUM(CASE WHEN expires_at IS NULL THEN 0 ELSE 1 END) AS held, MIN(expires_at) AS expires FROM seat_reservation WHERE trip_id = :t GROUP BY seat_id) r "
                         + "  ON r.seat_id = s.seat_id "
                         + "WHERE s.trip_id = :t ORDER BY c.position, s.seat_row, s.seat_column, s.seat_id")
                 .param("t", tripId)
-                .query((rs, n) -> new SeatRow(rs.getLong("seat_id"), rs.getLong("coach_id"), rs.getString("state"), rs.getString("reference")))
+                .query((rs, n) -> new SeatRow(rs.getLong("seat_id"), rs.getLong("coach_id"), rs.getString("state"), rs.getString("reference"),
+                        rs.getObject("hold_expires", OffsetDateTime.class)))
                 .list();
     }
 }

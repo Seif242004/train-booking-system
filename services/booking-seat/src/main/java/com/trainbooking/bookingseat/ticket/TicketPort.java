@@ -17,7 +17,13 @@ public interface TicketPort {
 
     /** Everything printed on the ticket (SRS FR-T2). */
     record TicketData(String reference, String passengerName, String trainNumber, String trainName, String fromStation, OffsetDateTime departure,
-                      String toStation, OffsetDateTime arrival, List<Line> lines, BigDecimal amount, String currency) {
+                      String toStation, OffsetDateTime arrival, List<Line> lines, BigDecimal amount, String currency, String paymentMethod) {
+
+        /** A card payment (the original shape). */
+        public TicketData(String reference, String passengerName, String trainNumber, String trainName, String fromStation, OffsetDateTime departure,
+                          String toStation, OffsetDateTime arrival, List<Line> lines, BigDecimal amount, String currency) {
+            this(reference, passengerName, trainNumber, trainName, fromStation, departure, toStation, arrival, lines, amount, currency, "CARD");
+        }
     }
 
     /** Makes the ticket of a booking, or does nothing if it exists (the same ticket stays, even if it was invalidated). */

@@ -52,20 +52,27 @@ class TicketEmailJob implements OutboxJob {
             return;
         }
         BookingView view = queries.toView(booking);
-        String passenger = booking.userName() == null || booking.userName().isBlank() ? booking.userEmail() : booking.userName();
+        // A walk-in passenger has no account: the ticket carries their name and goes to their email, or to nobody if they gave none.
+        boolean walkIn = booking.walkInName() != null;
+        String passenger = walkIn ? booking.walkInName() : booking.userName() == null || booking.userName().isBlank() ? booking.userEmail() : booking.userName();
+        String recipient = walkIn ? booking.walkInEmail() : booking.userEmail();
 
         tickets.issue(booking.id(), new TicketPort.TicketData(booking.reference(), passenger, view.trip().trainNumber(), view.trip().trainName(),
                 view.trip().from().stationName(), view.trip().from().departureTime(), view.trip().to().stationName(), view.trip().to().arrivalTime(),
                 view.items().stream().map(item -> new TicketPort.Line(item.type(), item.coachCode(), item.coachClass().name(), item.seatNumber(), item.qty(), item.price())).toList(),
-                booking.amount(), booking.currency()));
+                booking.amount(), booking.currency(), booking.paymentMethod().name()));
         byte[] pdf = tickets.pdf(booking.id());
 
-        notifications.send(new NotificationPort.Email("ticket:" + booking.id() + ":" + message.id(), NotificationPort.Kind.TICKET, booking.userEmail(), booking.userName(),
+        if (recipient == null || recipient.isBlank()) {
+            log.info("Booking {} is a walk-in booking without an email: the ticket is made, no email is sent", booking.id());
+            return;
+        }
+        notifications.send(new NotificationPort.Email("ticket:" + booking.id() + ":" + message.id(), NotificationPort.Kind.TICKET, recipient, passenger,
                 booking.reference(),
                 new NotificationPort.Trip(view.trip().trainNumber() + " " + view.trip().trainName(), view.trip().from().stationName(), view.trip().from().departureTime(),
                         view.trip().to().stationName(), view.trip().to().arrivalTime()),
                 describe(view.items(), booking.currency()), booking.amount(), booking.currency(), null,
-                new NotificationPort.Attachment("ticket-" + booking.reference() + ".pdf", "application/pdf", Base64.getEncoder().encodeToString(pdf))));
+                new NotificationPort.Attachment("ticket-" + booking.reference() + ".pdf", "application/pdf", Base64.getEncoder().encodeToString(pdf)), booking.paymentMethod().name()));
     }
 
     static List<String> describe(List<BookingItemView> items, String currency) {

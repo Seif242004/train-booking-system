@@ -105,4 +105,16 @@ class TicketPdfRendererTest {
         assertThat(TicketPdfRenderer.loadLogo(TicketPdfRenderer.LOGO_RESOURCE)).isNotNull();
         assertThat(images(pdf)).isEqualTo(2);
     }
+
+    @Test
+    void thePaymentLine_saysHowItWasPaid() throws Exception {
+        var base = DatabaseTest.ticketRequest("TB-ABC234");
+        for (String[] c : new String[][] {{"COUNTER", "Paid at counter  530.00 EGP"}, {"COMPLIMENTARY", "Complimentary  (no charge, fare value 530.00 EGP)"}, {"CARD", "Total paid  530.00 EGP"}}) {
+            var request = new com.trainbooking.ticket.ticket.model.TicketRequest(base.reference(), base.passengerName(), base.trainNumber(), base.trainName(), base.fromStation(),
+                    base.departure(), base.toStation(), base.arrival(), base.lines(), base.amount(), base.currency(), c[0]);
+            String text = text(renderer.render(request, "TB-ABC234.nonce.signature"));
+            assertThat(text).contains(c[1]);
+            if (!c[0].equals("CARD")) assertThat(text).doesNotContain("Total paid");
+        }
+    }
 }

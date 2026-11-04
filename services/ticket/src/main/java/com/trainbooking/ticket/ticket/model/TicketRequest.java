@@ -27,7 +27,20 @@ public record TicketRequest(
         @NotNull(message = "is required") OffsetDateTime arrival,
         @NotEmpty(message = "is required") @Size(max = 60, message = "must have at most 60 lines") List<@Valid Line> lines,
         @NotNull(message = "is required") @DecimalMin(value = "0.01", message = "must be at least 0.01") BigDecimal amount,
-        @NotBlank(message = "is required") @Pattern(regexp = "EGP", message = "must be EGP") String currency) {
+        @NotBlank(message = "is required") @Pattern(regexp = "EGP", message = "must be EGP") String currency,
+        @Pattern(regexp = "CARD|COUNTER|COMPLIMENTARY", message = "must be CARD, COUNTER or COMPLIMENTARY") String paymentMethod) {
+
+    /** A card payment (the original shape). */
+    public TicketRequest(String reference, String passengerName, String trainNumber, String trainName, String fromStation, OffsetDateTime departure,
+                         String toStation, OffsetDateTime arrival, List<Line> lines, BigDecimal amount, String currency) {
+        this(reference, passengerName, trainNumber, trainName, fromStation, departure, toStation, arrival, lines, amount, currency, "CARD");
+    }
+
+    /** CARD unless the booking was issued at the desk. */
+    public String method() {
+        return paymentMethod == null ? "CARD" : paymentMethod;
+    }
+
 
     /** One seat, or the standing places of one coach. */
     public record Line(

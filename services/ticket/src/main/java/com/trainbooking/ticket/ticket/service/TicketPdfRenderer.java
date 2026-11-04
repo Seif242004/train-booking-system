@@ -129,7 +129,14 @@ public class TicketPdfRenderer {
             }
             document.add(lines);
 
-            Paragraph total = new Paragraph("Total paid  " + ticket.amount().toPlainString() + " " + ticket.currency(), BOLD);
+            // The payment line says how it was paid: by card, at the counter, or not at all (the fare value is still shown).
+            String fare = ticket.amount().toPlainString() + " " + ticket.currency();
+            String paymentLine = switch (ticket.method()) {
+                case "COUNTER" -> "Paid at counter  " + fare;
+                case "COMPLIMENTARY" -> "Complimentary  (no charge, fare value " + fare + ")";
+                default -> "Total paid  " + fare;
+            };
+            Paragraph total = new Paragraph(paymentLine, BOLD);
             total.setAlignment(Element.ALIGN_RIGHT);
             total.setSpacingBefore(8);
             document.add(total);

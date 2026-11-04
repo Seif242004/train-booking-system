@@ -6,6 +6,7 @@ import java.math.BigDecimal;
  * What Booking and Seat needs from the Payment service. It is an interface so that the booking logic (the sweeper above all)
  * can be tested without Stripe, and so that Booking never depends on how Payment talks to Stripe.
  */
+// A "port" in the hexagonal-architecture sense: what the booking logic needs, with no knowledge of HTTP or Stripe.
 public interface PaymentPort {
 
     /** What happened to the pending payment of a booking when it was asked to cancel (SRS 4.2, FR-P4). */

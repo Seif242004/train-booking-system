@@ -1,6 +1,7 @@
 package com.trainbooking.bookingseat.payment;
 
 /** The Payment service understood the request and refused it (HTTP 409), with a code the client can act on. */
+// 409 from Payment. GlobalExceptionHandler answers the browser with the same code.
 public class PaymentRejectedException extends RuntimeException {
 
     private final String code;

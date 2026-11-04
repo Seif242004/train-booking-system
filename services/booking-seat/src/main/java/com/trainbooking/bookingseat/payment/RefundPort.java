@@ -5,6 +5,7 @@ package com.trainbooking.bookingseat.payment;
  * {@code PaymentPort}, which can cancel but not refund, so a timeout can never refund (CLAUDE.md, FR-P4). Only a cancellation of a
  * confirmed booking uses this one.
  */
+// Implemented by PaymentClient. Result.NO_PAYMENT happens for a booking whose payment was never taken.
 public interface RefundPort {
 
     enum Result {

@@ -1,6 +1,7 @@
 package com.trainbooking.bookingseat.payment;
 
 /** The Payment service or Stripe could not be reached, so what happened to a payment is not known. */
+// 503 payment_unavailable / stripe_not_configured.
 public class PaymentUnavailableException extends RuntimeException {
 
     private final String code;

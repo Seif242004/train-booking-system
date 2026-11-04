@@ -21,6 +21,7 @@ import org.springframework.web.client.RestClientResponseException;
  *
  * <p>The read timeout is longer than for other services because Payment calls Stripe before it answers.
  */
+// @Component: a bean implementing both PaymentPort and RefundPort (two small interfaces, so the expiry code can never see a refund method).
 @Component
 class PaymentClient implements PaymentPort, RefundPort {
 
@@ -36,18 +37,24 @@ class PaymentClient implements PaymentPort, RefundPort {
     }
 
     @Override
+    // POST /internal/payments/{id}/cancel on the Payment service. Payment locks its payment row, cancels the Stripe PaymentIntent and
+    // answers
+    // the outcome (NONE, CANCELLED, SUCCEEDED or PROCESSING).
     public CancelOutcome cancelPending(long bookingId) {
         return outcome(send(() -> http.post().uri("/internal/payments/{id}/cancel", bookingId).header("X-Internal-Api-Key", apiKey)
                 .retrieve().body(Map.class)));
     }
 
     @Override
+    // POST /internal/payments/{id}/invalidate: same, but a new payment for a new amount may follow.
     public CancelOutcome invalidate(long bookingId) {
         return outcome(send(() -> http.post().uri("/internal/payments/{id}/invalidate", bookingId).header("X-Internal-Api-Key", apiKey)
                 .retrieve().body(Map.class)));
     }
 
     @Override
+    // POST /internal/payments with the booking id, the amount worked out by Booking and the currency. The answer must carry a client secret
+    // and a publishable key, or the call counts as unavailable.
     public PaymentSession createPayment(long bookingId, BigDecimal amount, String currency) {
         Map<?, ?> answer = send(() -> http.post().uri("/internal/payments").header("X-Internal-Api-Key", apiKey)
                 .contentType(MediaType.APPLICATION_JSON).body(Map.of("bookingId", bookingId, "amount", amount, "currency", currency))
@@ -59,6 +66,7 @@ class PaymentClient implements PaymentPort, RefundPort {
     }
 
     @Override
+    // POST /internal/refunds. Payment answers 404 no_payment_to_refund when no money was taken: that becomes Result.NO_PAYMENT.
     public RefundPort.Result requestRefund(long bookingId, String reason) {
         try {
             send(() -> http.post().uri("/internal/refunds").header("X-Internal-Api-Key", apiKey).contentType(MediaType.APPLICATION_JSON)
@@ -81,6 +89,8 @@ class PaymentClient implements PaymentPort, RefundPort {
         }
     }
 
+    // Maps every failure to one of three outcomes: 404 no_payment_to_refund (NoPaymentException), 409 (PaymentRejectedException, Payment
+    // refused on purpose) and everything else (PaymentUnavailableException: the answer is unknown, so the caller assumes nothing).
     private static <T> T send(Supplier<T> call) {
         try {
             return call.get();

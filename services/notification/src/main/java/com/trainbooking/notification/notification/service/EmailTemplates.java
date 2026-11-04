@@ -44,7 +44,11 @@ public class EmailTemplates {
             case CANCELLATION -> {
                 paragraph(text, html, "Your booking " + request.reference() + " has been cancelled.");
                 if (request.amount() != null) {
-                    paragraph(text, html, "The whole amount, " + money(request) + ", is being refunded to your card. You will get another email when the refund is done.");
+                    switch (request.method()) {
+                        case "COUNTER" -> paragraph(text, html, "You paid " + money(request) + " at the counter. The refund is handled at the support desk.");
+                        case "COMPLIMENTARY" -> paragraph(text, html, "Nothing was charged for this booking, so there is no refund.");
+                        default -> paragraph(text, html, "The whole amount, " + money(request) + ", is being refunded to your card. You will get another email when the refund is done.");
+                    }
                 }
             }
             case REFUND -> paragraph(text, html, "The refund of " + (request.amount() == null ? "your payment" : money(request))
@@ -71,7 +75,11 @@ public class EmailTemplates {
             html.append("</ul>");
         }
         if (request.kind() == NotificationRequest.Kind.TICKET && request.amount() != null) {
-            paragraph(text, html, "Total paid: " + money(request));
+            paragraph(text, html, switch (request.method()) {
+                case "COUNTER" -> "Paid at counter: " + money(request);
+                case "COMPLIMENTARY" -> "Complimentary (no charge). Fare value: " + money(request);
+                default -> "Total paid: " + money(request);
+            });
         }
         paragraph(text, html, "Booking reference: " + request.reference());
         html.append("</div>");

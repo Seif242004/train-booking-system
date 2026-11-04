@@ -62,4 +62,27 @@ class EmailTemplatesTest {
 
         assertThat(templates.render(request).text()).contains("your payment", "TB-ABC234");
     }
+
+    private static NotificationRequest by(NotificationRequest.Kind kind, String method) {
+        NotificationRequest base = DatabaseTest.ticketEmail("k");
+        return new NotificationRequest("k", kind, base.to(), base.toName(), base.reference(), base.trip(), base.lines(), new BigDecimal("230.00"), "EGP", null, null, method);
+    }
+
+    @Test
+    void aCounterBooking_isNeverPromisedACardRefund_andTheTicketSaysPaidAtCounter() {
+        assertThat(templates.render(by(NotificationRequest.Kind.CANCELLATION, "COUNTER")).text())
+                .contains("paid 230.00 EGP at the counter", "handled at the support desk").doesNotContain("your card");
+        assertThat(templates.render(by(NotificationRequest.Kind.TICKET, "COUNTER")).text()).contains("Paid at counter: 230.00 EGP").doesNotContain("Total paid");
+    }
+
+    @Test
+    void aComplimentaryBooking_saysNothingWasCharged() {
+        assertThat(templates.render(by(NotificationRequest.Kind.CANCELLATION, "COMPLIMENTARY")).text()).contains("Nothing was charged").doesNotContain("your card");
+        assertThat(templates.render(by(NotificationRequest.Kind.TICKET, "COMPLIMENTARY")).text()).contains("Complimentary (no charge)");
+    }
+
+    @Test
+    void aCardCancellation_keepsTheCardRefundWords() {
+        assertThat(templates.render(by(NotificationRequest.Kind.CANCELLATION, "CARD")).text()).contains("is being refunded to your card");
+    }
 }

@@ -27,7 +27,20 @@ public record NotificationRequest(
         @DecimalMin(value = "0.00", message = "must not be negative") BigDecimal amount,
         @Pattern(regexp = "EGP", message = "must be EGP") String currency,
         @Size(max = 500, message = "must be at most 500 characters") String detail,
-        @Valid Attachment attachment) {
+        @Valid Attachment attachment,
+        @Pattern(regexp = "CARD|COUNTER|COMPLIMENTARY", message = "must be CARD, COUNTER or COMPLIMENTARY") String paymentMethod) {
+
+    /** A card payment (the original shape). */
+    public NotificationRequest(String dedupeKey, Kind kind, String to, String toName, String reference, Trip trip, List<String> lines, BigDecimal amount,
+                               String currency, String detail, Attachment attachment) {
+        this(dedupeKey, kind, to, toName, reference, trip, lines, amount, currency, detail, attachment, "CARD");
+    }
+
+    /** CARD unless the booking was issued at the desk. */
+    public String method() {
+        return paymentMethod == null ? "CARD" : paymentMethod;
+    }
+
 
     public enum Kind {
         /** The booking is confirmed: the ticket (PDF) is attached. */

@@ -13,6 +13,7 @@ public final class TestJwts {
     private TestJwts() {
     }
 
+    // Mock JWTs for MockMvc: an ADMIN and a plain passenger. No signature is checked in these tests.
     public static RequestPostProcessor admin() {
         return jwt().jwt(token -> token.subject(ADMIN_SUB)).authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
     }

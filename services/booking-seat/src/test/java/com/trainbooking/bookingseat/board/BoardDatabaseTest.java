@@ -31,7 +31,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * The counting rule of the admin trips board. The fixture trip (see DatabaseTest.insertTrip) leaves 2026-11-02 08:00 (+02:00) and arrives at
+  * The counting rule of the admin trips board. The fixture trip (see DatabaseTest.insertTrip) leaves 2026-11-02 08:00 (+02:00) and
+  * arrives at
  * 10:55; it has FIRST seat 1, SECOND seats 2 and 3 with 10 standing places, THIRD seat 4 with 5 standing places (19 places in all).
  * The test clock starts on 2026-11-01 10:00Z, before the departure.
  */
@@ -43,6 +44,7 @@ class BoardDatabaseTest extends DatabaseTest {
     private static final Instant AFTER_ARRIVAL = Instant.parse("2026-11-02T09:30:00Z");   // 11:30 in Cairo
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     BoardService board;
     @Autowired
@@ -52,18 +54,21 @@ class BoardDatabaseTest extends DatabaseTest {
     @Autowired
     CancellationService cancellations;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void trip() {
         insertTrip(TRIP);
         clock.set(BEFORE_DEPARTURE);
     }
 
+    // Helper: the one trip of the test, as the board shows it for 2026-11-01 to 2026-11-03.
     private BoardTrip theTrip() {
         List<BoardTrip> trips = board.board("2026-11-01", "2026-11-03", null).trips();
         assertThat(trips).hasSize(1);
         return trips.get(0);
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void anUntouchedTrip_isAllFree_andUpcoming() {
         BoardTrip trip = theTrip();

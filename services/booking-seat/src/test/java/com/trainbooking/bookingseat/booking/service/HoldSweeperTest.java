@@ -10,8 +10,13 @@ import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.annotation.Scheduled;
 
+/**
+ * Unit test of the sweeper's wiring: the schedule is a fixedDelay of 1000 ms by default, and an exception inside a sweep never escapes
+ * (otherwise Spring would stop the schedule). The real expiry logic is tested in ExpiryDatabaseTest.
+ */
 class HoldSweeperTest {
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theSweepRunsEverySecondByDefault_withAFixedDelay_thatCanBeConfigured() throws Exception {
         Method sweep = HoldSweeper.class.getMethod("sweep");

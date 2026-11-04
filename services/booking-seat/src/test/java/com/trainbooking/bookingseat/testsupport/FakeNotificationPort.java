@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 /** Stands in for the Notification service: stores one email per dedupe key, like the real one, and can be switched off. */
+// Test double of NotificationPort: records every e-mail and can be told to fail.
 public class FakeNotificationPort implements NotificationPort {
 
     private final List<Email> accepted = Collections.synchronizedList(new ArrayList<>());
@@ -30,6 +31,7 @@ public class FakeNotificationPort implements NotificationPort {
         return List.copyOf(accepted);
     }
 
+    // @Override: This method replaces the one of the parent class or interface.
     @Override
     public void send(Email email) {
         if (down) {

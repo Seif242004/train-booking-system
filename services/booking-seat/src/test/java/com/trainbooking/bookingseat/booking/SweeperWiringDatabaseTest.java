@@ -15,15 +15,18 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.TestPropertySource;
 
 /** The sweeper really is a scheduled job: with it switched on, nobody calls it by hand and an expired hold is released all the same. */
+// @TestPropertySource: Sets properties for this test class only.
 @TestPropertySource(properties = {"trainbooking.sweeper.enabled=true", "trainbooking.sweeper.fixed-delay-ms=200"})
 class SweeperWiringDatabaseTest extends DatabaseTest {
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     com.trainbooking.bookingseat.testsupport.Holds holds;
 
     @Autowired
     ApplicationContext context;
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void anExpiredHoldIsReleasedByTheScheduleItself_withoutAnyoneCallingTheSweeper() throws Exception {
         insertTrip(9401);

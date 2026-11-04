@@ -23,6 +23,7 @@ class AuditTrailLogTest {
     private final Logger audit = (Logger) LoggerFactory.getLogger("audit");
     private final AuditTrail trail = new AuditTrail(mock(AuditLogRepository.class), JsonMapper.builder().build());
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void capture() {
         lines.start();
@@ -30,6 +31,7 @@ class AuditTrailLogTest {
         MDC.clear();
     }
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void release() {
         audit.detachAppender(lines);
@@ -37,6 +39,7 @@ class AuditTrailLogTest {
         MDC.clear();
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void aBookingChange_isLoggedWithTheActor_theBookingId_andTheTripId() {
         trail.record("admin-sub", "booking", 77, "CANCEL", Map.of("tripId", 9L, "reason", "Strike"));

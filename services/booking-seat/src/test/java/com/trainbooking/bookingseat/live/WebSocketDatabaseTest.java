@@ -51,14 +51,19 @@ import tools.jackson.databind.json.JsonMapper;
  * events arrive only after the commit and only for the trip (or the user) they belong to, with a version that goes up by one, and
  * the client cannot send anything.
  */
+// RANDOM_PORT: a real web server on a random port is started, because a WebSocket needs a real network connection (MockMvc cannot do it).
+// @SpringBootTest: Starts the whole application (all beans, Flyway migrations, security) for the tests of this class.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "trainbooking.internal-api-key=" + DatabaseTest.INTERNAL_KEY,
         "trainbooking.sweeper.enabled=false",
         "trainbooking.ws.allowed-origin=http://localhost:5173",
         "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:1/not-used"
 })
+// @AutoConfigureMockMvc: Provides MockMvc, which calls the controllers in-process, without a network port.
 @AutoConfigureMockMvc
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import(com.trainbooking.bookingseat.testsupport.DatabaseTestConfig.class)
+// @RequiresTestDatabase: Custom annotation: skips the whole class (reported as SKIPPED) when no test database password is configured.
 @RequiresTestDatabase
 class WebSocketDatabaseTest extends DatabaseTest {
 
@@ -67,12 +72,15 @@ class WebSocketDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser BOB = new AuthenticatedUser("bob-sub", "bob@example.com", "Bob");
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
+    // @LocalServerPort: Injects the random port the embedded web server was started on.
     @LocalServerPort
     int port;
 
+    // @MockitoBean: Replaces the real bean in the Spring context by a Mockito mock, so the test decides what it answers.
     @MockitoBean
     JwtDecoder decoder;
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     com.trainbooking.bookingseat.testsupport.Holds holds;
 
@@ -81,6 +89,7 @@ class WebSocketDatabaseTest extends DatabaseTest {
 
     private final List<WebSocketStompClient> clients = new ArrayList<>();
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTripAndTokens() {
         insertTrip(TRIP);
@@ -92,15 +101,19 @@ class WebSocketDatabaseTest extends DatabaseTest {
         });
     }
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void closeClients() {
         clients.forEach(WebSocketStompClient::stop);
     }
 
+    // Helper: a decoded JWT with the given subject, as the mocked decoder returns for a good token.
     private static Jwt jwt(String subject) {
         return Jwt.withTokenValue("t").header("alg", "none").subject(subject).issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).build();
     }
 
+    // Opens a real STOMP-over-WebSocket connection to /ws with the token as the subprotocol "access_token.<token>" and the given Origin
+    // header.
     private StompSession connect(String token, String origin) throws Exception {
         WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
         client.setMessageConverter(new RawTextConverter());
@@ -113,14 +126,18 @@ class WebSocketDatabaseTest extends DatabaseTest {
                 .get(5, TimeUnit.SECONDS);
     }
 
+    // The same with the allowed origin.
     private StompSession connect(String token) throws Exception {
         return connect(token, "http://localhost:5173");
     }
 
+    // Subscribes and collects every frame as parsed JSON into a queue the test can poll with a timeout.
     private BlockingQueue<JsonNode> subscribe(StompSession session, String destination) {
         BlockingQueue<JsonNode> received = new LinkedBlockingQueue<>();
         session.subscribe(destination, new StompFrameHandler() {
+            // @Override: This method replaces the one of the parent class or interface.
             @Override
+            // Part of StompFrameHandler: deliver the frame body as a plain String so the test parses the JSON itself.
             public Type getPayloadType(StompHeaders headers) {
                 return String.class;
             }
@@ -133,12 +150,14 @@ class WebSocketDatabaseTest extends DatabaseTest {
         return received;
     }
 
+    // Helper: a selection of whole-journey seats for the Holds helper.
     private static HoldRequest seats(long... seatIds) {
         return new HoldRequest(TRIP, 0, 3, java.util.Arrays.stream(seatIds).boxed().toList(), List.of());
     }
 
     // ---- who may connect ------------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void withoutATokenOrWithABadOne_theConnectionIsRefused() {
         assertThatThrownBy(() -> connect(null)).hasMessageContaining("401");
@@ -281,6 +300,7 @@ class WebSocketDatabaseTest extends DatabaseTest {
     /** The events are JSON; the test reads them as text whatever their content type is. */
     private static final class RawTextConverter implements MessageConverter {
         @Override
+        // Converter that turns the received bytes into a String and leaves strings untouched (see RawTextConverter).
         public Object fromMessage(Message<?> message, Class<?> targetClass) {
             Object payload = message.getPayload();
             return payload instanceof byte[] bytes ? new String(bytes, java.nio.charset.StandardCharsets.UTF_8) : payload;
@@ -292,6 +312,7 @@ class WebSocketDatabaseTest extends DatabaseTest {
         }
     }
 
+    // Waits up to 3 seconds for the server to close the connection (it does so after a forbidden frame).
     private static void awaitClosed(StompSession session) throws InterruptedException {
         long deadline = System.currentTimeMillis() + 3000;
         while (session.isConnected() && System.currentTimeMillis() < deadline) {

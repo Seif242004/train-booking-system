@@ -33,6 +33,7 @@ class TicketEmailDatabaseTest extends DatabaseTest {
     private static final long TRIP = 9501;
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice Example");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
     @Autowired
@@ -46,6 +47,7 @@ class TicketEmailDatabaseTest extends DatabaseTest {
     @Autowired
     TransactionTemplate tx;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
@@ -56,18 +58,21 @@ class TicketEmailDatabaseTest extends DatabaseTest {
         return holds.hold(ALICE, new HoldRequest(TRIP, 0, 3, List.of(2L), List.of(new HoldRequest.StandingRequest(30L, 2))));
     }
 
+    // Helper: a hold that is confirmed through the one confirmation path, so its TICKET_EMAIL job is queued.
     private BookingView aConfirmedBooking() {
         BookingView hold = aHold();
         confirmations.confirm(hold.id());
         return hold;
     }
 
+    // Helper: the status of a booking row.
     private String statusOf(long id) {
         return jdbc.sql("SELECT status FROM booking WHERE id = :id").param("id", id).query(String.class).single();
     }
 
     // ---- queued with the confirmation --------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void confirming_queuesTheTicketEmail_inTheSameTransaction() {
         BookingView hold = aHold();

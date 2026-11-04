@@ -18,6 +18,9 @@ public final class TestDatabase {
     private TestDatabase() {
     }
 
+    // Settings come from environment variables first, then from the git-ignored .env file of the service folder, then a default. No
+    // password
+    // is ever written in code.
     public static String url() {
         return setting("BOOKING_SEAT_TEST_DB_URL", "jdbc:oracle:thin:@//localhost:1521/FREEPDB1");
     }

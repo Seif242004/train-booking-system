@@ -25,6 +25,7 @@ class TicketClientTest {
     private volatile int status = 200;
     private volatile byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -40,11 +41,13 @@ class TicketClientTest {
         server.start();
     }
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void stopServer() {
         server.stop(0);
     }
 
+    // Helpers: the client under test pointed at the local fake HTTP server, and sample ticket data.
     private TicketClient client() {
         return new TicketClient("http://127.0.0.1:" + server.getAddress().getPort(), "secret-key", 2000);
     }
@@ -54,6 +57,7 @@ class TicketClientTest {
                 OffsetDateTime.parse("2026-11-02T08:45:00Z"), List.of(new TicketPort.Line("SEAT", "A1", "FIRST", "1A", 1, new BigDecimal("230.00"))), new BigDecimal("230.00"), "EGP");
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void issue_putsTheTicketData_withTheKey() {
         client().issue(7, data());

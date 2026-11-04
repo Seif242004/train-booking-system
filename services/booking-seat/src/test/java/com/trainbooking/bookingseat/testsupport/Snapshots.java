@@ -19,6 +19,8 @@ public final class Snapshots {
     private Snapshots() {
     }
 
+    // A valid snapshot: 4 stops (segments 0 to 2), 3 coaches (FIRST, SECOND with 10 standing places, THIRD with 5), 4 seats, and a fare
+    // per segment and class. The with... helpers copy it with one part replaced.
     public static TripSnapshot valid() {
         OffsetDateTime day = OffsetDateTime.parse("2026-11-02T08:00:00+02:00");
         List<TripSnapshot.Stop> stops = List.of(

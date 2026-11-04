@@ -55,7 +55,15 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/**
+ * HTTP contract of the passenger endpoints (pick, release, payment, my bookings, cancel, resend ticket, get): authentication (401), the
+ * mapping of service results and exceptions to status codes and JSON error codes, and that the caller is taken from the token. Only the
+ * web layer is started; the services are mocks. No database.
+ */
+// @WebMvcTest: Starts only the web layer (controller, security filters, JSON mapping); services are mocks, so it proves the HTTP contract
+// quickly.
 @WebMvcTest(value = BookingController.class, properties = "trainbooking.internal-api-key=test-key")
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class BookingControllerTest {
 
@@ -64,9 +72,11 @@ class BookingControllerTest {
             new BigDecimal("230.00"), "EGP", NOW.plusMinutes(5), NOW, NOW, null, List.of());
     private static final String SEAT = "{\"tripId\":2,\"fromStop\":0,\"toStop\":2,\"seatId\":223}";
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: Replaces the real bean in the Spring context by a Mockito mock, so the test decides what it answers.
     @MockitoBean
     HoldService holds;
 
@@ -85,6 +95,7 @@ class BookingControllerTest {
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void withoutAToken_nothingHappens() throws Exception {
         mvc.perform(post("/bookings/pick").contentType(MediaType.APPLICATION_JSON).content(SEAT)).andExpect(status().isUnauthorized());

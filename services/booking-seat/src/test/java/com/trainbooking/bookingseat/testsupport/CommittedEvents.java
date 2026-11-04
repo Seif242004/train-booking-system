@@ -17,6 +17,8 @@ public class CommittedEvents {
     private final List<SeatEvent> seatEvents = Collections.synchronizedList(new ArrayList<>());
     private final List<UserEvent> userEvents = Collections.synchronizedList(new ArrayList<>());
 
+    // @TransactionalEventListener: Spring calls this method only after the publishing transaction has committed; a rollback delivers
+    // nothing.
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onSeatEvent(SeatEvent event) {
         seatEvents.add(event);
@@ -27,6 +29,7 @@ public class CommittedEvents {
         userEvents.add(event);
     }
 
+    // Read access for the tests; copies, so a test cannot change the list.
     public List<SeatEvent> seatEvents() {
         return List.copyOf(seatEvents);
     }

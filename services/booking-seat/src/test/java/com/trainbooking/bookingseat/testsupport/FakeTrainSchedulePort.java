@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Stands in for Train & Schedule: remembers the trips it was told are cancelled, and can be switched off. */
+// Test double of TrainSchedulePort: records the trips marked cancelled and can be told to fail.
 public class FakeTrainSchedulePort implements TrainSchedulePort {
 
     private final List<String> calls = Collections.synchronizedList(new ArrayList<>());
@@ -26,6 +27,7 @@ public class FakeTrainSchedulePort implements TrainSchedulePort {
         return List.copyOf(calls);
     }
 
+    // @Override: This method replaces the one of the parent class or interface.
     @Override
     public void markTripCancelled(long tripId, String adminId) {
         if (down) {

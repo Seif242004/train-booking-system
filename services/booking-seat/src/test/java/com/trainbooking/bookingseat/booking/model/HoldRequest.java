@@ -13,6 +13,7 @@ import java.util.List;
  * amount: it is worked out on the server. Either list may be missing but not both (checked by the service).
  */
 public record HoldRequest(
+        // @NotNull: Bean Validation: the field must be present (the same annotations the production request records use).
         @NotNull(message = "is required")
         Long tripId,
 
@@ -22,6 +23,7 @@ public record HoldRequest(
         @NotNull(message = "is required") @Min(value = 0, message = "must be 0 or more")
         Integer toStop,
 
+        // @Size: Bean Validation: length or size limit of the field.
         @Size(max = 20, message = "must have at most 20 seats")
         List<@NotNull(message = "is required") Long> seatIds,
 
@@ -34,6 +36,7 @@ public record HoldRequest(
             @NotNull(message = "is required") @Min(value = 1, message = "must be 1 or more") @Max(value = 20, message = "must be at most 20") Integer qty) {
     }
 
+    // Null-safe accessors: a missing list counts as empty.
     public List<Long> seats() {
         return seatIds == null ? List.of() : seatIds;
     }

@@ -33,6 +33,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
     private static final AuthenticatedUser BOB = new AuthenticatedUser("bob-sub", "bob@example.com", "Bob");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     com.trainbooking.bookingseat.testsupport.Holds holds;
 
@@ -42,6 +43,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
     @Autowired
     com.trainbooking.bookingseat.booking.service.PaymentResultService results;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
@@ -59,6 +61,7 @@ class ExpiryDatabaseTest extends DatabaseTest {
         return holds.hold(ALICE, new HoldRequest(TRIP, 0, 3, List.of(2L), List.of(new HoldRequest.StandingRequest(30L, 2))));
     }
 
+    // Helpers: the amount and the status of a booking, and the used standing places of a segment of coach 30.
     private java.math.BigDecimal amountOf(long bookingId) {
         return jdbc.sql("SELECT amount FROM booking WHERE id = :id").param("id", bookingId).query(java.math.BigDecimal.class).single();
     }
@@ -71,12 +74,14 @@ class ExpiryDatabaseTest extends DatabaseTest {
         return jdbc.sql("SELECT used FROM standing_usage WHERE trip_id = :t AND coach_id = 30 AND segment_index = :s").param("t", TRIP).param("s", segment).query(Integer.class).single();
     }
 
+    // Moves the test clock 5 minutes and 1 second ahead, so every hold made at the start is past its expiry.
     private void pastExpiry() {
         clock.advance(Duration.ofMinutes(5).plusSeconds(1));
     }
 
     // ---- the normal expiry ----------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void anExpiredHold_isReleased_andTheSeatsAndStandingPlacesAreGivenBack() {
         BookingView booking = holdSeatAndStanding();

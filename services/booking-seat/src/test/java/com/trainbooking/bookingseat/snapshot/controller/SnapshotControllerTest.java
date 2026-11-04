@@ -35,30 +35,41 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.json.JsonMapper;
 
+/**
+ * HTTP contract of the internal snapshot endpoints: only a caller with the internal API key gets in (401 otherwise, a user JWT is not
+ * enough), the body is validated (400 with the field names), and the service errors become 409 with their codes. Web layer only.
+ */
+// @WebMvcTest: Starts only the web layer (controller, security filters, JSON mapping); services are mocks, so it proves the HTTP contract
+// quickly.
 @WebMvcTest(value = SnapshotController.class, properties = "trainbooking.internal-api-key=test-key")
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class SnapshotControllerTest {
 
     private static final String KEY = "test-key";
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     MockMvc mvc;
 
     @Autowired
     JsonMapper json;
 
+    // @MockitoBean: Replaces the real bean in the Spring context by a Mockito mock, so the test decides what it answers.
     @MockitoBean
     SnapshotService service;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // Helper: PUT /internal/trips/{id}/snapshot with the body as JSON.
     private MockHttpServletRequestBuilder push(long id, Object body) {
         return put("/internal/trips/{id}/snapshot", id).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(body));
     }
 
     // ---- who may call it --------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void withoutTheKey_returns401_andNothingHappens() throws Exception {
         mvc.perform(push(21, valid()))

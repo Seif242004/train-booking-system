@@ -31,7 +31,15 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/**
+ * HTTP contract of {@code GET /trips/{id}/availability}: 401 without a token, the JSON shape of the full and summary views, the
+ * validation of from/to/view, and that the caller's own hold (myHold) is added only to the full view. Only the web layer is started and
+ * the services are mocks. No database is needed.
+ */
+// @WebMvcTest: Starts only the web layer (controller, security filters, JSON mapping); services are mocks, so it proves the HTTP contract
+// quickly.
 @WebMvcTest(value = AvailabilityController.class, properties = "trainbooking.internal-api-key=test-key")
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class AvailabilityControllerTest {
 
@@ -44,9 +52,11 @@ class AvailabilityControllerTest {
             Map.of(CoachClass.SECOND, 4)),
             Map.of(CoachClass.FIRST, new java.math.BigDecimal("150.00"), CoachClass.SECOND, new java.math.BigDecimal("100.00")), 7L);
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: Replaces the real bean in the Spring context by a Mockito mock, so the test decides what it answers.
     @MockitoBean
     AvailabilityService service;
 
@@ -56,6 +66,7 @@ class AvailabilityControllerTest {
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void withoutAToken_returns401() throws Exception {
         mvc.perform(get("/trips/21/availability").param("from", "1").param("to", "3"))

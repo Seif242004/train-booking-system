@@ -31,6 +31,7 @@ class ConcurrencyDatabaseTest extends DatabaseTest {
 
     private static final long TRIP = 9301;
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     com.trainbooking.bookingseat.testsupport.Holds holds;
 
@@ -40,19 +41,23 @@ class ConcurrencyDatabaseTest extends DatabaseTest {
     @Autowired
     ConfirmationService confirmations;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
     }
 
+    // Helper: a distinct test user per name (id, e-mail and name derived from it).
     private static AuthenticatedUser user(String name) {
         return new AuthenticatedUser(name + "-sub", name + "@example.com", name);
     }
 
+    // Helper: the total of the standing counters; after a race it must equal exactly the places that were granted.
     private int usedStanding() {
         return jdbc.sql("SELECT SUM(used) FROM standing_usage WHERE trip_id = :t AND coach_id = 30").param("t", TRIP).query(Integer.class).single();
     }
 
+    // Helper: empties reservations and bookings between rounds of a repeated race, keeping the trip fixtures.
     private void resetInventory() {
         jdbc.sql("DELETE FROM seat_reservation").update();
         jdbc.sql("DELETE FROM standing_hold").update();
@@ -63,6 +68,7 @@ class ConcurrencyDatabaseTest extends DatabaseTest {
         clock.set(com.trainbooking.bookingseat.testsupport.MutableClock.START);
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theSweeperReleasingHoldsWhileNewHoldsComeIn_neverDeadlocks_andTheCountersStayExact() throws Exception {
         for (int round = 0; round < 12; round++) {
@@ -132,6 +138,8 @@ class ConcurrencyDatabaseTest extends DatabaseTest {
         }
     }
 
+    // Helper: starts all calls on their own threads, lets them wait on the latch, and releases them at the same instant so they really
+    // race for the same seats; the results are collected after all threads finished.
     private void run(List<Callable<Object>> calls, CountDownLatch go) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(calls.size());
         try {

@@ -35,7 +35,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Support cancellation: only the ADMIN role, a reason is required, and it is the same cancellation as the passenger's. */
+// @WebMvcTest: Starts only the web layer (controller, security filters, JSON mapping); services are mocks, so it proves the HTTP contract
+// quickly.
 @WebMvcTest(value = AdminBookingController.class, properties = "trainbooking.internal-api-key=test-key")
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class AdminBookingControllerTest {
 
@@ -43,9 +46,11 @@ class AdminBookingControllerTest {
     private static final BookingView CANCELLED = new BookingView(31, "TB-ABC234", BookingStatus.CANCELLED, RefundStatus.REFUND_PENDING, 2, 0, 2,
             new BigDecimal("230.00"), "EGP", NOW.plusMinutes(5), NOW, NOW, null, List.of());
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: Replaces the real bean in the Spring context by a Mockito mock, so the test decides what it answers.
     @MockitoBean
     com.trainbooking.bookingseat.booking.service.BookingIssueService issues;
 
@@ -58,14 +63,17 @@ class AdminBookingControllerTest {
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // Helper: adds a mock JWT with the given role (USER or ADMIN) to a request, as the Gateway-verified token would be.
     private static org.springframework.test.web.servlet.request.RequestPostProcessor as(String role) {
         return jwt().jwt(t -> t.subject(role + "-sub")).authorities(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
+    // Helper: POST /admin/bookings/31/cancel with the given JSON body.
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cancel(String body) {
         return post("/admin/bookings/31/cancel").contentType(MediaType.APPLICATION_JSON).content(body);
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void withoutAToken_is401_andAPassengerIs403_andNothingIsCancelled() throws Exception {
         mvc.perform(cancel("{\"reason\":\"x\"}")).andExpect(status().isUnauthorized());

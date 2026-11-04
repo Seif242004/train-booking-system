@@ -35,25 +35,30 @@ class PaymentRaceDatabaseTest extends DatabaseTest {
     private static final long TRIP = 9001;
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     HoldService service;
     @Autowired
     Holds holds;
     @Autowired
     com.trainbooking.bookingseat.booking.service.ExpiryService expiry;
+    // @MockitoSpyBean: Wraps the real bean in a Mockito spy: it works as usual, but the test can watch or override single calls.
     @MockitoSpyBean
     BookingRepository bookings;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
     }
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void realRepository() {
         reset(bookings);
     }
 
+    // Helper: a pick of one seat for the whole journey (stops 0 to 3) of the test trip.
     private static PickRequest seat(long seatId) {
         return new PickRequest(TRIP, 0, 3, seatId, null, null);
     }
@@ -66,6 +71,7 @@ class PaymentRaceDatabaseTest extends DatabaseTest {
         return before; // paymentStarted is false in this copy
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void aPickThatLookedBeforeThePaymentPageOpened_cancelsThePaymentFirst_thenPicks() {
         Booking stale = holdWithPaymentOpened();

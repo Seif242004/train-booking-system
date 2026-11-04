@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 /** The rules that involve more than one field of a snapshot: the parts must fit together, or nothing is stored. */
 class SnapshotValidatorTest {
 
+    // Helpers: the validator's problems as "field message" texts, or only the field paths.
     private static List<String> problems(TripSnapshot snapshot) {
         return SnapshotValidator.check(snapshot).stream().map(d -> d.field() + ": " + d.message()).toList();
     }
@@ -27,6 +28,7 @@ class SnapshotValidatorTest {
         return SnapshotValidator.check(snapshot).stream().map(ApiError.Detail::field).toList();
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void aCompleteSnapshot_hasNoProblems() {
         assertThat(SnapshotValidator.check(valid())).isEmpty();

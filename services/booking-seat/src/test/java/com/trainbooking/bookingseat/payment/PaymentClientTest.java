@@ -24,6 +24,7 @@ class PaymentClientTest {
     private volatile String body = "{}";
     private volatile long delayMs = 0;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -49,15 +50,18 @@ class PaymentClientTest {
         server.start();
     }
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void stopServer() {
         server.stop(0);
     }
 
+    // Helper: the client under test pointed at the local fake HTTP server, with the given read timeout.
     private PaymentClient client(long readTimeoutMs) {
         return new PaymentClient("http://127.0.0.1:" + server.getAddress().getPort(), "secret-key", readTimeoutMs);
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void cancelAndInvalidate_sendTheKey_andReadTheOutcome() {
         body = "{\"outcome\":\"SUCCEEDED\"}";

@@ -29,20 +29,24 @@ class CancellationAtomicityDatabaseTest extends DatabaseTest {
     private static final long TRIP = 9602;
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
     @Autowired
     ConfirmationService confirmations;
     @Autowired
     CancellationService cancellations;
+    // @MockitoSpyBean: Wraps the real bean in a Mockito spy: it works as usual, but the test can watch or override single calls.
     @MockitoSpyBean
     OutboxRepository outbox;
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void realOutbox() {
         reset(outbox);
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void ifTheFollowUpCannotBeQueued_nothingIsCancelled() {
         insertTrip(TRIP);

@@ -14,13 +14,18 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * Gradle reports it as SKIPPED (see the test logging in build.gradle) instead of failing, so a missing database is
  * never mistaken for a pass.
  */
+// @Target: Meta-annotations: @Target says where this annotation may be put (on a class), @Retention(RUNTIME) keeps it at run time so
+// JUnit can read it.
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
+// @ExtendWith: Attaches a JUnit 5 extension; the Condition below decides whether the class runs.
 @ExtendWith(RequiresTestDatabase.Condition.class)
 public @interface RequiresTestDatabase {
 
+    // JUnit 5 ExecutionCondition: asked before the class runs; "disabled" turns the class into SKIPPED.
     class Condition implements ExecutionCondition {
 
+        // @Override: This method replaces the one of the parent class or interface.
         @Override
         public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
             if (TestDatabase.password().isEmpty()) {

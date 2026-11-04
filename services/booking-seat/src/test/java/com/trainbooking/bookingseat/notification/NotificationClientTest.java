@@ -23,6 +23,7 @@ class NotificationClientTest {
     private final List<String> requests = new ArrayList<>();
     private volatile int status = 202;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -38,11 +39,13 @@ class NotificationClientTest {
         server.start();
     }
 
+    // @AfterEach: JUnit 5: runs after every test method of this class (clean-up).
     @AfterEach
     void stopServer() {
         server.stop(0);
     }
 
+    // Helpers: the client under test pointed at the local fake HTTP server, and a sample e-mail request.
     private NotificationClient client() {
         return new NotificationClient("http://127.0.0.1:" + server.getAddress().getPort(), "secret-key", 2000);
     }
@@ -53,6 +56,7 @@ class NotificationClientTest {
                 List.of("Seat 1A"), new BigDecimal("230.00"), "EGP", null, new NotificationPort.Attachment("t.pdf", "application/pdf", "JVBERg=="));
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void send_postsTheEmailRequest_withTheKey_andAcceptsBothAnswers() {
         client().send(email());

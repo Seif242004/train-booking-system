@@ -22,7 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-/** Support looks bookings up (Flow 7, FR-C6): by reference, user email, trip, status and refund status, and sees payment and refund status. */
+/**
+ * Support looks bookings up (Flow 7, FR-C6): by reference, user email, trip, status and refund status, and sees payment and refund
+ * status.
+ */
 class AdminBookingSearchDatabaseTest extends DatabaseTest {
 
     private static final long TRIP = 9801;
@@ -30,6 +33,7 @@ class AdminBookingSearchDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "Alice.Example@example.com", "Alice");
     private static final AuthenticatedUser BOB = new AuthenticatedUser("bob-sub", "bob_smith@example.com", "Bob");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
     @Autowired
@@ -45,6 +49,7 @@ class AdminBookingSearchDatabaseTest extends DatabaseTest {
     private BookingView bobsCancelled;
     private BookingView alicesHold;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void bookings() {
         insertTrip(TRIP);
@@ -57,10 +62,12 @@ class AdminBookingSearchDatabaseTest extends DatabaseTest {
         alicesHold = holds.hold(ALICE, new HoldRequest(OTHER_TRIP, 0, 3, List.of(2L), List.of()));
     }
 
+    // Helper: only the booking ids of a search result, in order, to compare with the expected ones.
     private List<Long> ids(List<AdminBookingView> views) {
         return views.stream().map(v -> v.booking().id()).toList();
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void noFilter_listsEverything_newestFirst() {
         assertThat(ids(queries.search(null, null, null, null, null))).containsExactly(alicesHold.id(), bobsCancelled.id(), alicesConfirmed.id());

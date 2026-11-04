@@ -72,6 +72,7 @@ public class FakePaymentPort implements PaymentPort, com.trainbooking.bookingsea
         return List.copyOf(createCalls);
     }
 
+    // Recorded calls, so a test can check which booking was cancelled or invalidated, in order.
     public List<Long> cancelCalls() {
         return List.copyOf(cancelCalls);
     }
@@ -93,7 +94,10 @@ public class FakePaymentPort implements PaymentPort, com.trainbooking.bookingsea
         invalidateBehaviour = bookingId -> CancelOutcome.NONE;
     }
 
+    // @Override: This method replaces the one of the parent class or interface.
     @Override
+    // Records the call and answers what the test configured (default NONE). The behaviour can read the database to prove nothing was
+    // released yet.
     public CancelOutcome cancelPending(long bookingId) {
         cancelCalls.add(bookingId);
         return cancelBehaviour.apply(bookingId);
@@ -115,6 +119,8 @@ public class FakePaymentPort implements PaymentPort, com.trainbooking.bookingsea
     }
 
     @Override
+    // Records the call, whether a transaction was open (it must not be), and either throws the configured failure or returns a fake
+    // session.
     public PaymentSession createPayment(long bookingId, BigDecimal amount, String currency) {
         createCalls.add(bookingId + ":" + amount.toPlainString() + ":" + currency);
         createInTransaction.add(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive());

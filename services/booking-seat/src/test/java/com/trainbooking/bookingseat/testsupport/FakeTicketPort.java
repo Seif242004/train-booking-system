@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 /** Stands in for the Ticket service: remembers the tickets it was asked for, and can be switched off. */
+// Test double of TicketPort: records issue/invalidate calls and can be told to fail.
 public class FakeTicketPort implements TicketPort {
 
     private final List<Long> issueCalls = Collections.synchronizedList(new ArrayList<>());
@@ -37,6 +38,7 @@ public class FakeTicketPort implements TicketPort {
         return List.copyOf(invalidated);
     }
 
+    // @Override: This method replaces the one of the parent class or interface.
     @Override
     public void issue(long bookingId, TicketData data) {
         check();

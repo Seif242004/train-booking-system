@@ -40,6 +40,7 @@ class PaymentFlowDatabaseTest extends DatabaseTest {
     private static final long TRIP = 9001;
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
     @Autowired
@@ -51,6 +52,7 @@ class PaymentFlowDatabaseTest extends DatabaseTest {
     @Autowired
     ExpiryService expiry;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
@@ -61,12 +63,14 @@ class PaymentFlowDatabaseTest extends DatabaseTest {
         return holds.hold(ALICE, new HoldRequest(TRIP, 0, 3, List.of(2L, 3L), List.of()));
     }
 
+    // Helper: the status of a booking row.
     private String statusOf(long id) {
         return jdbc.sql("SELECT status FROM booking WHERE id = :id").param("id", id).query(String.class).single();
     }
 
     // ---- Continue to payment ------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void continueToPayment_asksPaymentForTheServerAmount_outsideAnyTransaction_andKeepsTheTimer() {
         BookingView hold = aHold();

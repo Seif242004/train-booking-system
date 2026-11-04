@@ -54,6 +54,7 @@ class PickDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
     private static final AuthenticatedUser BOB = new AuthenticatedUser("bob-sub", "bob@example.com", "Bob");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     HoldService service;
 
@@ -69,11 +70,14 @@ class PickDatabaseTest extends DatabaseTest {
     @Autowired
     ExpiryService expiry;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
     }
 
+    // Helpers: a seat pick and a standing pick for a journey, a whole selection (via Holds), the used standing places of a segment, the
+    // trip version counter, and the status of a booking.
     private static PickRequest seat(int from, int to, long seatId) {
         return new PickRequest(TRIP, from, to, seatId, null, null);
     }
@@ -101,6 +105,7 @@ class PickDatabaseTest extends DatabaseTest {
 
     // ---- the first pick starts the hold ----------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theFirstPick_startsTheHold_andItsFiveMinutesStartNow() {
         HoldService.PickResult result = service.pick(ALICE, seat(0, 3, 2));
@@ -476,6 +481,7 @@ class PickDatabaseTest extends DatabaseTest {
         assertThat(rows("seat_reservation")).isEqualTo(12);
     }
 
+    // Starts the calls on separate threads and releases them together, so they race for the same seats; returns each result or exception.
     private List<Object> runTogether(List<Callable<Object>> calls, CountDownLatch go) throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(calls.size());
         try {
@@ -560,6 +566,7 @@ class PickDatabaseTest extends DatabaseTest {
         assertThat(rows("booking")).isZero();
     }
 
+    // Helper: the pick must be refused with a 400; returns the field names that the error lists.
     private List<String> problemsOf(PickRequest request) {
         try {
             service.pick(ALICE, request);
@@ -608,6 +615,7 @@ class PickDatabaseTest extends DatabaseTest {
 
     // ---- an open payment is cancelled before the hold changes (SRS 4.2) -------------------------------------------------------
 
+    // Helper: a hold on two seats whose payment_started flag is set, as if the user had opened the payment page.
     private BookingView holdWithPaymentStarted() {
         BookingView hold = holds.hold(ALICE, seats(0, 3, 1L, 2L));
         jdbc.sql("UPDATE booking SET payment_started = 1 WHERE id = :id").param("id", hold.id()).update();

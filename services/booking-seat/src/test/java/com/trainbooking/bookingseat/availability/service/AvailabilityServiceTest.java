@@ -13,11 +13,16 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
+/**
+ * Unit test with a mocked repository: the service must read the trip version BEFORE the data, so a live-event version number is never
+ * newer than the seats the client got (the client drops events up to that version). No database.
+ */
 class AvailabilityServiceTest {
 
     private final AvailabilityRepository repository = mock(AvailabilityRepository.class);
     private final AvailabilityService service = new AvailabilityService(repository);
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theVersionIsReadBeforeTheData_soTheDataIsNeverOlderThanTheVersion() {
         given(repository.findTrip(5)).willReturn(Optional.of(new TripHeader(5, "OPEN", 3)));

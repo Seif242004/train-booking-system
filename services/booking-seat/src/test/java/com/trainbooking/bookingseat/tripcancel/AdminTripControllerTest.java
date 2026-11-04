@@ -29,29 +29,37 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 /** Whole-trip cancellation: only the ADMIN role, a reason is required, and the answer says where it stands. */
+// @WebMvcTest: Starts only the web layer (controller, security filters, JSON mapping); services are mocks, so it proves the HTTP contract
+// quickly.
 @WebMvcTest(value = AdminTripController.class, properties = "trainbooking.internal-api-key=test-key")
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import({SecurityConfig.class, JsonErrorHandlers.class, GlobalExceptionHandler.class})
 class AdminTripControllerTest {
 
     private static final TripCancellationStatus PENDING = new TripCancellationStatus(2, "CANCELLING", "Strike", "ADMIN-sub", false, 1, 2, 3, 0);
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     MockMvc mvc;
 
+    // @MockitoBean: Replaces the real bean in the Spring context by a Mockito mock, so the test decides what it answers.
     @MockitoBean
     TripCancellationService service;
 
     @MockitoBean
     JwtDecoder jwtDecoder;
 
+    // Helper: adds a mock JWT with the given role to a request.
     private static org.springframework.test.web.servlet.request.RequestPostProcessor as(String role) {
         return jwt().jwt(t -> t.subject(role + "-sub")).authorities(new SimpleGrantedAuthority("ROLE_" + role));
     }
 
+    // Helper: POST the whole-trip cancellation with the given JSON body.
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder cancel(String body) {
         return post("/admin/trips/2/cancel").contentType(MediaType.APPLICATION_JSON).content(body);
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void withoutAToken_is401_andAPassengerIs403_andNothingHappens() throws Exception {
         mvc.perform(cancel("{\"reason\":\"x\"}")).andExpect(status().isUnauthorized());

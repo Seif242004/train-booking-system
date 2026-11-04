@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>The sweeper is switched off (the tests call it by hand), the clock can be moved, and Payment is a fake.
  */
+// @SpringBootTest: Starts the whole application (all beans, Flyway migrations, security) for the tests of this class.
 @SpringBootTest(properties = {
         "trainbooking.internal-api-key=" + DatabaseTest.INTERNAL_KEY,
         "trainbooking.sweeper.enabled=false",
@@ -27,20 +28,27 @@ import org.springframework.test.web.servlet.MockMvc;
         // Never contacted: the tests send mock JWTs. The issuer is only looked up when a real token has to be decoded.
         "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:1/not-used"
 })
+// @AutoConfigureMockMvc: Provides MockMvc, which calls the controllers in-process, without a network port.
 @AutoConfigureMockMvc
+// @Import: Adds these configuration classes to the Spring context that the test starts.
 @Import(DatabaseTestConfig.class)
+// @RequiresTestDatabase: Custom annotation: skips the whole class (reported as SKIPPED) when no test database password is configured.
 @RequiresTestDatabase
 public abstract class DatabaseTest {
 
+    // The shared key the test application uses for /internal calls.
     public static final String INTERNAL_KEY = "test-internal-key";
 
+    // @DynamicPropertySource: Adds Spring properties computed at test time (here the database URL, user and password of the test schema).
     @DynamicPropertySource
+    // Points the application at the test schema instead of the dev schema.
     static void database(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", TestDatabase::url);
         registry.add("spring.datasource.username", TestDatabase::user);
         registry.add("spring.datasource.password", TestDatabase::password);
     }
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     protected JdbcClient jdbc;
 
@@ -65,6 +73,9 @@ public abstract class DatabaseTest {
     @Autowired
     protected FakeTrainSchedulePort trainSchedule;
 
+    // The guard and the reset: refuse to run unless the current schema ends in _test, then empty every table (children first because of the
+    // foreign keys) and reset the fakes and the clock.
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void emptyTheTestSchema() {
         String schema = jdbc.sql("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual").query(String.class).single();
@@ -84,6 +95,7 @@ public abstract class DatabaseTest {
         committed.clear();
     }
 
+    // Helper: COUNT(*) of "table WHERE ...", for assertions on the database.
     protected int rows(String tableAndWhere) {
         return jdbc.sql("SELECT COUNT(*) FROM " + tableAndWhere).query(Integer.class).single();
     }

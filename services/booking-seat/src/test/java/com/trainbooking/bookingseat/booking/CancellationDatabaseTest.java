@@ -37,7 +37,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * Cancellation of a confirmed booking (Flow 6, SRS 7.2, FR-C1 to FR-C5, FR-C7): one implementation for the passenger and the admin, instant,
+  * Cancellation of a confirmed booking (Flow 6, SRS 7.2, FR-C1 to FR-C5, FR-C7): one implementation for the passenger and the admin,
+  * instant,
  * until the train leaves the booking's boarding stop, with the follow-up (ticket, full refund, email) queued in the same transaction.
  * The trip leaves Cairo at 08:00 Cairo time (06:00 UTC) and each next stop an hour later; the clock starts the day before.
  */
@@ -47,6 +48,7 @@ class CancellationDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice Example");
     private static final Instant DEPARTURE = Instant.parse("2026-11-02T06:00:00Z");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
     @Autowired
@@ -62,6 +64,7 @@ class CancellationDatabaseTest extends DatabaseTest {
     @Autowired
     AvailabilityService availability;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
@@ -94,16 +97,19 @@ class CancellationDatabaseTest extends DatabaseTest {
         return total;
     }
 
+    // Helper: reads one text column of a booking row by name (for example status, refund_status, cancelled_by_role).
     private String column(String name, long id) {
         return jdbc.sql("SELECT " + name + " FROM booking WHERE id = :id").param("id", id).query(String.class).single();
     }
 
+    // Helper: the total standing places in use on the whole trip (must return to 0 after a cancellation).
     private int usedStanding() {
         return jdbc.sql("SELECT NVL(SUM(used), 0) FROM standing_usage WHERE trip_id = :t").param("t", TRIP).query(Integer.class).single();
     }
 
     // ---- the cancellation ------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void thePassenger_cancelsTheirOwnBooking_instantly_andTheSeatsAreFreeForEveryoneAtOnce() {
         BookingView booking = confirmed(ALICE, 0, 3, 2);

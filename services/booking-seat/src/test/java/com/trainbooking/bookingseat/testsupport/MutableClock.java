@@ -15,6 +15,7 @@ public class MutableClock extends Clock {
 
     private final AtomicReference<Instant> now = new AtomicReference<>(START);
 
+    // set() jumps to an instant, advance() moves forward; both are visible to every bean that injected the Clock.
     public void set(Instant instant) {
         now.set(instant);
     }
@@ -23,6 +24,7 @@ public class MutableClock extends Clock {
         now.updateAndGet(current -> current.plus(duration));
     }
 
+    // @Override: This method replaces the one of the parent class or interface.
     @Override
     public ZoneId getZone() {
         return ZoneOffset.UTC;

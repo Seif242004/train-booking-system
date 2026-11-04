@@ -16,18 +16,23 @@ import org.springframework.test.context.TestPropertySource;
 
 /**
  * The stop times of a booking carry the offset of the railway's time zone (trainbooking.timezone), not whatever offset the database driver
- * returns for its session. The web app shows the clock part of these times as it is, so a container running in UTC must not show 06:00 for a
- * train that leaves at 08:00 Cairo time. The zone is set to Tokyo here so that neither the stored offset (+02:00) nor the JVM's zone can give
+  * returns for its session. The web app shows the clock part of these times as it is, so a container running in UTC must not show 06:00
+  * for a
+  * train that leaves at 08:00 Cairo time. The zone is set to Tokyo here so that neither the stored offset (+02:00) nor the JVM's zone can
+  * give
  * the expected answer by accident.
  */
+// @TestPropertySource: Sets properties for this test class only.
 @TestPropertySource(properties = "trainbooking.timezone=Asia/Tokyo")
 class BookingStopTimesDatabaseTest extends DatabaseTest {
 
     private static final AuthenticatedUser ALICE = new AuthenticatedUser("alice-sub", "alice@example.com", "Alice");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theStopTimesOfABooking_areInTheRailwaysZone_atTheSameInstant() {
         insertTrip(9801);

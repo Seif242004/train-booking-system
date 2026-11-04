@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 /** The amount of a booking is worked out on the server from the fares of the trip, never from anything the client sends. */
 class BookingPricingTest {
 
+    // Builds one fare row for the tests.
     private static FareInfo fare(int segment, CoachClass coachClass, String amount) {
         return new FareInfo(segment, coachClass, new BigDecimal(amount));
     }
@@ -24,6 +25,7 @@ class BookingPricingTest {
             fare(0, CoachClass.FIRST, "80"), fare(1, CoachClass.FIRST, "150"),
             fare(0, CoachClass.SECOND, "50"), fare(1, CoachClass.SECOND, "100"));
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void aSeatCostsTheSumOfTheSegmentsOfItsClass() {
         List<Line> lines = BookingPricing.price(new Journey(0, 2), FARES, List.of(new Seat(1, 10, CoachClass.FIRST), new Seat(2, 20, CoachClass.SECOND)), List.of());

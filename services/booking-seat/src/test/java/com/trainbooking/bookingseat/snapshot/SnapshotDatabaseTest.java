@@ -40,15 +40,19 @@ class SnapshotDatabaseTest extends DatabaseTest {
 
     private static final long TRIP = 8001;
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     JsonMapper json;
 
     @Autowired
     SnapshotService service;
 
+    // @MockitoSpyBean: Wraps the real bean in a Mockito spy: it works as usual, but the test can watch or override single calls.
     @MockitoSpyBean
     SnapshotRepository repository;
 
+    // Helpers: send a snapshot as the Train and Schedule service would (internal key header, acting admin), count the rows of one table for
+    // the test trip, and read the route name.
     private ResultActions push(long tripId, TripSnapshot snapshot) throws Exception {
         return mvc.perform(put("/internal/trips/{id}/snapshot", tripId).header("X-Internal-Api-Key", INTERNAL_KEY)
                 .header("X-Acting-User", "admin-sub").contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(snapshot)));
@@ -64,6 +68,7 @@ class SnapshotDatabaseTest extends DatabaseTest {
 
     // ---- creating the copy ------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theFirstPush_createsTheCopyOfTheTrip_open() throws Exception {
         push(TRIP, valid()).andExpect(status().isOk())

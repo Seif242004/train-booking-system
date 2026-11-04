@@ -31,8 +31,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * An admin cancels a whole trip (Flow 8, SRS 7.3, FR-C8): the trip closes to new holds, Train &amp; Schedule is told, active holds are released
- * (their payment cancelled first) and sent back with "This trip was cancelled", every confirmed booking is cancelled and refunded as in Flow 6,
+  * An admin cancels a whole trip (Flow 8, SRS 7.3, FR-C8): the trip closes to new holds, Train &amp; Schedule is told, active holds are
+  * released
+  * (their payment cancelled first) and sent back with "This trip was cancelled", every confirmed booking is cancelled and refunded as in
+  * Flow 6,
  * and what fails is retried: the trip is "bookings pending" (CANCELLING) until nothing is left.
  */
 class TripCancellationDatabaseTest extends DatabaseTest {
@@ -43,6 +45,7 @@ class TripCancellationDatabaseTest extends DatabaseTest {
     private static final AuthenticatedUser CAROL = new AuthenticatedUser("carol-sub", "carol@example.com", "Carol");
     private static final Instant DEPARTURE = Instant.parse("2026-11-02T06:00:00Z");
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     Holds holds;
     @Autowired
@@ -58,11 +61,15 @@ class TripCancellationDatabaseTest extends DatabaseTest {
     @Autowired
     OutboxDispatcher dispatcher;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
     }
 
+    // Helpers: a confirmed booking (hold plus the one confirmation path), a live hold, a hold whose payment page was opened, the status
+    // of a
+    // booking, and the status of the trip copy.
     private BookingView confirmed(AuthenticatedUser user, long seat) {
         BookingView hold = holds.hold(user, new HoldRequest(TRIP, 0, 3, List.of(seat), List.of()));
         confirmations.confirm(hold.id());
@@ -85,6 +92,7 @@ class TripCancellationDatabaseTest extends DatabaseTest {
         return jdbc.sql("SELECT status FROM trip WHERE id = :t").param("t", TRIP).query(String.class).single();
     }
 
+    // Runs the outbox dispatcher until no job is left (at most 12 rounds), so the queued cancellations and refunds are really done.
     private int drain() {
         int total = 0;
         for (int round = 0; round < 12; round++) {
@@ -99,6 +107,7 @@ class TripCancellationDatabaseTest extends DatabaseTest {
 
     // ---- the whole cancellation ---------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void theWholeTrip_everythingIsCancelled_holdsAreSentBack_everyBookingIsRefunded_andEveryoneViewingIsTold() {
         BookingView alice = confirmed(ALICE, 2);
@@ -167,7 +176,8 @@ class TripCancellationDatabaseTest extends DatabaseTest {
 
     @Test
     void aReasonOfTheFullLength_stillCancelsEveryBooking() {
-        // The stored text is "The trip was cancelled: " + reason; booking.cancel_reason holds 500 characters, so the text is cut, not refused.
+        // The stored text is "The trip was cancelled: " + reason; booking.cancel_reason holds 500 characters, so the text is cut, not
+        // refused.
         BookingView alice = confirmed(ALICE, 2);
 
         TripCancellationStatus status = tripCancellations.request("admin-sub", TRIP, "x".repeat(500));
@@ -179,7 +189,8 @@ class TripCancellationDatabaseTest extends DatabaseTest {
 
     @Test
     void aPassAfterTheTrainHasLeft_stillCancelsAndRefundsTheConfirmedBookings() {
-        // The trip was being cancelled before departure but a booking was left for a later pass; the boarding-stop cutoff must not strand it.
+        // The trip was being cancelled before departure but a booking was left for a later pass; the boarding-stop cutoff must not strand
+        // it.
         BookingView alice = confirmed(ALICE, 2);
         jdbc.sql("UPDATE trip SET status = 'CANCELLING', cancel_reason = 'Strike', cancelled_by = 'admin-sub' WHERE id = :t").param("t", TRIP).update();
         clock.set(DEPARTURE.plusSeconds(60));

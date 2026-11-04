@@ -33,6 +33,7 @@ class SegmentAvailabilityTest {
     private static final SeatInfo THIRD_4 = new SeatInfo(4, 30, CoachClass.THIRD);
     private static final List<SeatInfo> SEATS = List.of(FIRST_1, SECOND_2, SECOND_3, THIRD_4);
 
+    // Test helpers: build a journey, and reservations that are booked (confirmed) or held on one segment of a seat.
     private static Journey journey(int from, int to) {
         return Journey.of(from, to, STOPS);
     }
@@ -60,12 +61,14 @@ class SegmentAvailabilityTest {
         return rows;
     }
 
+    // Runs the rule on the fixed seats with no reservations and the given standing counter rows.
     private static JourneyAvailability withStanding(Journey journey, List<StandingInfo> rows) {
         return SegmentAvailability.compute(journey, SEATS, List.of(), rows);
     }
 
     // ---- seats ----------------------------------------------------------------------------------------------------
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void aSeatTakenOnAMiddleSegment_isUnavailableForEveryJourneyThatCrossesIt() {
         ReservationInfo middle = booked(1, 1); // seat 1 is booked on segment 1 only (stop 1 to stop 2)
@@ -124,6 +127,7 @@ class SegmentAvailabilityTest {
         assertThat(state(cairoToTanta, bookedTantaToAlexandria)).isEqualTo(SeatState.AVAILABLE);
     }
 
+    // The state of the first seat, for tests that only look at one seat.
     private static SeatState state(Journey journey, List<ReservationInfo> reservations) {
         return SegmentAvailability.compute(journey, SEATS, reservations, List.of()).seats().get(0).state();
     }
@@ -306,6 +310,7 @@ class SegmentAvailabilityTest {
         assertRejected(5, 9, "from"); // a boarding stop beyond the last one is reported once, on from
     }
 
+    // Asserts that Journey.of refuses the stops with a 400 error that names exactly the given field ("from" or "to").
     private static void assertRejected(int from, int to, String field) {
         assertThatThrownBy(() -> Journey.of(from, to, STOPS))
                 .isInstanceOf(RequestValidationException.class)

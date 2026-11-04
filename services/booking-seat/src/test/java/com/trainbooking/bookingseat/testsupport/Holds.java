@@ -14,6 +14,7 @@ public class Holds {
 
     private final HoldService service;
 
+    // The constructor takes the real HoldService.
     public Holds(HoldService service) {
         this.service = service;
     }

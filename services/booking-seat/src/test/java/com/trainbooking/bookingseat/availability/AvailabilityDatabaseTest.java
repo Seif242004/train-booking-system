@@ -28,14 +28,17 @@ class AvailabilityDatabaseTest extends DatabaseTest {
 
     private static final long TRIP = 7001;
 
+    // @Autowired: Spring fills this field with the bean of this type from the application context (dependency injection).
     @Autowired
     AvailabilityService service;
 
+    // @BeforeEach: JUnit 5: runs before every test method of this class, so each test starts from a known state.
     @BeforeEach
     void aTrip() {
         insertTrip(TRIP);
     }
 
+    // Helper: the state of every seat of the demo trip for a journey, read through the real service (so the real SQL runs).
     private Map<Long, SeatState> seatStates(int from, int to) {
         TripAvailability result = service.availability(TRIP, from, to);
         Map<Long, SeatState> states = new java.util.LinkedHashMap<>();
@@ -43,6 +46,7 @@ class AvailabilityDatabaseTest extends DatabaseTest {
         return states;
     }
 
+    // @Test: JUnit 5: this method is one test. It passes when it ends without an exception; its name states the rule it proves.
     @Test
     void anEmptyTrip_hasEverythingAvailable_inSeatMapOrder() {
         TripAvailability result = service.availability(TRIP, 0, 3);

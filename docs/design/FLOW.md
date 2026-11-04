@@ -10,12 +10,12 @@ The logo links to `/` on every page. The header holds one nav (Search trains; My
 | `/search?from&to&date` | Passenger | `/` | Choose a fare class on a trip, then `/trips/:id/seats` |
 | `/trips/:id/seats?from&to` | Passenger | `/search` with the last search | Pick seats (the hold starts), then Continue to payment |
 | `/bookings/:id/pay` | Passenger (owner) | `/trips/:id/seats` (seats stay held) | Pay; on success go to the ticket |
-| `/bookings/:id/ticket` | Passenger (owner) | `/bookings` | Download PDF, Email again, My bookings, Search another trip |
+| `/bookings/:id/ticket` | Passenger (owner) | `/bookings` | Download PDF, Email again, My bookings, Search another trip. The boarding pass has a white header with the red logo and shows the QR code (the same code as in the PDF) |
 | `/bookings` | Passenger | `/account` | Open a ticket, continue a hold, cancel |
 | `/account` | Passenger | `/` | My bookings, Search trains, Sign out |
 | `/help`, `/refunds`, `/terms`, `/privacy`, `/contact` | Anyone | `/` | Links between them |
 | `/admin` | Admin | `/` (Back to site) | Open a section |
-| `/admin/stations`, `/trains`, `/trains/:id`, `/routes`, `/routes/:id/fares`, `/trips`, `/support` | Admin | The section above it (breadcrumb), Back to site | The page's own action |
+| `/admin/stations`, `/trains`, `/trains/:id`, `/routes`, `/routes/:id/fares`, `/trips`, `/support` (two views: Trips board, Find a booking; `?view=bookings`) | Admin | The section above it (breadcrumb), Back to site | The page's own action |
 | `*` | Anyone | `/` | Search trains, Go to the home page |
 | (render error) | Anyone | `/` | Go to the home page |
 
@@ -45,3 +45,14 @@ A hold that is running shows a slim banner on every other page ("Your seats are 
 - Redirects after expiry, confirmation and guards use `replace`, so Back never returns to a dead page.
 - Scroll position is restored on Back/Forward and reset on a new page; the page's h1 receives focus after each route change and the new page title is announced.
 - Every route has its own document title.
+
+## Live trips board (admin support)
+
+Decision: the board and the booking search are two **views** (chips at the top, `/admin/support` and `/admin/support?view=bookings`), not two pages, so Support stays one entry in the sidebar. The board is the default view.
+
+- **Data**: `GET /admin/board/trips?from=&to=&state=` (Booking & Seat, through the Gateway, ADMIN only) and `GET /admin/board/trips/{id}` (composed by the Gateway from the layout and the seat states). Read-only.
+- **Refresh**: polling every 5 s (paused while the tab is hidden, immediate when it is visible again, doubling back-off after errors, up to 1 minute). The last data stays on screen when a refresh fails; the status line says "Connection lost, retrying". The WebSocket is not used: it would need an admin topic and a new authorization rule.
+- **Filters** live in the address: `range` (live window, today, tomorrow, next7, last7, custom with `date`), `state` (a comma list of UPCOMING, DEPARTED, ARRIVED, FULL, CANCELLED), `q` (train or station text). The summary tiles are the same state filters.
+- **States**: Upcoming, Departed (left the first stop, not yet at the last), Arrived, Cancelled (a trip being cancelled counts as cancelled), plus the Full flag on an upcoming trip. **Full means no seat (and no standing place) is free for the whole journey.**
+- **Rows** keep the order of the departure time; a row whose numbers changed is highlighted for two seconds (no motion with reduced motion). Enter or click on a row opens the trip in a slide-over (counts per class, a read-only coach plan with free / held / taken seats, the booking reference as plain text on taken seats, the data time); Escape closes it and focus returns to the row.
+- **New Gateway routes**: `GET /admin/board/trips`, `GET /admin/board/trips/{id}`, `GET /bookings/{id}/ticket/qr`.

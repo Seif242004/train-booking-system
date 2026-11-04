@@ -33,6 +33,15 @@ public final class SegmentAvailability {
     private SegmentAvailability() {
     }
 
+    /**
+     * The only place where the full-journey rule is applied to data. The input lists are plain objects, so the unit test needs no database.
+     *
+     * @param journey      the boarding and destination stops
+     * @param seats        every seat of the trip
+     * @param reservations reservations of the trip (may include other segments)
+     * @param standingRows the standing counters of every coach on every segment
+     * @return per-seat states, standing places per coach, and the totals per class
+     */
     public static JourneyAvailability compute(Journey journey, List<SeatInfo> seats, List<ReservationInfo> reservations,
                                               List<StandingInfo> standingRows) {
         List<SeatStatus> statuses = seatStatuses(journey, seats, reservations);
@@ -51,6 +60,8 @@ public final class SegmentAvailability {
                 continue; // taken only outside the journey: does not matter (A to B and B to C can share a seat)
             }
             SeatState state = reservation.held() ? SeatState.HELD : SeatState.BOOKED;
+            // merge() combines the new state with an earlier one for the same seat (a seat reserved on several segments): BOOKED beats
+            // HELD.
             taken.merge(reservation.seatId(), state, (a, b) -> a == SeatState.BOOKED || b == SeatState.BOOKED ? SeatState.BOOKED : SeatState.HELD);
         }
         List<SeatStatus> statuses = new ArrayList<>();
@@ -69,6 +80,7 @@ public final class SegmentAvailability {
         List<CoachStandingLeft> result = new ArrayList<>();
         for (List<StandingInfo> coachRows : byCoach.values()) {
             StandingInfo any = coachRows.get(0);
+            // The capacity is the same on every segment of a coach; max() is only a safe way to pick it.
             int capacity = coachRows.stream().map(StandingInfo::capacity).max(Comparator.naturalOrder()).orElse(0);
             result.add(new CoachStandingLeft(any.coachId(), any.coachClass(), capacity, remainingForJourney(journey, coachRows)));
         }

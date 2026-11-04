@@ -22,6 +22,7 @@ public final class JourneyFares {
      * The price of the whole journey per class. A class is listed only if every segment of the journey has a fare for it,
      * so a class that cannot be priced completely is never offered at a wrong price.
      */
+    // EnumMap is a map keyed by an enum, kept in enum order (FIRST, SECOND, THIRD). setScale(2) makes the price always show two decimals.
     public static Map<CoachClass, BigDecimal> perClass(Journey journey, List<FareInfo> fares) {
         Map<CoachClass, BigDecimal> prices = new EnumMap<>(CoachClass.class);
         for (CoachClass coachClass : CoachClass.values()) {
@@ -42,6 +43,7 @@ public final class JourneyFares {
         return prices;
     }
 
+    // A linear search is fine: a trip has a few dozen fares at most. Returns null when there is no fare for that segment and class.
     private static BigDecimal amountOf(List<FareInfo> fares, int segment, CoachClass coachClass) {
         for (FareInfo fare : fares) {
             if (fare.segmentIndex() == segment && fare.coachClass() == coachClass) {

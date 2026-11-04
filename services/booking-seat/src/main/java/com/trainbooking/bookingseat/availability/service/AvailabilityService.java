@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Availability of a trip for a journey (FR-S2, FR-S4, FR-S5): the data of the search results and of the seat map. */
+// @Service: a bean that holds business logic (the middle layer between controller and repository).
 @Service
 public class AvailabilityService {
 
@@ -22,6 +23,8 @@ public class AvailabilityService {
      * Read-only transaction: Oracle then gives all the queries below one consistent snapshot, so a hold that commits
      * in between cannot show up in the seats but be missing from the standing counters (or the reverse).
      */
+    // @Transactional(readOnly = true): all the queries of the method run in one database transaction marked read-only; Oracle then gives
+    // them one consistent view of the data (read-consistent snapshot) even while holds commit in other transactions.
     @Transactional(readOnly = true)
     public TripAvailability availability(long tripId, int fromStop, int toStop) {
         TripHeader trip = repository.findTrip(tripId).orElseThrow(() -> new TripNotFoundException(tripId));

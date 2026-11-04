@@ -4,6 +4,10 @@ import com.trainbooking.bookingseat.common.CoachClass;
 import java.math.BigDecimal;
 import java.util.Map;
 
-/** The availability of one trip for one journey, with the status of the trip and the price of the journey per class. {@code version} is the change counter of the trip (SRS section 6). */
+/**
+ * The availability of one trip for one journey, with the status of the trip and the price of the journey per class. {@code version} is
+ * the change counter of the trip (SRS section 6).
+ */
+// "version" is trip_version.version, the per-trip event counter; the client compares it with the version of live events.
 public record TripAvailability(long tripId, String tripStatus, JourneyAvailability availability, Map<CoachClass, BigDecimal> fares, long version) {
 }

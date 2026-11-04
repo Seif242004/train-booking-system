@@ -5,5 +5,6 @@ package com.trainbooking.bookingseat.availability.model;
  * (a hold) and false once the booking is confirmed. Whether the hold has already expired is deliberately not part of
  * this: an expired hold that the sweeper has not released yet still blocks the seat (CLAUDE.md, "5-minute hold").
  */
+// One seat on one segment. A journey over three segments produces three of these rows for each reserved seat.
 public record ReservationInfo(long seatId, int segmentIndex, boolean held) {
 }

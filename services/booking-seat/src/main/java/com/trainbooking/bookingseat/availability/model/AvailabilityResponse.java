@@ -11,6 +11,8 @@ import java.util.Map;
  * summary view, which is what the search results use. {@code fares} is the price of the whole journey per class in EGP
  * (the sum of its segments); the seat map shows it, and a hold uses the same numbers to work out the amount.
  */
+// @JsonInclude(NON_NULL): fields that are null are not written. The summary view therefore has no fares, version, myHold, seats or
+// standing.
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record AvailabilityResponse(
         long tripId,
@@ -25,12 +27,14 @@ public record AvailabilityResponse(
         List<CoachStandingLeft> standing) {
 
     /** Seats and standing places left for the journey, per class of coach. */
+    // Totals per coach class (FIRST, SECOND, THIRD), the numbers search results show next to each fare.
     public record Summary(Map<CoachClass, Integer> seatsLeft, Map<CoachClass, Integer> standingLeft) {
     }
 
     public record Seat(long seatId, long coachId, SeatState state) {
     }
 
+    // Builds the answer. The summary view is cheap on purpose: the Gateway asks for it once per trip in a search result.
     public static AvailabilityResponse of(TripAvailability trip, boolean summaryOnly, com.trainbooking.bookingseat.booking.model.BookingView myHold) {
         JourneyAvailability a = trip.availability();
         Summary summary = new Summary(a.seatsLeft(), a.standingLeft());

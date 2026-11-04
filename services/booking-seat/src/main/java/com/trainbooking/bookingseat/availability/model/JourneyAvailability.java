@@ -8,6 +8,7 @@ import java.util.Map;
  * The availability of a trip for one journey. {@code seatsLeft} and {@code standingLeft} are totals per class; a class is
  * listed only if the trip has seats (or standing coaches) of it.
  */
+// The pure result of SegmentAvailability.compute: per-seat states, per-coach standing places and the totals per class.
 public record JourneyAvailability(
         Journey journey,
         List<SeatStatus> seats,

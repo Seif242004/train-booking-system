@@ -50,7 +50,7 @@ class TicketPdfRendererTest {
         try {
             var resources = reader.getPageN(1).getAsDict(PdfName.RESOURCES);
             assertThat(resources.getAsDict(PdfName.XOBJECT)).isNotNull();
-            assertThat(resources.getAsDict(PdfName.XOBJECT).size()).isEqualTo(1);
+            assertThat(resources.getAsDict(PdfName.XOBJECT).size()).isEqualTo(2); // the QR code and the red logo
         } finally {
             reader.close();
         }
@@ -101,5 +101,8 @@ class TicketPdfRendererTest {
         byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo")).render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
         assertThat(new String(pdf, 0, 5, StandardCharsets.US_ASCII)).isEqualTo("%PDF-");
         assertThat(pdf.length).isPositive();
+        // The official red logo is on the classpath now: the default renderer draws it besides the QR code.
+        assertThat(TicketPdfRenderer.loadLogo(TicketPdfRenderer.LOGO_RESOURCE)).isNotNull();
+        assertThat(images(pdf)).isEqualTo(2);
     }
 }

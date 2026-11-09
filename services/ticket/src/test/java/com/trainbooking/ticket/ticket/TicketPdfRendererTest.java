@@ -14,8 +14,10 @@ import org.junit.jupiter.api.Test;
 /** What the PDF shows (SRS FR-T2). Needs no database. */
 class TicketPdfRendererTest {
 
+    // The renderer has no state and no database: a plain object in the Cairo zone.
     private final TicketPdfRenderer renderer = new TicketPdfRenderer(ZoneId.of("Africa/Cairo"));
 
+    // Reads the text of page 1 back from the PDF bytes and flattens the white space.
     private String text(byte[] pdf) throws Exception {
         PdfReader reader = new PdfReader(pdf);
         try {
@@ -25,7 +27,10 @@ class TicketPdfRendererTest {
         }
     }
 
+    // {@code @Test} marks a JUnit 5 test method.
     @Test
+    // The extracted text holds the reference, the passenger, the train, the stations, the seat and the standing places, the prices and
+    // the total.
     void theTicket_showsEverythingThePassengerNeeds() throws Exception {
         byte[] pdf = renderer.render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
 
@@ -37,6 +42,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // Converts the instants to Africa/Cairo: 06:00 UTC prints as 08:00 and 08:45 UTC as 10:45, on Monday 2 November 2026.
     void theTimes_areShownInTheTimeZoneOfTheSystem_notInUtc() throws Exception {
         // 06:00 UTC on 2 November 2026 is 08:00 in Cairo (UTC+2), and 08:45 UTC is 10:45.
         String text = text(renderer.render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature"));
@@ -45,6 +51,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // The page has two image objects: the QR code and the logo (the default renderer loads the logo from the classpath).
     void theQrCode_isOnThePage() throws Exception {
         PdfReader reader = new PdfReader(renderer.render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature"));
         try {
@@ -56,6 +63,7 @@ class TicketPdfRendererTest {
         }
     }
 
+    // Makes a small PNG in memory, used as a fake logo.
     private static byte[] png(int width, int height) throws Exception {
         var image = new java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_RGB);
         var graphics = image.createGraphics();
@@ -67,6 +75,7 @@ class TicketPdfRendererTest {
         return out.toByteArray();
     }
 
+    // Counts the images drawn on page 1 (the QR, plus the logo when there is one).
     private static int images(byte[] pdf) throws Exception {
         PdfReader reader = new PdfReader(pdf);
         try {
@@ -77,6 +86,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // A generated 1200 x 336 PNG as logo: the page has two images (logo and QR) and still shows the reference and the total.
     void withALogo_itIsDrawnAtTheTop_besidesTheQrCode() throws Exception {
         byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo"), png(1200, 336)).render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
 
@@ -86,6 +96,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // Bytes that are not an image: the logo is skipped (one image, the QR) and the ticket is still made.
     void aLogoThatIsNotAnImage_isSkipped_theTicketIsStillMade() throws Exception {
         byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo"), "not an image".getBytes(StandardCharsets.UTF_8))
                 .render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
@@ -95,6 +106,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // loadLogo returns null for an unknown resource; the official logo resource loads; the default renderer works and draws two images.
     void aMissingLogoResource_givesNull_andTheDefaultRendererStillWorks() throws Exception {
         assertThat(TicketPdfRenderer.loadLogo("brand/does-not-exist.png")).isNull();
         // The resource the service looks for: when the official PNG is added it must load; until then the header is plain.
@@ -107,6 +119,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // The footer text follows the payment method: card, counter, complimentary; the last two never say "Total paid".
     void thePaymentLine_saysHowItWasPaid() throws Exception {
         var base = DatabaseTest.ticketRequest("TB-ABC234");
         for (String[] c : new String[][] {{"COUNTER", "Paid at counter 530.00 EGP"}, {"COMPLIMENTARY", "Complimentary (no charge, fare value 530.00 EGP)"}, {"CARD", "Total paid 530.00 EGP"}}) {
@@ -123,15 +136,18 @@ class TicketPdfRendererTest {
     private static final java.time.OffsetDateTime DEPARTURE = java.time.OffsetDateTime.parse("2026-11-02T06:00:00Z");
     private static final java.time.OffsetDateTime ARRIVAL = java.time.OffsetDateTime.parse("2026-11-02T08:45:00Z");
 
+    // A builder of requests for the layout tests: the total is the sum of the line prices.
     private static com.trainbooking.ticket.ticket.model.TicketRequest request(String passenger, String from, String to, String method, java.util.List<com.trainbooking.ticket.ticket.model.TicketRequest.Line> lines) {
         java.math.BigDecimal total = lines.stream().map(l -> l.price()).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
         return new com.trainbooking.ticket.ticket.model.TicketRequest("TB-ABC234", passenger, "T100", "Express", from, DEPARTURE, to, ARRIVAL, lines, total, "EGP", method);
     }
 
+    // One seat line at a fixed price of 115.00 EGP.
     private static com.trainbooking.ticket.ticket.model.TicketRequest.Line seat(String coach, String clazz, String number) {
         return new com.trainbooking.ticket.ticket.model.TicketRequest.Line("SEAT", coach, clazz, number, 1, new java.math.BigDecimal("115.00"));
     }
 
+    // Page count of the PDF.
     private static int pages(byte[] pdf) throws Exception {
         PdfReader reader = new PdfReader(pdf);
         try {
@@ -142,6 +158,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // One page of 595 x 420 points and the title and subject in the metadata.
     void theTicket_isExactlyOneLandscapeA5Page_withTheMetadata() throws Exception {
         byte[] pdf = renderer.render(DatabaseTest.ticketRequest("TB-ABC234"), "TB-ABC234.nonce.signature");
 
@@ -158,6 +175,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // For card, counter and complimentary payments, every fact of the page appears in the text.
     void everyFactOfThePageTicket_isInTheText_forEachPaymentMethod() throws Exception {
         for (String[] c : new String[][] {{"CARD", "Total paid 345.00 EGP"}, {"COUNTER", "Paid at counter 345.00 EGP"}, {"COMPLIMENTARY", "Complimentary (no charge, fare value 345.00 EGP)"}}) {
             var r = request("Alice Example", "Cairo", "Alexandria", c[0], java.util.List.of(seat("A1", "FIRST", "12"), seat("A1", "FIRST", "13"), seat("A1", "FIRST", "14")));
@@ -170,6 +188,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // 20 seats over two coaches (10 and 10) still fit on one page and every seat number is listed, with no "and N more".
     void theMaximumSeatsAcrossTwoCoaches_stayOnOnePage_andAreAllListed() throws Exception {
         java.util.List<com.trainbooking.ticket.ticket.model.TicketRequest.Line> lines = new java.util.ArrayList<>();
         for (int i = 1; i <= 10; i++) lines.add(seat("A1", "FIRST", i + "A"));
@@ -183,6 +202,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // Seats and standing places of one coach are listed together.
     void seatsPlusStandingPlaces_areListedTogether() throws Exception {
         var lines = java.util.List.of(seat("A1", "FIRST", "12"), seat("A1", "FIRST", "13"),
                 new com.trainbooking.ticket.ticket.model.TicketRequest.Line("STANDING", "A1", "FIRST", null, 2, new java.math.BigDecimal("200.00")));
@@ -193,6 +213,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // Very long names and stations shrink or wrap or end with "..."; nothing throws and there is still one page.
     void longNames_doNotThrow_andStayOnOnePage() throws Exception {
         String name = "Abdelrahman Mohamed Abdelfattah Ibrahim El-Sayed El-Shennawy Junior";
         String station = "Alexandria (Sidi Gaber) International Terminal and Central Interchange Station";
@@ -205,6 +226,7 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // Names with characters the fonts cannot show (accents, Arabic, emoji) are made safe and never break the rendering.
     void charactersOutsideWinAnsi_neverBreakTheRendering() throws Exception {
         for (String name : new String[] {"Zoë Müller", "\u0645\u062D\u0645\u062F \u0639\u0644\u064A", "\u5F20\u4F1F \uD83D\uDE80 Test", "Łukasz Żółć", "tab\tand\nnewline"}) {
             byte[] pdf = renderer.render(request(name, name, name, "CARD", java.util.List.of(seat("A1", "FIRST", "1A"))), "TB-ABC234.nonce.signature");
@@ -214,14 +236,21 @@ class TicketPdfRendererTest {
     }
 
     @Test
+    // The default renderer draws two images (the logo from the classpath and the QR); a renderer made with a null logo draws only the QR.
     void theLogoShipsOnTheClasspath_andIsDrawnByTheDefaultRenderer_butNotWhenDisabled() throws Exception {
         var r = DatabaseTest.ticketRequest("TB-ABC234");
         assertThat(images(new TicketPdfRenderer(ZoneId.of("Africa/Cairo")).render(r, "TB-ABC234.nonce.signature"))).isEqualTo(2); // the logo and the QR code
         assertThat(images(new TicketPdfRenderer(ZoneId.of("Africa/Cairo"), null).render(r, "TB-ABC234.nonce.signature"))).isEqualTo(1); // the QR code only
     }
 
-    /** Writes two sample tickets to .local/sample-tickets/ (git-ignored) so they can be looked at: run this class' test, no assertion on the look. */
+    /**
+     * Writes two sample tickets to .local/sample-tickets/ (git-ignored) so they can be looked at: run this class' test, no assertion on
+     * the look.
+     */
     @Test
+    // Not a check of the look: it writes two sample PDFs to the git-ignored .local/sample-tickets folder so a person can open them, and
+    // only
+    // asserts that the first file is not empty.
     void writeTheSampleTickets() throws Exception {
         java.nio.file.Path dir = java.nio.file.Path.of(System.getProperty("user.dir")).resolve("../../.local/sample-tickets").normalize();
         java.nio.file.Files.createDirectories(dir);

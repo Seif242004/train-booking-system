@@ -9,9 +9,14 @@ import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+/**
+ * All SQL of the table {@code ticket}. Plain JDBC through {@code JdbcClient}; every value is a bound parameter. The transactions are not
+ * opened here but in {@code TicketService} (the repository runs inside the transaction of its caller).
+ */
 @Repository
 public class TicketRepository {
 
+    // Every column except the BLOB: the PDF is large, so it is read only by findPdf.
     private static final String COLUMNS = "id, booking_id, reference, qr_token, status, created_at, invalidated_at";
 
     private final JdbcClient jdbc;
@@ -20,29 +25,38 @@ public class TicketRepository {
         this.jdbc = jdbc;
     }
 
+    // Plain read of one ticket by the unique booking_id. No lock.
     public Optional<Ticket> findByBooking(long bookingId) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM ticket WHERE booking_id = :b").param("b", bookingId).query(TicketRepository::map).optional();
     }
 
+    // SELECT ... FOR UPDATE locks the row until the transaction ends. Used by invalidate, so two invalidations of the same ticket run one
+    // after
+    // the other and the second one sees INVALIDATED.
     public Optional<Ticket> findByBookingForUpdate(long bookingId) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM ticket WHERE booking_id = :b FOR UPDATE").param("b", bookingId).query(TicketRepository::map).optional();
     }
 
+    // Reads only the BLOB column as bytes.
     public Optional<byte[]> findPdf(long bookingId) {
         return jdbc.sql("SELECT pdf FROM ticket WHERE booking_id = :b").param("b", bookingId).query((rs, row) -> rs.getBytes("pdf")).optional();
     }
 
     /** The unique key on the booking makes two tickets for one booking impossible (ORA-00001). */
+    // INSERT with status VALID. The UNIQUE constraint uk_ticket_booking makes a second ticket for the booking impossible: Oracle answers
+    // ORA-00001, which Spring turns into DuplicateKeyException (TicketService handles it). Then the row is read back to get the id.
     public Ticket insert(long bookingId, String reference, String qrToken, byte[] pdf, OffsetDateTime now) {
         jdbc.sql("INSERT INTO ticket (booking_id, reference, qr_token, status, pdf, created_at) VALUES (:b, :ref, :token, 'VALID', :pdf, :now)")
                 .param("b", bookingId).param("ref", reference).param("token", qrToken).param("pdf", pdf).param("now", now).update();
         return findByBooking(bookingId).orElseThrow();
     }
 
+    // The WHERE status = 'VALID' keeps this idempotent and keeps the first invalidated_at: an already invalidated row matches nothing.
     public void invalidate(long id, OffsetDateTime now) {
         jdbc.sql("UPDATE ticket SET status = 'INVALIDATED', invalidated_at = :now WHERE id = :id AND status = 'VALID'").param("now", now).param("id", id).update();
     }
 
+    // Maps one result row to the record. TIMESTAMP WITH TIME ZONE columns are read as OffsetDateTime.
     private static Ticket map(ResultSet rs, int row) throws SQLException {
         return new Ticket(rs.getLong("id"), rs.getLong("booking_id"), rs.getString("reference"), rs.getString("qr_token"),
                 TicketStatus.valueOf(rs.getString("status")), rs.getObject("created_at", OffsetDateTime.class), rs.getObject("invalidated_at", OffsetDateTime.class));

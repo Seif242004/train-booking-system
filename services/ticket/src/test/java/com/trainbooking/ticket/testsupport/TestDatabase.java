@@ -13,6 +13,7 @@ import java.util.Map;
  */
 public final class TestDatabase {
 
+    // The values of the .env file of the service folder, read once. The environment variable wins over the file.
     private static final Map<String, String> DOT_ENV = readDotEnv();
 
     private TestDatabase() {
@@ -31,6 +32,7 @@ public final class TestDatabase {
         return setting("TICKET_TEST_DB_PASSWORD", "");
     }
 
+    // Order: environment variable, then the .env file, then the fallback.
     private static String setting(String name, String fallback) {
         String fromEnvironment = System.getenv(name);
         if (fromEnvironment != null && !fromEnvironment.isBlank()) {
@@ -40,6 +42,7 @@ public final class TestDatabase {
         return fromFile != null && !fromFile.isBlank() ? fromFile : fallback;
     }
 
+    // A tiny reader of KEY=value lines. It ignores comments (#) and never prints a value, so no secret reaches a log.
     private static Map<String, String> readDotEnv() {
         Map<String, String> values = new HashMap<>();
         Path file = Path.of(".env");

@@ -15,11 +15,16 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class QrTokens {
 
+    // URL-safe Base64 without padding: only letters, digits, "-" and "_", so the token has no characters that need escaping in a QR or a
+    // URL.
+    // The only dot characters in a token are the two separators, which verify() relies on.
     private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
 
     private final byte[] key;
+    // A cryptographically strong random source for the nonce.
     private final SecureRandom random = new SecureRandom();
 
+    // The key must have at least 16 characters, otherwise the service refuses to start (a short key is easy to guess).
     public QrTokens(String signingKey) {
         if (signingKey == null || signingKey.length() < 16) {
             throw new IllegalStateException("TICKET_SIGNING_KEY must be set (at least 16 characters): it signs the QR codes.");
@@ -27,6 +32,8 @@ public class QrTokens {
         this.key = signingKey.getBytes(StandardCharsets.UTF_8);
     }
 
+    // A new token for a reference: reference + "." + 12 random bytes (the nonce) + "." + HMAC. The nonce makes the token different on each
+    // call, so the token cannot be guessed from the reference, which is printed on the ticket.
     public String issue(String reference) {
         byte[] nonce = new byte[12];
         random.nextBytes(nonce);
@@ -35,6 +42,9 @@ public class QrTokens {
     }
 
     /** @return the reference in the token if the signature is genuine, empty for anything else */
+    // Cuts the token at the first and the last dot, recomputes the HMAC of "reference.nonce" and compares. This service itself does not
+    // call
+    // verify yet (a scanner would); the tests do. A reference never contains a dot (references look like TB-ABC234).
     public Optional<String> verify(String token) {
         if (token == null) {
             return Optional.empty();
@@ -50,6 +60,7 @@ public class QrTokens {
         return genuine ? Optional.of(token.substring(0, first)) : Optional.empty();
     }
 
+    // HMAC-SHA256 (a hash that needs the secret key) of the text, Base64 encoded. Without the key nobody can produce a matching signature.
     private String sign(String payload) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");

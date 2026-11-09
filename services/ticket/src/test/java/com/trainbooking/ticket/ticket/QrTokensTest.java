@@ -13,11 +13,14 @@ import java.io.ByteArrayInputStream;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
+/** The signed QR token: genuine tokens verify, anything changed or made up does not, and the key is checked at start-up. */
 class QrTokensTest {
 
     private final QrTokens tokens = new QrTokens("a-long-enough-signing-key");
 
+    // {@code @Test} marks a JUnit 5 test method.
     @Test
+    // issue then verify gives back the reference.
     void aGenuineToken_givesBackItsReference() {
         String token = tokens.issue("TB-ABC234");
 
@@ -26,11 +29,13 @@ class QrTokensTest {
     }
 
     @Test
+    // The random nonce makes two tokens of one reference different.
     void everyTokenIsDifferent_evenForTheSameReference() {
         assertThat(tokens.issue("TB-ABC234")).isNotEqualTo(tokens.issue("TB-ABC234"));
     }
 
     @Test
+    // A forged token must fail: another reference with the old signature, a changed signature, a missing signature, or another key.
     void aChangedReference_aChangedSignature_orAnotherKey_isNotGenuine() {
         String token = tokens.issue("TB-ABC234");
         String[] parts = token.split("\\.");
@@ -42,6 +47,7 @@ class QrTokensTest {
     }
 
     @Test
+    // Null, empty, text without dots, one dot only, and an empty reference never verify and never throw.
     void garbage_isNotGenuine() {
         assertThat(tokens.verify(null)).isEmpty();
         assertThat(tokens.verify("")).isEmpty();
@@ -51,12 +57,14 @@ class QrTokensTest {
     }
 
     @Test
+    // The service must refuse to start without a signing key of 16 characters or more.
     void aMissingOrShortKey_stopsTheService() {
         assertThatThrownBy(() -> new QrTokens(null)).isInstanceOf(IllegalStateException.class).hasMessageContaining("TICKET_SIGNING_KEY");
         assertThatThrownBy(() -> new QrTokens("short")).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
+    // The token fits in a QR code and a reader returns exactly the same text.
     void theQrCode_decodesBackToTheToken() throws Exception {
         String token = tokens.issue("TB-ABC234");
 

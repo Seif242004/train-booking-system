@@ -31,7 +31,11 @@ class QrImagesTest {
         return new QRCodeReader().decode(new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(image)))).getText();
     }
 
+    // {@code @Test} marks a JUnit 5 test method: it runs on its own, and it passes when no exception or failed assertion happens.
+    // AssertJ (assertThat) gives readable assertions.
     @Test
+    // Draws the QR at the page size and the print size, reads it back with the ZXing reader and expects the same token. The image is square
+    // and not larger than asked.
     void theImageDecodesToTheToken_inBothSizes() throws Exception {
         for (int size : new int[] {QrImages.PAGE_SIZE, QrImages.PRINT_SIZE}) {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(QrImages.png(TOKEN, size)));
@@ -42,6 +46,9 @@ class QrImagesTest {
     }
 
     @Test
+    // Checks the look rules: only pure black and white pixels, a white border of at least 4 modules, and modules of a whole number of
+    // pixels
+    // (measured on the finder pattern, the big square in a corner, which is 7 modules wide).
     void darkModulesOnWhite_withAQuietZoneOfAtLeastFourModules_andWholePixelModules() throws Exception {
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(QrImages.png(TOKEN, QrImages.PAGE_SIZE)));
         int side = image.getWidth();
@@ -71,6 +78,8 @@ class QrImagesTest {
     }
 
     @Test
+    // Opens the PDF, takes the one image of the page (the QR), rebuilds the picture from its raw samples and decodes it: the code in the
+    // printed ticket is the token that was given to the renderer. A null logo is used so the QR is the only image.
     void theQrCodeInThePdf_decodesToTheSameToken() throws Exception {
         byte[] pdf = new TicketPdfRenderer(ZoneId.of("Africa/Cairo"), null).render(DatabaseTest.ticketRequest("TB-ABC234"), TOKEN);
         PdfReader reader = new PdfReader(pdf);
@@ -83,7 +92,10 @@ class QrImagesTest {
         }
     }
 
-    /** Rebuilds the picture from the image object of the PDF: raw samples: 1 bit, or 8 bits grey, palette or RGB (what the library makes of the PNG). */
+    /**
+     * Rebuilds the picture from the image object of the PDF: raw samples: 1 bit, or 8 bits grey, palette or RGB (what the library makes
+     * of the PNG).
+     */
     private static BufferedImage imageOf(PRStream stream) throws Exception {
         byte[] data = PdfReader.getStreamBytes(stream);
         int width = ((PdfNumber) stream.get(PdfName.WIDTH)).intValue();

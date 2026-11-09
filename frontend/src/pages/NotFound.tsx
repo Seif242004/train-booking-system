@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { EmptyState } from '../components/EmptyState';
 
 /** Any address the app does not know: says so plainly and offers the two places most people want. */
+// Route "*": the fallback of the router. useLocation gives the unknown address to show.
 export function NotFound() {
   const { pathname } = useLocation();
   return (

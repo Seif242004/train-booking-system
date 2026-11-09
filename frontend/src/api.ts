@@ -1,12 +1,17 @@
 import { getFreshToken } from './auth/keycloak';
 import { config } from './config';
 
+/**
+ * What every Gateway call returns. The helpers below never throw for HTTP errors: pages look at `status` and `body`
+ * (and use readError for the shared error shape), which keeps error handling in one style.
+ */
 export interface GatewayResult {
   /** HTTP status, or 0 when the Gateway could not be reached at all. */
   status: number;
   body: unknown;
 }
 
+// Optional settings of one call (see gatewayRequest).
 interface RequestOptions {
   /** JSON body for POST and PUT. */
   body?: unknown;
@@ -18,6 +23,9 @@ interface RequestOptions {
  * Calls the API Gateway. The browser only ever talks to the Gateway for application data.
  * A network failure becomes status 0 with an error body instead of an exception.
  */
+// Steps: (1) get a fresh Keycloak token (refreshes it when it is about to expire), (2) set Authorization and Content-Type,
+// (3) fetch, (4) read the text and try JSON.parse. A body that is not JSON (for example an empty 204) stays text or null.
+// getFreshToken may throw when the session is over; that case is announced to the UI by keycloak.ts (session-ended panel).
 export async function gatewayRequest(method: string, path: string, { body, withToken = true }: RequestOptions = {}): Promise<GatewayResult> {
   const headers: Record<string, string> = {};
   if (withToken) headers.Authorization = `Bearer ${await getFreshToken()}`;
@@ -53,10 +61,12 @@ export async function gatewayDownload(path: string): Promise<{ ok: true; blob: B
   }
 }
 
+/** Shortcut for GET calls. */
 export function gatewayGet(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<GatewayResult> {
   return gatewayRequest('GET', path, options);
 }
 
+// One field-level problem inside an error answer (for example { field: "name", message: "is required" }).
 export interface ApiErrorDetail {
   field: string;
   message: string;

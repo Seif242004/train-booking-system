@@ -1,6 +1,7 @@
 import { useAuth } from '../auth/AuthContext';
 
 /** Shown when the session cannot be renewed. The Sign in button returns to this same page. */
+// role="alertdialog" and aria-modal make screen readers treat this as a blocking message. autoFocus puts the focus on the Sign in button.
 export function SessionEnded() {
   const { sessionEnded, login } = useAuth();
   if (!sessionEnded) return null;

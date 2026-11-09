@@ -1,4 +1,5 @@
 /** Money is always shown the same way: the currency, then the amount with two decimals ("EGP 230.00"). */
+// Pure helpers (no React) to format values for the screen.
 export function money(amount: number, currency = 'EGP'): string {
   return `${currency} ${amount.toFixed(2)}`;
 }

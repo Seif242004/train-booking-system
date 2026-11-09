@@ -20,6 +20,7 @@ const SHOW_MS = 6000;
  * Short messages for finished actions. They sit in a polite live region, so a screen reader announces them without moving the focus, they
  * never take the focus themselves, and each has a close button that can be reached with the keyboard. They go away by themselves.
  */
+// Keeps at most the 3 newest messages (slice(-2) plus the new one). Each toast removes itself after SHOW_MS. Pages get `show` through useToast().
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const next = useRef(1);

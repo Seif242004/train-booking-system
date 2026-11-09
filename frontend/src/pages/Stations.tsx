@@ -21,6 +21,10 @@ interface StationForm {
 const EMPTY_FORM: StationForm = { code: '', name: '', city: '' };
 
 /** Admin page for stations (Flow 7): list, add, edit and delete, all through the API Gateway. */
+// Route /admin/stations (ADMIN). Endpoints: GET/POST /admin/stations, PUT/DELETE /admin/stations/{id}. The same pattern is used by the other admin
+// CRUD pages: one list in state (null while loading), one form object, an `editingId` (null = adding), field errors keyed by field name from the
+// server's { error: { code, message, details } } answer, a delete that first asks for confirmation, and a slide-over panel (SlideOver) for the form.
+// The browser checks nothing important: the server validates and the page only shows its messages.
 export function Stations() {
   const [stations, setStations] = useState<Station[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -73,6 +77,8 @@ export function Stations() {
     setNotice(null);
   }
 
+  // After a successful save the list is reloaded BEFORE the success message is set, so the message never shows next to an old table.
+  // station_code_taken (409) is shown under the code field.
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);

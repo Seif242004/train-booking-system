@@ -1,6 +1,8 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
 /** The last safety net: a page that crashes while drawing shows this instead of a blank screen. A plain link reloads the app from the home page. */
+// Error boundaries must be class components: React has no hook for them. getDerivedStateFromError switches the state so the fallback is
+// drawn; componentDidCatch only logs (to the browser console). It catches errors in rendering, not in event handlers or fetch calls.
 export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 

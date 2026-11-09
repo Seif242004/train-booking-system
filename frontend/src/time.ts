@@ -2,6 +2,8 @@
 // railway's own time zone. They are shown exactly as they are: no conversion to the browser's time zone.
 
 /** "2026-11-02T08:00:00" becomes "08:00". */
+// All helpers work on the text itself (slice) or on UTC dates built from the text, so the browser's own time zone can never shift a
+// value. That is why a train shown as 08:00 is 08:00 for every user.
 export function clock(dateTime: string | null): string {
   return dateTime ? dateTime.slice(11, 16) : '';
 }
@@ -36,6 +38,7 @@ export function todayLocal(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+// Formatter built once at load time. timeZone UTC matches the way the dates above are created ("T00:00:00Z").
 const dayFormat = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 /** "2026-11-04" becomes "Wed 4 Nov". */

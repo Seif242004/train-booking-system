@@ -1,4 +1,5 @@
 /* Admin area: dark sidebar, thin top line, page header, tables, slide-over panels, overview cards, support and trip cancellation. */
+/* ---- Admin layout: dark sidebar on the left (a scrolling bar on phones), main column with the top bar and the page. ---- */
 .admin-shell {
   display: flex;
   flex-wrap: wrap;
@@ -82,6 +83,7 @@
   padding: 32px;
 }
 
+/* ---- Page heading of an admin page. ---- */
 .admin-page-head {
   margin-bottom: 20px;
 }
@@ -122,6 +124,7 @@
 }
 
 /* ---- Tables: they scroll inside their own box ------------------------------------------------------------------------------------ */
+/* ---- Admin tables, trip times and the fare grid. ---- */
 .table-wrap .table {
   min-width: 560px;
 }
@@ -181,6 +184,7 @@
 }
 
 /* ---- Slide-over panel -------------------------------------------------------------------------------------------------------------- */
+/* ---- Slide-over panel (SlideOver component): backdrop, panel from the right, its head and body, and the two entrance animations. ---- */
 .slide-backdrop {
   position: fixed;
   inset: 0;
@@ -270,6 +274,7 @@
 }
 
 /* ---- Route stop editor ---------------------------------------------------------------------------------------------------------- */
+/* ---- Route stop editor and the generated seat grid of a coach. ---- */
 .stops {
   margin: 0 0 16px;
   padding: 16px;
@@ -340,6 +345,7 @@
 }
 
 /* ---- Overview ------------------------------------------------------------------------------------------------------------------- */
+/* ---- Cards on the admin overview. ---- */
 .admin-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -407,6 +413,7 @@
 }
 
 /* ---- Support ------------------------------------------------------------------------------------------------------------------------ */
+/* ---- Support booking search, booking details and the whole-trip cancellation block. ---- */
 .filters-card {
   padding: 20px 24px 12px;
   margin-bottom: 20px;

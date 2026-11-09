@@ -2,6 +2,7 @@
    switched off globally under prefers-reduced-motion (base.css). */
 
 /* ---- The whole train as small cars ---- */
+/* ---- Train strip: the coaches as small cars, front first. ---- */
 .train-strip {
   margin-top: 20px;
   overflow-x: auto;
@@ -92,6 +93,7 @@
 }
 
 /* ---- The coach drawn as a car ---- */
+/* ---- Coach plan: car outline, rows of seats around the aisle and the window marks. ---- */
 .car-wrap {
   max-width: 420px;
   margin: 20px auto 0;
@@ -167,6 +169,7 @@
   justify-self: center;
 }
 
+/* ---- Seat button and seat shape. Each state (available, mine, held, booked) has its own shape mark as well as its own colour. ---- */
 .plan-seat {
   position: relative;
   padding: 0;
@@ -323,6 +326,7 @@
 }
 
 /* Tooltip: seat number, position, class, price. Shown on hover and keyboard focus. */
+/* ---- Tooltip with the seat details, shown on hover and focus. ---- */
 .seat-tip {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -357,6 +361,7 @@
 }
 
 /* ---- Legend ---- */
+/* ---- Legend and standing zone. ---- */
 .plan-legend {
   display: flex;
   flex-wrap: wrap;

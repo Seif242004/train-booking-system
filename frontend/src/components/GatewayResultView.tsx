@@ -1,6 +1,7 @@
 import type { GatewayResult } from '../api';
 
 /** Shows a Gateway response: the HTTP status and the JSON body. */
+// aria-live="polite" makes a screen reader announce the new status when a result replaces the placeholder.
 export function GatewayResultView({ result }: { result: GatewayResult | null }) {
   if (!result) return <p className="muted">Waiting for the Gateway…</p>;
   const kind = result.status >= 200 && result.status < 300 ? 'ok' : 'fail';

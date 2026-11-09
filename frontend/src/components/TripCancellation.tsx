@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { gatewayGet, gatewayRequest, readError } from '../api';
 
+// The answer of GET /admin/trips/{id}/cancellation (Booking & Seat): how far a whole-trip cancellation (Flow 8) has progressed.
 interface TripCancellationStatus {
   tripId: number;
   /** Booking & Seat's copy of the trip: OPEN, CANCELLING ("CANCELLED - bookings pending") or CANCELLED. */
@@ -26,6 +27,8 @@ interface Props {
  * "CANCELLED - bookings pending" with what is left, and the same button repeats the cancellation (a retry is safe: bookings that are already
  * cancelled are skipped).
  */
+// Endpoints (ADMIN only, through the Gateway): GET /admin/trips/{id}/cancellation shows the progress, POST /admin/trips/{id}/cancel {reason}
+// starts or repeats it. The reason is required and shown to the passengers. The status is loaded again whenever the trip's status changes.
 export function TripCancellation({ tripId, tripStatus, onChanged }: Props) {
   const [status, setStatus] = useState<TripCancellationStatus | null>(null);
   const [asking, setAsking] = useState(false);

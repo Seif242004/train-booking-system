@@ -1,6 +1,8 @@
 /* Shared components: buttons, fields, chips, status chips, cards, notices, tables. Page-specific layout lives in styles/pages/. */
 
 /* ---- Buttons -------------------------------------------------------------------------------------------------------------------- */
+/* ---- Buttons: .button is the base (outline), .button-primary the red main action of a screen, -danger for destructive actions,
+   -ghost and -on-dark for quiet and dark-background uses. Every size meets the 44px touch target (--touch). ---- */
 .button {
   display: inline-flex;
   align-items: center;
@@ -139,6 +141,7 @@ a.button {
 }
 
 /* ---- Fields --------------------------------------------------------------------------------------------------------------------- */
+/* ---- Form controls: a .field is a label, an input and a .field-error line under it. Invalid fields get aria-invalid from the page and a red border here. ---- */
 .field {
   display: flex;
   flex-direction: column;
@@ -235,6 +238,7 @@ input[type='radio'] {
   max-width: 240px;
 }
 
+/* ---- Filter bars above admin lists. ---- */
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -270,6 +274,7 @@ input[type='radio'] {
 }
 
 /* A chip you press (day choice, class tab): 44px tall, red when selected. */
+/* ---- Chips: small pill buttons (day, class, coach choices). aria-pressed="true" marks the chosen one, so the state is also in the markup. ---- */
 button.chip {
   min-height: var(--touch);
   padding: 0 18px;
@@ -337,6 +342,7 @@ button.chip[aria-selected='true'] {
 }
 
 /* ---- Cards ---------------------------------------------------------------------------------------------------------------------- */
+/* ---- Surfaces: cards, forms and panels share one look (white, rounded, thin border, rest shadow). ---- */
 .card,
 .form,
 .panel,
@@ -381,6 +387,7 @@ button.chip[aria-selected='true'] {
 }
 
 /* ---- Notices (always text, never colour alone) ---------------------------------------------------------------------------------- */
+/* ---- Notices: inline messages. -error and -ok change the tint; the text always says what happened, colour only supports it. ---- */
 .notice {
   margin: 0 0 12px;
   padding: 14px 18px;
@@ -413,6 +420,7 @@ button.chip[aria-selected='true'] {
 }
 
 /* ---- Tables: they scroll inside their own box, never the page ------------------------------------------------------------------ */
+/* ---- Tables: .table-wrap scrolls sideways on narrow screens so the page itself never scrolls horizontally. ---- */
 .table-wrap {
   position: relative; /* the containing block of the visually hidden header texts, so they are clipped with the table */
   max-width: 100%;
@@ -478,6 +486,7 @@ button.chip[aria-selected='true'] {
 }
 
 /* A button that looks like a link ("Change search", "Create an account"). */
+/* A button that looks like a link (for actions that do not navigate). */
 .link-button {
   display: inline-flex;
   align-items: center;
@@ -500,6 +509,7 @@ button.chip[aria-selected='true'] {
 
 /* ---- Empty, loading and not-found states ------------------------------------------------------------------------------------------ */
 /* An empty list says what is missing and points to the next action. */
+/* ---- Empty and status pages: empty lists, loading text, and the 404 page. ---- */
 .empty-state {
   margin-top: 16px;
   padding: 32px;

@@ -1,4 +1,5 @@
 /* App shell: the red header bar, the dark footer, and the page frame. */
+/* ---- Page shell: the app column (header, main, footer), the red header with the logo and main menu, and the dark footer. ---- */
 .app {
   display: flex;
   flex-direction: column;
@@ -108,6 +109,7 @@
 }
 
 /* Footer: dark, wordmark, links, the Stripe line. */
+/* ---- Footer. ---- */
 .site-footer {
   flex-shrink: 0;
   color: #bdb6cc;

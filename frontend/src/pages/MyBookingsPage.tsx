@@ -18,6 +18,7 @@ interface MyBooking {
 
 type Tab = 'upcoming' | 'past';
 
+// Words shown for each status. ABANDONED (the user released every seat) is shown as "Released".
 const STATUS_LABEL: Record<BookingStatus, string> = {
   PENDING_PAYMENT: 'Waiting for payment',
   CONFIRMED: 'Confirmed',
@@ -36,6 +37,7 @@ const REFUND_LABEL: Record<RefundStatus, string> = {
   REFUNDED_AT_COUNTER: 'Refunded at the support desk',
 };
 
+// Tone class per refund state. The text is always shown too, so colour is never the only signal.
 const REFUND_TONE: Record<RefundStatus, string> = { NONE: '', REFUND_PENDING: 'is-warn', REFUNDED: 'is-ok', REFUND_FAILED: 'is-danger', NOT_APPLICABLE: '', MANUAL_REFUND_DUE: 'is-warn', REFUNDED_AT_COUNTER: 'is-ok' };
 
 /** The reasons a cancellation can be refused, in words for the passenger. */
@@ -71,6 +73,9 @@ function departureOf(booking: Booking): number {
  * "Continue to payment". "Upcoming" holds the running holds and the confirmed bookings whose train has not left; everything else is
  * "Past and cancelled".
  */
+// Route /bookings (signed-in). Endpoints: GET /bookings (the caller's own bookings, each with the server's `cancellable` flag),
+// POST /bookings/{id}/cancel (instant, owner only, full refund; the server re-checks the cutoff: the train has not left the boarding stop)
+// and POST /bookings/{id}/resend-ticket. After every action the list is loaded again, so the screen shows the server's truth.
 export function MyBookingsPage() {
   const [items, setItems] = useState<MyBooking[] | null>(null);
   // When the list arrived: with the server time inside each booking it corrects a browser clock that is off (as the payment page does).
@@ -152,6 +157,7 @@ export function MyBookingsPage() {
     );
   }
 
+  // "Upcoming" = a hold whose time has not run out (counted with the server clock, like the payment page) or a confirmed booking whose train has not left.
   const now = Date.now();
   const isRunningHold = (booking: Booking) => booking.status === 'PENDING_PAYMENT' && remainingMs(startCountdown(booking.expiresAt, booking.serverTime, loadedAt), now) > 0;
   const isUpcoming = ({ booking }: MyBooking) => isRunningHold(booking) || (booking.status === 'CONFIRMED' && departureOf(booking) > now);

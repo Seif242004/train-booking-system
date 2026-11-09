@@ -19,6 +19,9 @@ interface CoachForm {
 const EMPTY_FORM: CoachForm = { code: '', class: 'SECOND', position: '', standingCapacity: '0' };
 
 /** One train with its coaches (in train order), their standing capacity, and the seats of the selected coach. */
+// Route /admin/trains/:id (ADMIN). Endpoints: GET /admin/trains/{id}, GET/POST /admin/trains/{id}/coaches, PUT/DELETE /admin/coaches/{id}. The seats of
+// the selected coach are handled by CoachSeats. A coach has a unique position in its train, a class and a standing capacity. Changes to coaches of a
+// train that has trips are pushed by the server to Booking & Seat and refused (409) when they would break a hold or a booking.
 export function TrainDetail() {
   const { id } = useParams();
   const trainId = Number(id);

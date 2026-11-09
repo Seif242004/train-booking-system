@@ -1,4 +1,6 @@
 /* Live trips board (admin support). Tokens only; motion only where the visitor has not asked for less. */
+/* ---- Admin support: view tabs, the live trips board (tiles, filters, table, occupancy bars) and its slide-over detail. The pulse and the
+   highlight of changed rows are switched off for reduced motion. ---- */
 .support-tabs {
   margin-bottom: 16px;
 }
@@ -331,6 +333,7 @@ button.plan-seat-readonly {
   border-radius: 12px;
 }
 
+/* ---- Booking behind a taken seat, the issue-booking form, and the trip cancel block. ---- */
 .board-booking {
   margin: 16px 0;
 }

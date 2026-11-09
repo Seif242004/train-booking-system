@@ -10,11 +10,16 @@ export interface Countdown {
   skewMs: number;
 }
 
+/**
+ * Call once when an answer with `expiresAt` and `serverTime` arrives. `receivedAtMs` is the browser time at that moment
+ * (Date.now()). The skew assumes the network delay is small compared to the 5-minute hold.
+ */
 export function startCountdown(expiresAt: string, serverTime: string, receivedAtMs: number): Countdown {
   return { expiresAtMs: Date.parse(expiresAt), skewMs: receivedAtMs - Date.parse(serverTime) };
 }
 
 /** Milliseconds left, never below 0. */
+// The clock value is corrected by the skew so the browser clock does not matter; max(0, ...) stops negative numbers.
 export function remainingMs(countdown: Countdown, nowMs: number): number {
   return Math.max(0, countdown.expiresAtMs - (nowMs - countdown.skewMs));
 }

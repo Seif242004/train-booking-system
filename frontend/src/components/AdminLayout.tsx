@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { BrandLogo } from './BrandLogo';
 
+// The sidebar entries. `end: true` makes NavLink highlight the entry only on the exact address (otherwise "/admin" would match every admin page).
 const SECTIONS = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/stations', label: 'Stations', end: false },
@@ -15,6 +16,8 @@ const SECTIONS = [
  * Every admin page: a dark sidebar on the left (a scrolling bar on phones) with the logo home and a way back to the site, a breadcrumb
  * line on top, and the page.
  */
+// Route: the parent of every /admin/** page (see App.tsx, inside RequireAdmin). <Outlet /> below is where the child page is drawn.
+// The breadcrumb is derived from the address: the section whose path is a prefix, and "Details" or "Fares" for deeper pages.
 export function AdminLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();

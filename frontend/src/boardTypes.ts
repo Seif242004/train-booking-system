@@ -1,6 +1,7 @@
 import type { CoachClass, TripStop } from './adminTypes';
 
 /** Where a trip is in its life, worked out by the server. FULL is a flag on an upcoming trip, not a state of its own. */
+// Types of the admin "trips board" (live occupancy of trips). The Gateway composes this answer from Train & Schedule and Booking & Seat.
 export type TripState = 'UPCOMING' | 'DEPARTED' | 'ARRIVED' | 'CANCELLED';
 
 /** capacity = confirmed + held + free. */
@@ -11,6 +12,7 @@ export interface SeatCounts {
   free: number;
 }
 
+/** One row of the board: a trip with its state and the seat counts per class. `tripStatus` is Booking's own copy of the status. */
 export interface BoardTrip {
   tripId: number;
   trainNumber: string;
@@ -48,6 +50,7 @@ export interface BoardResponse {
   trips: BoardTrip[];
 }
 
+// FREE can be taken, HELD is inside the 5-minute hold of a passenger, TAKEN is confirmed (the booking reference is shown to the admin).
 export type BoardSeatState = 'FREE' | 'HELD' | 'TAKEN';
 
 export interface BoardDetailSeat {

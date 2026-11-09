@@ -8,6 +8,9 @@ import { ListSkeleton } from '../components/ListSkeleton';
 import { EmptyState } from '../components/EmptyState';
 
 /** Admin page for routes (FR-A8): a name and an ordered list of stations. Fares are set on their own page. */
+// Route /admin/routes (ADMIN). Endpoints: GET /admin/routes, GET /admin/stations (for the stop picker), POST /admin/routes, PUT /admin/routes/{id}
+// (with ?clearFares=true when the admin agreed to drop the fares because the stops changed) and DELETE /admin/routes/{id}. A route is a name plus
+// station ids in travel order; segment k is the leg from stop k to stop k+1, which is why changing the stops invalidates the fares.
 export function RouteList() {
   const [routes, setRoutes] = useState<Route[] | null>(null);
   const [stations, setStations] = useState<Station[] | null>(null);
@@ -81,6 +84,7 @@ export function RouteList() {
   }
 
   /** Any change to the stops makes the last error and the clear-fares prompt out of date. */
+  // Any edit of the stop list clears old problems and any pending "clear the fares?" question.
   function stopsChanged(next: number[]) {
     setStopIds(next);
     setStopProblems([]);
@@ -105,6 +109,7 @@ export function RouteList() {
     stopsChanged(stopIds.filter((_, i) => i !== index));
   }
 
+  // save(false) is the normal save. If the server answers 409 route_has_fares, the page asks the admin and calls save(true) after a yes.
   async function save(clearFares: boolean) {
     setSaving(true);
     setNameError(null);

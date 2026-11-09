@@ -28,6 +28,10 @@ function timesLine(trip: Trip): string {
 }
 
 /** Admin page for trips (FR-A8): a train on a route, a departure date and the time at every stop. */
+// Route /admin/trips (ADMIN). Endpoints: GET /admin/trips, /admin/trains, /admin/routes (to fill the pickers), POST /admin/trips, PUT/DELETE
+// /admin/trips/{id}. Times are typed as HH:mm per stop and sent as they are; the server turns them into date-times (a time earlier than the one before
+// it means the next day). Saving also pushes the trip snapshot to Booking & Seat inside the same request, so a 502/503/409 means nothing was saved.
+// Whole-trip cancellation is a separate action (TripCancellation).
 export function Trips() {
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [trains, setTrains] = useState<Train[]>([]);
@@ -123,6 +127,7 @@ export function Trips() {
     setNotice(null);
   }
 
+  // The first stop has no arrival time and the last has no departure time. 409 route_fares_incomplete lists the missing fares (missingFares).
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);

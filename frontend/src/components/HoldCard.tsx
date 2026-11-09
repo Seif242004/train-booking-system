@@ -16,6 +16,7 @@ interface Props {
 }
 
 /** The countdown of the hold: dark card, big time, and a bar that turns coral in the last minute. */
+// Shown by the seat map page and the payment page. `left` comes from countdown.ts; the bar width is the share of the 5 minutes still left.
 export function HoldCard({ left, label, bar = false, timeIsUp, note }: Props) {
   const ms = left ?? HOLD_MS;
   const percent = Math.max(0, Math.min(100, Math.round((ms / HOLD_MS) * 100)));

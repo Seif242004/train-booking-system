@@ -1,6 +1,8 @@
 import { matchPath } from 'react-router-dom';
 import { lastSearchQuery } from './recentSearches';
 
+// Metadata for each route that the shell (Layout and RouteEffects) needs: the page title and the visible "Back" link.
+// The page components themselves are mapped in App.tsx; this table only holds the titles and back targets.
 export interface Back {
   to: string;
   label: string;
@@ -17,6 +19,7 @@ interface RouteInfo {
 const home = (): Back => ({ to: '/', label: 'Back to home' });
 
 // The first match wins. Keep in step with App.tsx and docs/design/FLOW.md.
+// Order matters: find() returns the first pattern that matches, so more specific patterns must come before general ones.
 const ROUTES: RouteInfo[] = [
   { pattern: '/', title: 'Train tickets in Egypt' },
   { pattern: '/search', title: 'Search trains', back: home },
@@ -40,14 +43,17 @@ const ROUTES: RouteInfo[] = [
   { pattern: '/admin/support', title: 'Admin: support' },
 ];
 
+// matchPath comes from React Router. end: true means the whole path must match, not just the beginning.
 function find(pathname: string): RouteInfo | undefined {
   return ROUTES.find((r) => matchPath({ path: r.pattern, end: true }, pathname));
 }
 
+/** The title for the browser tab and the screen-reader announcement. Unknown paths get the 404 title. */
 export function titleFor(pathname: string): string {
   return find(pathname)?.title ?? 'Page not found';
 }
 
+/** The "Back" link of a page, or null when the page has none (the home page, admin pages and the payment page). */
 export function backFor(pathname: string): Back | null {
   return find(pathname)?.back?.() ?? null;
 }

@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { initKeycloak, keycloak, notifySessionEnded, onSessionEnded, userFromToken, type AuthUser } from './keycloak';
 
+// The value that useAuth() gives to every component: who is signed in and the actions login, register and logout.
+// Keycloak does the real work; this file only mirrors its state into React state so components re-render.
 interface AuthState {
   /** `loading` until Keycloak has answered the first session check. */
   status: 'loading' | 'ready';
@@ -15,19 +17,28 @@ interface AuthState {
   hasRole: (role: string) => boolean;
 }
 
+// A React context lets any component read this value without passing props down. null = used outside the provider.
 const AuthContext = createContext<AuthState | null>(null);
 
 // Refresh in the background when less than this many seconds of the token are left. Access tokens live 5 minutes,
 // so this renews them about once every 4 minutes while the tab is open. (getFreshToken also refreshes before each call.)
+// Background refresh timing, see the comment above.
 const REFRESH_WHEN_SECONDS_LEFT = 60;
 const REFRESH_CHECK_EVERY_MS = 20_000;
 
+/**
+ * Holds the session state for the whole app. Two effects run here:
+ * (1) once at start: initKeycloak() checks silently for an existing session; `cancelled` stops state updates if the component was
+ * unmounted meanwhile (React StrictMode mounts twice in development). (2) while signed in: an interval renews the access token and
+ * is cleared when the user signs out or the component unmounts. If renewing fails, the "session ended" panel is shown.
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthState['status']>('loading');
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionEnded, setSessionEnded] = useState(false);
 
+  // Subscribe to the "session ended" signal that keycloak.ts raises when a token refresh fails. The returned function unsubscribes.
   useEffect(() => onSessionEnded(() => setSessionEnded(true)), []);
 
   useEffect(() => {
@@ -66,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(timer);
   }, [signedIn]);
 
+  // useMemo keeps the same object between renders unless one of the listed values changed, so consumers do not re-render needlessly.
   const value = useMemo<AuthState>(
     () => ({
       status,
@@ -85,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/** The hook components use to read the session. It throws a clear error if the provider is missing. */
 export function useAuth(): AuthState {
   const value = useContext(AuthContext);
   if (!value) throw new Error('useAuth must be used inside <AuthProvider>');

@@ -1,4 +1,5 @@
 /* Search: the form (shared with the landing card), the summary bar, the trip cards with their stop line and fare tiles. */
+/* ---- Search form (row of fields, swap button, quick dates) and the search page. ---- */
 .search-form .search-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr) minmax(0, 0.9fr) auto;
@@ -65,6 +66,7 @@
 }
 
 /* Summary bar under the header once a search has been made. */
+/* ---- Results bar and header. ---- */
 .results-bar {
   background: var(--white);
   border-bottom: 1px solid #e6e2ec;
@@ -133,6 +135,7 @@
   list-style: none;
 }
 
+/* ---- Trip card: times, stop line (dots and bars; stops outside the journey are dimmed with .is-off), fare tiles and the next-day suggestion. ---- */
 .trip-card {
   display: flex;
   flex-wrap: wrap;

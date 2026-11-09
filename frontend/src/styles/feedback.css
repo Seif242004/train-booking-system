@@ -1,4 +1,5 @@
 /* Toasts, offline bar, error states, tactile press (brief A7, A8). */
+/* ---- Toasts: short messages in a live region at the corner of the screen. ---- */
 .toast-region {
   position: fixed;
   bottom: 16px;
@@ -68,6 +69,7 @@
   }
 }
 
+/* ---- Offline bar, failed-load panel and the crash page. ---- */
 .offline-banner {
   padding: 6px var(--gutter);
   font-size: 14px;
@@ -104,6 +106,7 @@
 }
 
 /* ---- Delight, restrained (A8): a short route rise, tactile presses. All of it is off under prefers-reduced-motion (base.css). ---- */
+/* Page entrance: the wrapper in Layout is new for every address, so this short rise runs on each navigation (and is off for reduced motion, see base.css). */
 .route-in {
   animation: route-in 0.18s var(--ease-out) backwards;
 }

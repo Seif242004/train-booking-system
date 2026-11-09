@@ -22,6 +22,11 @@ const FOOTER_LINKS = [
   { to: '/contact', label: 'Contact' },
 ];
 
+/**
+ * The shell around every page (the parent route in App.tsx): skip link, header with the main menu and the sign-in buttons or the user menu,
+ * the hold banner, the page itself (<Outlet />), the "session ended" panel and the footer. Sign in and Create account call Keycloak through
+ * useAuth; this app has no login or registration form of its own.
+ */
 export function Layout() {
   const { status, authenticated, hasRole, login, register } = useAuth();
   const { pathname } = useLocation();

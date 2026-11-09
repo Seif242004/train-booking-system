@@ -9,6 +9,7 @@ export const keycloak = new Keycloak({
   clientId: config.keycloakClientId,
 });
 
+// The few fields of the access token that the UI shows. `sub` is the user id that every backend service uses too.
 export interface AuthUser {
   sub: string;
   name: string | null;
@@ -17,6 +18,7 @@ export interface AuthUser {
   roles: string[];
 }
 
+// Shape of the JWT payload we read. realm_access.roles holds the Keycloak realm roles (USER, ADMIN).
 interface AccessTokenClaims {
   sub?: string;
   name?: string;
@@ -41,6 +43,9 @@ export function userFromToken(): AuthUser | null {
 // keycloak.init() must run once. React StrictMode runs effects twice in development, so the promise is shared.
 let initPromise: Promise<boolean> | null = null;
 export function initKeycloak(): Promise<boolean> {
+  // "??=" assigns only when the variable is still null, so the second call returns the same promise instead of starting init again.
+  // check-sso never forces a login; it only finds out if a session exists. S256 is the PKCE challenge method. The login-status
+  // iframe is off because browsers block the third-party cookies it needs.
   initPromise ??= keycloak.init({
     // Look for an existing Keycloak session in a hidden iframe, so a page reload keeps the user signed in.
     onLoad: 'check-sso',
@@ -53,6 +58,7 @@ export function initKeycloak(): Promise<boolean> {
 
 // The session can no longer be refreshed (ended in Keycloak, or expired offline). The app shows a "Your session ended" panel instead of
 // redirecting at once, so nothing the user is reading disappears without an explanation.
+// A tiny publish/subscribe list. onSessionEnded adds a listener and returns a function to remove it; notifySessionEnded calls all.
 const sessionListeners = new Set<() => void>();
 export function onSessionEnded(listener: () => void): () => void {
   sessionListeners.add(listener);

@@ -17,6 +17,8 @@ const STATUSES: BookingStatus[] = ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 
  * a confirmed booking on the passenger's request with a reason (the same cancellation as the passenger's own, which records which admin did it).
  * "Failed refunds" lists the bookings whose refund needs a follow-up.
  */
+// Booking search view. Endpoints (ADMIN): GET /admin/bookings?ref=&email=&tripId=&status= (at most 100 rows), GET /admin/bookings/{id}, POST
+// /admin/bookings/{id}/cancel {reason}. The cancel button is shown only when the server says `cancellable`.
 function BookingSearch() {
   const [reference, setReference] = useState('');
   const [email, setEmail] = useState('');
@@ -186,6 +188,7 @@ function BookingSearch() {
  * The admin support area has two views under one heading: the live trips board (what is full, held or gone, right now) and the booking search
  * (the original support page, unchanged). The view is in the address (?view=bookings) so a refresh or Back keeps it.
  */
+// Route /admin/support (ADMIN). Two views in one page, chosen by ?view=: the live trips board (default) and the booking search.
 export function SupportPage() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'bookings' ? 'bookings' : 'board';

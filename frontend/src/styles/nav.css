@@ -1,4 +1,5 @@
 /* Navigation: header account area, user menu, back link, hold banner, session panel, admin sidebar extras (docs/design/FLOW.md). */
+/* Header refinements and the small-screen rules for the menu (this file loads after shell.css and overrides it where it must). */
 .site-header-inner {
   flex-wrap: nowrap;
 }
@@ -60,6 +61,7 @@
   border-radius: var(--r-pill);
 }
 
+/* ---- Avatar (initials) and the user menu opened from the header. ---- */
 .avatar {
   display: inline-flex;
   flex: none;
@@ -172,6 +174,7 @@
 }
 
 /* Back link */
+/* ---- The visible "Back" link of a page. ---- */
 .page-nav-wrap {
   padding-top: 12px;
 }
@@ -209,6 +212,7 @@
 }
 
 /* Hold banner */
+/* ---- Bar shown on every page while the user has a running hold. ---- */
 .hold-banner {
   display: flex;
   flex-wrap: wrap;
@@ -239,6 +243,7 @@
 }
 
 /* Session ended */
+/* ---- "Your session ended" panel: a backdrop that blocks the page and a centred dialog. ---- */
 .session-ended-backdrop {
   position: fixed;
   inset: 0;
@@ -274,6 +279,7 @@
   color: #fff;
 }
 
+/* ---- Admin breadcrumb line. ---- */
 .breadcrumb {
   display: flex;
   flex-wrap: wrap;

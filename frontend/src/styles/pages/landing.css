@@ -1,4 +1,5 @@
 /* Landing page ("/"): the hero photo with its slow drift, the search card that overlaps it, three steps, and the dark "what you get" section. */
+/* ---- Landing page: hero photo with a slow drift, the search card overlapping it, the three steps and the dark benefits band. ---- */
 .hero {
   position: relative;
   min-height: 560px;

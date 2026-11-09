@@ -14,6 +14,9 @@ function cellsFrom(fares: Fare[]): Cells {
 }
 
 /** Fares of one route: the price of each segment (the leg between two stops) for each class, in EGP (FR-A8, 9.2). */
+// Route /admin/routes/:id/fares (ADMIN). Endpoints: GET /admin/routes/{id}, GET /admin/routes/{id}/fares and PUT /admin/routes/{id}/fares. The price
+// of each segment and class is in EGP. The whole list is replaced in one request (all or nothing); an emptied box removes that fare. Trips need
+// COMPLETE fares before they can be created, and fares of a route with reservations are frozen by Booking & Seat.
 export function RouteFares() {
   const { id } = useParams();
   const routeId = Number(id);
@@ -56,6 +59,7 @@ export function RouteFares() {
   );
 
   /** The total for a class is shown only when every segment has a valid amount for it. */
+  // The journey price for a class is the sum of its segments (the same rule the server uses); null while a segment has no valid amount.
   function totalFor(coachClass: CoachClass): string | null {
     let total = 0;
     for (const segment of segments) {

@@ -1,5 +1,7 @@
 import type { CoachClass } from './adminTypes';
 
+// Types for bookings as the Gateway returns them. The lifecycle: PENDING_PAYMENT (hold) -> CONFIRMED -> CANCELLED, or the hold ends as
+// EXPIRED (time ran out) or ABANDONED (the user released everything). refundStatus is a separate field, mirrored from Payment.
 export type BookingStatus = 'PENDING_PAYMENT' | 'CONFIRMED' | 'EXPIRED' | 'CANCELLED' | 'ABANDONED';
 export type RefundStatus = 'NONE' | 'REFUND_PENDING' | 'REFUNDED' | 'REFUND_FAILED' | 'NOT_APPLICABLE' | 'MANUAL_REFUND_DUE' | 'REFUNDED_AT_COUNTER';
 
@@ -40,6 +42,7 @@ export interface AdminBooking {
   issue: IssueAudit | null;
 }
 
+/** One line of a booking: a numbered seat, or `qty` standing places in a coach. `price` is the server's price for the line. */
 export interface BookingItem {
   type: 'SEAT' | 'STANDING';
   seatId?: number;

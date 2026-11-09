@@ -23,6 +23,15 @@ import { TrainDetail } from './pages/TrainDetail';
 import { Trips } from './pages/Trips';
 import { Trains } from './pages/Trains';
 
+/**
+ * The root component: provider stack plus the route table of the whole web app.
+ * Nesting order matters: ErrorBoundary (last-resort crash screen) wraps ToastProvider (small messages), which wraps
+ * AuthProvider (Keycloak session state), which wraps BrowserRouter (URL routing); each inner part may use the outer ones.
+ * Route groups: public pages (landing and information pages), then RequireAuth (any signed-in user), then RequireAdmin
+ * inside it (role ADMIN), whose pages are drawn inside AdminLayout. Layout is the shared header and footer.
+ * The "*" route at the end is the 404 page. The guards only decide what is shown; the Gateway re-checks the token and the
+ * role on every request.
+ */
 export function App() {
   return (
     <ErrorBoundary>

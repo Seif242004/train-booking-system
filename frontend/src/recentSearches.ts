@@ -8,9 +8,11 @@ export interface RecentSearch {
   date: string;
 }
 
+// localStorage key. It is a per-browser convenience only; nothing here is sent to a server.
 const KEY = 'tb.recentSearches';
 const MAX = 3;
 
+/** Reads the saved searches. Anything unexpected in storage (wrong shape, broken JSON) is ignored and gives an empty list. */
 export function loadRecentSearches(): RecentSearch[] {
   try {
     const parsed: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');

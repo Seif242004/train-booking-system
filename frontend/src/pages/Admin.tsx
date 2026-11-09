@@ -13,6 +13,7 @@ const SECTIONS = [
 ];
 
 // The overview of the admin area (Flow 7). It also proves that the Gateway accepts this admin (the check at the bottom).
+// Route /admin (ADMIN role, inside AdminLayout). The effect calls GET /admin/ping once; `cancelled` prevents a state update after the page was left.
 export function Admin() {
   const [result, setResult] = useState<GatewayResult | null>(null);
 

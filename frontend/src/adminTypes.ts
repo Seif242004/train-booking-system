@@ -1,11 +1,14 @@
 // Shapes returned by the admin API of Train & Schedule (SRS section 8 and 9.2). Field names are the JSON names.
 
+// Only TypeScript types and constants live in this file: it holds no logic. Types vanish when the code is compiled; they only let the compiler
+// catch a wrong field name. Field names equal the JSON names sent by the Gateway, so the API answers can be used without conversion.
 export type TrainStatus = 'ACTIVE' | 'INACTIVE';
 export type CoachClass = 'FIRST' | 'SECOND' | 'THIRD';
 
 export const TRAIN_STATUSES: TrainStatus[] = ['ACTIVE', 'INACTIVE'];
 export const COACH_CLASSES: CoachClass[] = ['FIRST', 'SECOND', 'THIRD'];
 
+// The words shown to the user for each coach class (the API keeps the capital letters).
 export const CLASS_LABEL: Record<CoachClass, string> = { FIRST: 'First', SECOND: 'Second', THIRD: 'Third' };
 
 export interface Train {

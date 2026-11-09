@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+// Used by the seat map, payment and ticket pages. INDEX gives the position of the current step; earlier steps are "done", later ones "todo".
 const STEPS = ['Search', 'Seats', 'Payment', 'Ticket'];
 
 type Step = 'seats' | 'payment' | 'ticket';
@@ -13,6 +14,7 @@ export interface StepLinks {
 }
 
 /** The four steps of a booking, with the current one marked (aria-current) and the finished ones ticked and, when they have a target, linked. */
+// The ticked check mark is an inline SVG marked aria-hidden; the words "(done)" are for screen readers only (class sr-only).
 export function BookingSteps({ current, links = {} }: { current: Step; links?: StepLinks }) {
   const at = INDEX[current];
   const targets = [links.search, links.seats, links.payment];

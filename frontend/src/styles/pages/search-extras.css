@@ -1,4 +1,5 @@
 /* Station combobox, recent searches, payment failure. */
+/* ---- Station combobox (the typing field with a list), recent searches, and the failed-payment message of the Stripe form. ---- */
 .combobox-box {
   position: relative;
 }

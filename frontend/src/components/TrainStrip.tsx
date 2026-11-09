@@ -18,6 +18,7 @@ export function coachLeft(coach: SeatMapCoach): string {
 }
 
 /** The whole train as small cars, front first, with what is left in each. The current coach is marked; every car is a button. */
+// Used by the seat map page to jump between coaches. aria-pressed marks the coach being shown; the aria-label gives the full meaning in words.
 export function TrainStrip({ coaches, currentId, heldIn, onSelect }: Props) {
   return (
     <div className="train-strip" role="group" aria-label="Coaches of the train, front of the train first">

@@ -4,6 +4,9 @@ import { money } from '../format';
 const DURATION_MS = 500;
 
 /** An amount that counts from its previous value to the new one. With reduced motion, or the first time it is drawn, it just shows the amount. */
+// Effect: runs again when `amount` changes. It animates with requestAnimationFrame (called before each screen repaint) using an ease-out curve
+// (1 - (1 - t)^3), and the clean-up cancels the frame if the amount changes again or the component goes away. `from` is a ref so the start
+// value survives re-renders without causing one.
 export function CountUp({ amount, currency }: { amount: number; currency: string }) {
   const [shown, setShown] = useState(amount);
   const from = useRef(amount);

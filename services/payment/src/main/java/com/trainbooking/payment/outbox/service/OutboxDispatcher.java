@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
  * Booking that is down for an hour still learns of every payment afterwards. Failures back off (2, 4 ... 60 seconds) and are logged;
  * the news of one booking goes out in order. HTTP calls are never made inside a database transaction.
  */
+// Called by OutboxScheduler every second. Key rule: a PAYMENT_RESULT that Booking refuses for good triggers a refund, so money taken
+// is never left without a booking or a refund. Backoff for transient errors: 2, 4, 8 ... 60 seconds (1 << attempts, capped).
 @Component
 public class OutboxDispatcher {
 
@@ -34,6 +36,7 @@ public class OutboxDispatcher {
     }
 
     /** @return how many messages were delivered */
+    // Takes up to 20 due messages, delivers each (HTTP, no transaction open), marks it SENT, or schedules a retry, or marks it FAILED.
     public int dispatchDue() {
         int delivered = 0;
         for (OutboxMessage message : outbox.findDue(now(), 20)) {
@@ -44,7 +47,8 @@ public class OutboxDispatcher {
             } catch (BookingNotifier.BookingRejectedException e) {
                 log.error("Booking will not accept outbox message {} ({} for booking {}): {}", message.id(), message.kind(), message.bookingId(), e.getMessage());
                 if (message.kind() == OutboxMessage.Kind.PAYMENT_RESULT) {
-                    // Money was taken and the booking cannot take it (it does not know the booking, or the message was refused): never leave
+                    // Money was taken and the booking cannot take it (it does not know the booking, or the message was refused): never
+                    // leave
                     // a payment with neither a booking nor a refund. The refund request is idempotent.
                     try {
                         refunds.request(message.bookingId(), "Booking did not accept the payment.");

@@ -40,6 +40,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * can pay for seats that are being released. Cancelling is always done <i>before</i> the seats are released (the caller waits for
  * the answer).
  */
+// @Service marks the business-logic class; Spring creates one instance and injects the constructor arguments (the other beans).
+// Called by PaymentController (create, cancel, invalidate) and by WebhookService (the record... methods).
+// Money rule: the amount comes from Booking (computed on the server, never from a browser); Stripe is never called inside a transaction.
 @Service
 public class PaymentService {
 
@@ -57,6 +60,8 @@ public class PaymentService {
     private final String publishableKey;
 
     public PaymentService(PaymentRepository payments, StripeGateway stripe, OutboxWriter outbox, AuditTrail audit, TransactionTemplate tx,
+                          // @Value reads a setting: stripe.publishable-key (env STRIPE_PUBLISHABLE_KEY); after the colon the default is
+                          // empty.
                           Clock clock, @Value("${stripe.publishable-key:}") String publishableKey) {
         this.payments = payments;
         this.stripe = stripe;
@@ -78,6 +83,9 @@ public class PaymentService {
      * (a page reload must not make a second one). The amount is the one Booking worked out; the idempotency key of the Stripe call
      * is the booking and the revision, so a retry of the same payment can never create two intents.
      */
+    // Step by step: 1 refuse if Stripe or the publishable key is missing (nothing is written); 2 short transaction "claim" (lock the row,
+    // insert CREATING or take over or reuse); 3 call Stripe outside any transaction; 4 short transaction "attach" that re-checks the row
+    // (a cancel may have happened meanwhile; then the new intent is cancelled and nobody gets its secret); 5 answer with the client secret.
     public PaymentSession create(CreatePaymentRequest request) {
         if (!stripe.configured()) {
             throw new StripeNotConfiguredException("STRIPE_SECRET_KEY"); // before any row is written: a payment that cannot be made leaves nothing behind
@@ -120,6 +128,8 @@ public class PaymentService {
         return new PaymentSession(payment.id(), clientSecret, publishableKey, payment.amount(), payment.currency());
     }
 
+    // Runs inside tx.execute: the row is read with SELECT ... FOR UPDATE, so two requests for one booking take turns.
+    // A unique-key clash (ORA-00001 shown as DuplicateKeyException) means another request inserted first: we answer payment_in_progress.
     private Claim claimForCreation(CreatePaymentRequest request) {
         OffsetDateTime now = now();
         long bookingId = request.bookingId();
@@ -142,7 +152,8 @@ public class PaymentService {
             case PROCESSING -> throw new PaymentConflictException("payment_in_progress", "The payment is being processed.");
             case PENDING -> {
                 if (existing.amount().compareTo(request.amount()) != 0 || !existing.currency().equals(request.currency())) {
-                    // Booking always invalidates before it changes the amount, so this is a bug on the other side: refuse, never pay a wrong amount.
+                    // Booking always invalidates before it changes the amount, so this is a bug on the other side: refuse, never pay a
+                    // wrong amount.
                     throw new PaymentConflictException("payment_outdated", "The open payment is for another amount.");
                 }
                 yield new Claim(existing, false);
@@ -163,6 +174,7 @@ public class PaymentService {
         };
     }
 
+    // ATTACHED: this call stored its intent. ALREADY: a slower earlier call stored the very same intent. LOST: the row was cancelled/ended.
     private enum Attach { ATTACHED, ALREADY, LOST }
 
     /** LOST if the row was cancelled or ended while Stripe was creating the intent; ALREADY if this same intent is attached and open. */
@@ -180,6 +192,7 @@ public class PaymentService {
     }
 
     /** The client secret of an intent that is still open; any other state of the intent means the page must not pay it. */
+    // Used when the row is PENDING: Stripe is asked for the intent's state so a page reload gets the same open intent, never a paid one.
     private String openIntentSecret(Payment payment, StripeGateway.Intent intent) {
         switch (intent.status()) {
             case StripeGateway.SUCCEEDED, StripeGateway.PROCESSING ->
@@ -206,6 +219,8 @@ public class PaymentService {
      * The hold ended (the five minutes ran out, the user let go of everything, the trip was cancelled): cancel the open payment.
      * After this the payment can never be created again. The caller releases the seats only after a NONE or CANCELLED answer.
      */
+    // Called by Booking before it releases seats of an ended hold (timeout, last item released, trip cancelled). Money rule FR-P4: this
+    // never refunds; it cancels the Stripe intent, or reports that the payment already won.
     public CancelOutcome cancelPending(long bookingId) {
         return cancel(bookingId, true);
     }
@@ -218,6 +233,8 @@ public class PaymentService {
         return cancel(bookingId, false);
     }
 
+    // Three rounds at most. Each round: plan in a transaction, ask Stripe outside it, settle in a transaction. A null from settle means
+    // another request replaced the payment meanwhile, so we plan again. After three rounds: 409 payment_in_progress.
     private CancelOutcome cancel(long bookingId, boolean ending) {
         // At most a few rounds: a round repeats only if another request replaced the payment while Stripe was being asked.
         for (int round = 1; round <= 3; round++) {
@@ -236,6 +253,8 @@ public class PaymentService {
         throw new PaymentConflictException("payment_in_progress", "The payment keeps changing. Try again in a moment.");
     }
 
+    // The decision step. ending = true for cancel (also marks the row ended, or writes a tombstone when there is no row);
+    // ending = false for invalidate (the row can restart later). The intent to cancel is returned so Stripe is called after the commit.
     private Plan planCancel(long bookingId, boolean ending) {
         Payment payment = payments.findByBookingForUpdate(bookingId).orElse(null);
         if (payment == null) {
@@ -266,6 +285,8 @@ public class PaymentService {
         }
     }
 
+    // The recording step: the row is locked again and the answer of Stripe is applied only if it is still about the same intent.
+    // SUCCEEDED here is "payment wins": recordSuccess queues the news for Booking in this same transaction.
     private CancelOutcome settleCancel(long bookingId, String intentId, String stripeStatus) {
         Payment payment = payments.findByBookingForUpdate(bookingId).orElseThrow();
         if (!intentId.equals(payment.intentId())) {
@@ -293,7 +314,8 @@ public class PaymentService {
                 return CancelOutcome.PROCESSING;
             }
             default -> {
-                // The intent is open again (for example a payment attempt just failed): not cancelled, so the caller must wait and ask again.
+                // The intent is open again (for example a payment attempt just failed): not cancelled, so the caller must wait and ask
+                // again.
                 log.warn("Stripe says intent {} is {} after a cancel for booking {}", intentId, stripeStatus, bookingId);
                 return CancelOutcome.PROCESSING;
             }
@@ -306,6 +328,8 @@ public class PaymentService {
      * Records that the money is taken and queues the news for Booking, in the transaction of the caller. Safe to call again for a
      * payment that is already SUCCEEDED (nothing is queued twice).
      */
+    // @Transactional(MANDATORY): this method must be called inside a transaction (the caller's); otherwise Spring throws. That way the
+    // status change, the outbox message and the audit row are saved together or not at all. Idempotent: a second call queues nothing.
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordSuccess(Payment payment, String actor) {
         if (payment.status() == PaymentStatus.SUCCEEDED) {
@@ -317,6 +341,7 @@ public class PaymentService {
     }
 
     /** The payment is being processed by Stripe. */
+    // Used by the webhook for payment_intent.processing. Only a PENDING payment becomes PROCESSING.
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordProcessing(Payment payment) {
         if (payment.status() == PaymentStatus.PENDING) {
@@ -328,6 +353,7 @@ public class PaymentService {
      * An attempt to pay failed (declined card...). The intent stays open and so does the hold, so the user can try again within the
      * remaining time (FR-P5); only the reason is kept.
      */
+    // Used by the webhook for payment_intent.payment_failed. The text is cut to 480 characters to fit the column (500).
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordFailedAttempt(Payment payment, String reason) {
         if (payment.status() == PaymentStatus.PROCESSING) {
@@ -337,6 +363,7 @@ public class PaymentService {
     }
 
     /** Stripe says the intent was cancelled (by us, or by its own expiry). */
+    // Used by the webhook for payment_intent.canceled. A SUCCEEDED payment is never moved back.
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordCancelled(Payment payment) {
         if (payment.status() == PaymentStatus.PENDING || payment.status() == PaymentStatus.PROCESSING) {
@@ -355,6 +382,7 @@ public class PaymentService {
         }
     }
 
+    // Stripe remembers this key: the same key returns the same intent, so a retry never makes a second one. A new revision makes a new key.
     private static String idempotencyKey(Payment payment) {
         return "payment-" + payment.bookingId() + "-r" + payment.revision();
     }

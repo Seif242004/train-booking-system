@@ -15,9 +15,11 @@ import java.math.BigDecimal;
  * The real Stripe: a thin translation between {@link StripeGateway} and the official client. Card data never passes through here;
  * the browser sends it straight to Stripe and only the client secret of the intent travels to the payment page.
  */
+// Not a Spring-scanned bean on its own: StripeConfig creates it when a secret key exists.
 public class StripeApiGateway implements StripeGateway {
 
     /** Stripe's code for "this intent is not in a state where that can be done" (for example cancelling one that succeeded). */
+    // Constant used to recognise Stripe's refusal to cancel an intent that already succeeded or is processing.
     private static final String UNEXPECTED_STATE = "payment_intent_unexpected_state";
 
     private final StripeClient client;
@@ -26,6 +28,7 @@ public class StripeApiGateway implements StripeGateway {
         this.client = new StripeClient(secretKey);
     }
 
+    // @Override: this method implements the method of the same name in StripeGateway. (Repeated annotations below mean the same.)
     @Override
     public Intent createIntent(BigDecimal amount, String currency, long bookingId, String idempotencyKey) {
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
@@ -74,6 +77,8 @@ public class StripeApiGateway implements StripeGateway {
     }
 
     /** EGP, like most currencies, has two decimals: Stripe counts in the smallest unit (piastres). */
+    // Stripe wants the smallest unit: EGP 12.50 -> 1250 piastres. longValueExact() throws if there were more than 2 decimals,
+    // which is safer than rounding money silently.
     static long minorUnits(BigDecimal amount) {
         return amount.movePointRight(2).longValueExact();
     }
@@ -82,6 +87,8 @@ public class StripeApiGateway implements StripeGateway {
         T run() throws StripeException;
     }
 
+    // One place that turns Stripe failures into our two exceptions: StripeCallException (no answer, retry later) and
+    // StripeRejectedException (a 4xx refusal for good, except 429 and idempotency_key_in_use).
     private static <T> T call(String what, StripeCall<T> call) {
         try {
             return call.run();

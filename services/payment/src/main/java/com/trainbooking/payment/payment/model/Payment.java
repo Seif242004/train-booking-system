@@ -12,6 +12,7 @@ import java.time.OffsetDateTime;
  * @param ended    true once the hold of the booking has ended: the payment can never be created again (a row with
  *                 {@code CANCELLED} and no intent is a tombstone that refuses a creation that was already on its way)
  */
+// Mirrors one row of the table payment (see V1__create_payment_tables.sql). "ended" is stored as NUMBER(1), 0 or 1.
 public record Payment(
         long id,
         long bookingId,

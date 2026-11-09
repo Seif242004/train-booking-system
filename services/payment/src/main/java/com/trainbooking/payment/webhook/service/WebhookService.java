@@ -35,6 +35,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       failed rolls the insert back too, so Stripe's retry processes it again.</li>
  * </ol>
  */
+// Stripe retries any event we do not acknowledge with 2xx, so every path here is idempotent. Called by WebhookController.
 @Service
 public class WebhookService {
 
@@ -61,6 +62,7 @@ public class WebhookService {
     private final String webhookSecret;
 
     public WebhookService(PaymentRepository payments, PaymentService paymentService, RefundService refundService, JdbcClient jdbc,
+                          // @Value: the signing secret (env STRIPE_WEBHOOK_SECRET, "whsec_..."). It never appears in logs or answers.
                           TransactionTemplate tx, Clock clock, @Value("${stripe.webhook-secret:}") String webhookSecret) {
         this.payments = payments;
         this.paymentService = paymentService;
@@ -71,6 +73,8 @@ public class WebhookService {
         this.webhookSecret = webhookSecret;
     }
 
+    // Order: no secret -> 503; no header -> 400; Webhook.constructEvent checks the signature and that the timestamp is within 5 minutes
+    // (replay protection) -> 400 on failure; then ONE transaction runs process(). Stripe's response codes tell it whether to retry.
     public Result handle(String payload, String signatureHeader) {
         if (webhookSecret == null || webhookSecret.isBlank()) {
             throw new StripeNotConfiguredException("STRIPE_WEBHOOK_SECRET");
@@ -92,6 +96,8 @@ public class WebhookService {
         return tx.execute(status -> process(event));
     }
 
+    // The INSERT into webhook_event is the idempotency gate: its primary key stops a second delivery (ORA-00001 as DuplicateKeyException).
+    // It shares the transaction of the effect, so if the effect fails the insert rolls back and Stripe's retry is processed again.
     private Result process(Event event) {
         // The primary key makes a second delivery of the same event fail here (ORA-00001). Only THIS insert is read as "already handled":
         // a duplicate-key error from the effects below is a real failure and must make the whole event roll back and be retried.
@@ -130,6 +136,7 @@ public class WebhookService {
         }
     }
 
+    // Finds the payment by intent with a row lock, then records success / processing / failed attempt / cancelled. Unknown intent: ignored.
     private Result paymentEvent(String type, PaymentIntent intent) {
         Optional<Payment> found = payments.findByIntentForUpdate(intent.getId());
         if (found.isEmpty()) {

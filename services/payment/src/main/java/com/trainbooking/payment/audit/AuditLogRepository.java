@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /** Writes the admin audit trail (FR-A10). Called inside the same transaction as the change it records. */
+// One INSERT into audit_log, in the caller's transaction. For Payment the "admin_id" is the calling service (booking-service) or "stripe".
 @Repository
 public class AuditLogRepository {
 

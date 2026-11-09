@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /** Asks Stripe again for refunds it could not be reached for. The Stripe idempotency key (the refund id) makes a repeat harmless. */
+// @Component = a generic Spring bean. Called every second by OutboxScheduler.retryRefunds. Never refunds twice: the idempotency key is
+// the refund id.
 @Component
 public class RefundRetrier {
 

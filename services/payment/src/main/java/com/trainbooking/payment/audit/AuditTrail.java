@@ -14,6 +14,8 @@ import tools.jackson.databind.json.JsonMapper;
  * Records admin changes (FR-A10). Services call it inside the transaction of the change itself, so the audit row
  * and the change are saved together or not at all.
  */
+// Every payment and refund state change is recorded here (CLAUDE.md: audit with timestamp and actor). The table row is in the same
+// transaction; the OpenObserve log line is written only after the commit.
 @Component
 public class AuditTrail {
 

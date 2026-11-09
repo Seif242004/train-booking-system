@@ -20,6 +20,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Only the path is logged, never the query string, a header or a body: tokens and card data must not reach the logs.
  */
+// A servlet filter (OncePerRequestFilter runs once per request). The regexes find the booking id and trip id in the path.
 @Component
 class RequestLogContext extends OncePerRequestFilter {
 

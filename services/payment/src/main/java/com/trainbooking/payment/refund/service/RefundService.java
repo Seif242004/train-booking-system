@@ -32,6 +32,9 @@ import org.springframework.transaction.support.TransactionTemplate;
  * the row id as idempotency key, so a retry after a lost answer can never refund twice, and the unique key on the booking allows
  * one refund per booking. If Stripe cannot be reached the row stays PENDING and {@link RefundRetrier} asks again with a backoff.
  */
+// Called by RefundController (request), RefundRetrier (attempt), OutboxDispatcher (request when Booking cannot take a payment) and
+// WebhookService (applyStripeEvent). Rule: only a SUCCEEDED payment can be refunded, in full, once; Stripe is never called in a
+// transaction.
 @Service
 public class RefundService {
 
@@ -63,6 +66,8 @@ public class RefundService {
     }
 
     /** @throws NoPaymentToRefundException if the booking has no payment that succeeded */
+    // Transaction 1: lock the payment row, find or insert the refund, queue REFUND_PENDING for Booking (outbox) and audit.
+    // Then, outside a transaction, attempt() asks Stripe. A repeated request returns the existing refund and calls nothing.
     public Refund request(long bookingId, String reason) {
         record Created(Refund refund, boolean isNew) {
         }
@@ -87,14 +92,22 @@ public class RefundService {
         return refunds.findByBooking(bookingId).orElseThrow();
     }
 
-    /** Asks Stripe for the refund (outside any transaction) and records the answer. Never throws for a Stripe outage: it schedules a retry. */
+    /**
+     * Asks Stripe for the refund (outside any transaction) and records the answer. Never throws for a Stripe outage: it schedules a
+     * retry.
+     */
+    // Three outcomes: Stripe refused for good (StripeRejectedException) -> FAILED; Stripe unreachable or not configured -> stays PENDING
+    // with a
+    // backoff of 2, 4, ... 60 seconds; Stripe answered -> apply its status. Money rule: a refund owed is never given up because of an
+    // outage.
     public void attempt(Refund refund) {
         Payment payment = payments.findByBooking(refund.bookingId()).orElseThrow();
         StripeGateway.RefundResult result;
         try {
             result = stripe.createRefund(payment.intentId(), refund.amount(), payment.currency(), "refund-" + refund.id());
         } catch (StripeRejectedException e) {
-            // Stripe said no for good (already refunded, amount too large, expired charge...): retrying cannot help. Flag it (REFUND_FAILED)
+            // Stripe said no for good (already refunded, amount too large, expired charge...): retrying cannot help. Flag it
+            // (REFUND_FAILED)
             // so an admin sees it, instead of leaving it "pending" forever.
             log.error("Stripe refused refund {} of booking {}: {}", refund.id(), refund.bookingId(), e.getMessage());
             tx.executeWithoutResult(status -> applyStripeResult(refund.id(), null, "failed", e.getMessage()));
@@ -119,6 +132,8 @@ public class RefundService {
      * Applies what Stripe says about the refund (from the answer of the create call or from a webhook), in the caller's transaction.
      * Once the refund is final (SUCCEEDED or FAILED) later reports change nothing.
      */
+    // @Transactional(MANDATORY): must run inside the caller's transaction, so the refund row, the outbox message and the audit row commit
+    // together.
     @Transactional(propagation = Propagation.MANDATORY)
     public void applyStripeResult(long refundId, String stripeRefundId, String stripeStatus, String failureReason) {
         Refund refund = refunds.findByIdForUpdate(refundId).orElseThrow();
@@ -131,6 +146,7 @@ public class RefundService {
      *
      * @return false if this service has no such refund (not one of ours)
      */
+    // The webhook may arrive before our own create call stores the Stripe id; then the refund is found through its payment intent.
     @Transactional(propagation = Propagation.MANDATORY)
     public boolean applyStripeEvent(String stripeRefundId, String paymentIntentId, String stripeStatus, String failureReason) {
         Refund refund = refunds.findByStripeIdForUpdate(stripeRefundId).orElse(null);
@@ -145,6 +161,8 @@ public class RefundService {
         return true;
     }
 
+    // Maps Stripe's status to ours (succeeded -> SUCCEEDED; failed or canceled -> FAILED; others stay PENDING and a webhook will follow)
+    // and queues REFUNDED or REFUND_FAILED for Booking. A refund that is already final is never changed again.
     private void apply(Refund refund, String stripeRefundId, String stripeStatus, String failureReason) {
         if (refund.status() != RefundStatus.PENDING) {
             return; // final already

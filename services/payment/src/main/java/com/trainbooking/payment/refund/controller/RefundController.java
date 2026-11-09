@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+// No logic here; the caller is Booking and Seat (RefundPort/RefundClient), with the API key, after a cancellation or a payment it cannot
+// use.
 @RestController
 public class RefundController {
 
@@ -20,6 +22,8 @@ public class RefundController {
     }
 
     /** Requests the full refund of a booking's payment. Asking again returns the same refund. */
+    // Body: {bookingId, reason?}. Answer: {refundId, bookingId, status: REFUND_PENDING | REFUNDED | REFUND_FAILED}. Asking again returns
+    // the same refund (one per booking). 404 no_payment_to_refund if no payment was taken. 503 if Stripe is not configured.
     @PostMapping("/internal/refunds")
     Map<String, Object> request(@Valid @RequestBody RefundRequest request) {
         Refund refund = service.request(request.bookingId(), request.reason());

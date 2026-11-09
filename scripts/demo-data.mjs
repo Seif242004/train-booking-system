@@ -18,28 +18,41 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Setup. ES module run by Node (top-level `await` is used at the bottom). Only Node built-ins are used. ROOT is the repository root.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Minimal .env parser (KEY=VALUE lines, split at the first "="). The values stay in memory: passwords are never printed
+// (sql() also masks the database password in any error text).
 const env = Object.fromEntries(readFileSync(`${ROOT}/.env`, 'utf8').split(/\r?\n/).filter((l) => /^[A-Z_0-9]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+// The Gateway and Keycloak addresses, the name of the Oracle container (used with `docker exec`) and the railway's time zone, which must
+// match the services' TIMEZONE so that "today" and the stop times mean the same day as in the app. Each can be overridden by an env variable.
 const GW = process.env.GATEWAY_URL ?? 'http://localhost:8080';
 const KC = process.env.KEYCLOAK_URL ?? 'http://localhost:8180';
 const ORACLE_CONTAINER = process.env.ORACLE_CONTAINER ?? 'tbs-oracle';
 const ZONE = process.env.TIMEZONE ?? 'Africa/Cairo';
 
 // What the scripts and the seed use to mark their rows.
+// Markers. Every row the seed writes straight into the database carries them, and reset-demo deletes only rows that match them:
+// user id `demo-passenger` with a reference starting `DEMO-`, or a COMPLIMENTARY booking with the note DEMO data and the walk-in name Demo Passenger.
 const DEMO_PASSENGER = 'demo-passenger';
 const DEMO_EMAIL = 'demo.passenger@example.com';
 const REF_PREFIX = 'DEMO-';
 // Demo bookings made through the admin endpoint (POST /admin/bookings/{id}/issue, complimentary) carry this walk-in name and the reason DEMO.
 const DEMO_WALK_IN = 'Demo Passenger';
 const DEMO_REASON = 'DEMO data'; // at least 5 characters, as the issue endpoint asks for a complimentary booking
+// The WHERE condition that finds the demo bookings. Used by fillTrip, fillTripApi and resetDemo. It is plain text pasted into SQL
+// (no user input is involved: every value is a constant of this file).
 const DEMO_MARKER_SQL = `((user_id = '${DEMO_PASSENGER}' AND reference LIKE '${REF_PREFIX}%') OR (payment_method = 'COMPLIMENTARY' AND issue_note = '${DEMO_REASON}' AND walk_in_name = '${DEMO_WALK_IN}'))`;
+// The two dev accounts the smoke test logs in as. Their ended bookings (ABANDONED, EXPIRED, CANCELLED) count as test leftovers.
 const TEST_USERS = ['dev.user@example.com', 'dev.admin@example.com']; // the accounts the smoke and check scripts log in as (the accounts themselves stay)
+// Small helpers: a promise-based sleep and a console shortcut.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log(...a);
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // The Gateway as the admin (a real Keycloak login with PKCE, as the browser does it)
 // ---------------------------------------------------------------------------------------------------------------------------------
+// Same PKCE login as scripts/smoke-test.mjs, as dev.admin: GET the Keycloak auth page, post the form, exchange the code with the verifier
+// for an access token. See that file for the step by step.
 async function login(username, password) {
   const b64url = (b) => Buffer.from(b).toString('base64url');
   const verifier = b64url(randomBytes(48));
@@ -59,6 +72,7 @@ async function login(username, password) {
   return token.access_token;
 }
 
+// Token cache. Keycloak access tokens last 5 minutes, and the seed runs longer, so the token is renewed after 200 s.
 let adminToken = null;
 let adminTokenAt = 0;
 async function token() {
@@ -69,6 +83,7 @@ async function token() {
   return adminToken;
 }
 
+// One call through the Gateway as the admin, with a 60 s timeout. Returns { status, body } without throwing on an HTTP error.
 async function call(method, path, body) {
   const headers = { authorization: `Bearer ${await token()}` };
   if (body !== undefined) headers['content-type'] = 'application/json';
@@ -79,6 +94,8 @@ async function call(method, path, body) {
   return { status: res.status, body: parsed };
 }
 
+// Runs a call and throws if the status is not one of `ok` (default 200, 201, 204). Used for every step the seed cannot continue without;
+// the thrown message is printed by the top-level catch and sets the exit code to 1.
 async function must(label, promise, ok = [200, 201, 204]) {
   const r = await promise;
   if (!ok.includes(r.status)) throw new Error(`${label} failed: HTTP ${r.status} ${JSON.stringify(r.body)?.slice(0, 300)}`);
@@ -88,8 +105,10 @@ async function must(label, promise, ok = [200, 201, 204]) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // The database, for the dev-only path. Runs sqlplus inside the Oracle container; the password goes in through stdin, never on a command line.
 // ---------------------------------------------------------------------------------------------------------------------------------
+// The dev-only database path. SCHEMAS maps each Oracle schema (one per service) to the .env key of its password.
 const SCHEMAS = { train_schedule: 'TRAIN_SCHEDULE_DB_PASSWORD', booking_seat: 'BOOKING_SEAT_DB_PASSWORD', payment: 'PAYMENT_DB_PASSWORD', ticket: 'TICKET_DB_PASSWORD', notification: 'NOTIFICATION_DB_PASSWORD' };
 
+// Names of the running containers (empty list if docker fails).
 function dockerRunning() {
   const r = spawnSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf8' });
   return r.status === 0 ? r.stdout.split(/\r?\n/).filter(Boolean) : [];
@@ -106,6 +125,10 @@ function requireDevStack() {
   }
 }
 
+// Runs a SQL*Plus script inside the Oracle container as the schema's own user (no admin account). The script is fed through STDIN, so the
+// password never appears on a command line or in the process list. Settings: `whenever sqlerror exit failure rollback` (the first SQL
+// error aborts and rolls back that script), `set define off` (an "&" in data is not a substitution variable), and a wide line size.
+// Any ORA-/SP2- text in the output is treated as an error and thrown with the password masked. Every call first runs requireDevStack().
 function sql(schema, script) {
   requireDevStack();
   const password = env[SCHEMAS[schema]];
@@ -117,14 +140,19 @@ function sql(schema, script) {
   if (r.status !== 0 || /ORA-\d{5}|SP2-\d{4}/.test(out)) throw new Error(`SQL failed in ${schema}: ${out.replaceAll(password, '***').slice(0, 800)}`);
   return out;
 }
+// Helpers over sql(): rows() returns the non-empty output lines of one SELECT, num() the first one as a number, inList() builds an IN (...)
+// list (NULL for an empty list so the SQL stays valid), chunked() splits a long id list into groups of 300.
 const rows = (schema, select) => sql(schema, `${select};`).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 const num = (schema, select) => Number(rows(schema, select)[0] ?? 0);
 const inList = (ids) => (ids.length ? ids.join(',') : 'NULL');
 function chunked(ids, size = 300) { const out = []; for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size)); return out; }
 // SQL*Plus ignores a line longer than 4999 characters, so a long list is split over lines.
+// SQL*Plus ignores a line longer than 4999 characters, so long lists are split across lines with NL. deleteIn() builds the DELETE statements
+// in chunks, and quoteList() quotes text values, doubling any single quote (the values come from our own rows, not from a user).
 const NL = String.fromCharCode(10);
 const deleteIn = (table, column, ids) => chunked(ids).map((c) => `DELETE FROM ${table} WHERE ${column} IN (${c.join(`,${NL}`)});`).join(NL);
 const quoteList = (values) => (values.length ? values.map((v) => `'${String(v).replaceAll("'", "''")}'`).join(`,${NL}`) : 'NULL');
+// Before anything is deleted, a JSON file with the command, the counts and every id is written to .local/ (git-ignored) so a deletion can be audited later.
 function writeAudit(kind, data) {
   mkdirSync(`${ROOT}/.local`, { recursive: true });
   const file = `${ROOT}/.local/${kind}-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
@@ -136,6 +164,8 @@ function writeAudit(kind, data) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // The network (stations, lines, trains)
 // ---------------------------------------------------------------------------------------------------------------------------------
+// The demo network. STATIONS lists [code, name, city]. CAI, GIZ and ALX existed before the demo data, so the seed never deletes them
+// (PRE_EXISTING_STATIONS); it only renames CAI and ALX to the same naming style.
 const STATIONS = [
   ['CAI', 'Cairo (Ramses)', 'Cairo'], ['GIZ', 'Giza', 'Giza'], ['BNH', 'Banha', 'Banha'], ['TNT', 'Tanta', 'Tanta'], ['DMH', 'Damanhour', 'Damanhour'],
   ['ALX', 'Alexandria (Misr)', 'Alexandria'], ['SDG', 'Alexandria (Sidi Gaber)', 'Alexandria'], ['ZAG', 'Zagazig', 'Zagazig'], ['MNS', 'Mansoura', 'Mansoura'],
@@ -147,6 +177,8 @@ const STATIONS = [
 const PRE_EXISTING_STATIONS = new Set(['CAI', 'GIZ', 'ALX']);
 
 // A line: ordered station codes, the distance of each leg (km, sets the fare) and its running time in minutes (sets the timetable).
+// A line is an ordered list of station codes plus, per leg, the distance in km (it sets the fare) and the running time in minutes
+// (it sets the timetable); `dwell` is the stop time in minutes at intermediate stations.
 const LINES = {
   ALEX: { name: 'Cairo - Alexandria via Banha, Tanta, Damanhour', stops: ['CAI', 'BNH', 'TNT', 'DMH', 'ALX'], km: [48, 47, 70, 50], minutes: [35, 32, 50, 38], dwell: 3 },
   ASWAN: { name: 'Cairo - Aswan via Giza, Wasta, Minya, Assiut, Sohag, Qena, Luxor',
@@ -159,6 +191,8 @@ const LINES = {
 };
 
 // Coaches: [class, how many, rows, seat columns, standing places in the first of them]. 'ABC' is 2+1, 'ABCD' is 2+2.
+// The trains. Each entry: number, name, line, and coaches as [class, how many, rows, seat letters, standing places in the first coach of that
+// class]. 'ABC' is a 2+1 layout and 'ABCD' is 2+2. Only the first coach of a class gets the standing places.
 const FLEET = [
   { no: '901', name: 'Express 901 Alexandria', line: 'ALEX', coaches: [['FIRST', 1, 6, 'ABC', 0], ['SECOND', 2, 12, 'ABCD', 12]] },
   { no: '903', name: 'Express 903 Alexandria', line: 'ALEX', coaches: [['FIRST', 1, 5, 'ABCD', 0], ['SECOND', 3, 10, 'ABC', 10]] },
@@ -177,11 +211,13 @@ const FLEET = [
   { no: '411', name: 'Suez 411', line: 'SUEZ', coaches: [['FIRST', 1, 4, 'ABC', 0], ['SECOND', 1, 12, 'ABCD', 12]] },
   { no: 'M001', name: 'Mini 001 Banha (8 seats)', line: 'BANHA', coaches: [['SECOND', 1, 2, 'ABCD', 0]] },
 ];
+// What reset-demo may delete: exactly the trains, routes and stations the seed makes (the three pre-existing stations are excluded).
 const DEMO_TRAIN_NUMBERS = FLEET.map((t) => t.no);
 const DEMO_ROUTE_NAMES = Object.values(LINES).map((l) => l.name);
 const DEMO_STATION_CODES = STATIONS.map((s) => s[0]).filter((c) => !PRE_EXISTING_STATIONS.has(c));
 
 // Regular departures per day: [train, line, HH:mm]
+// The regular departures made for each of the next days: [train number, HH:mm at the origin]. DAYS_AHEAD days after today are created too.
 const DAILY = [
   ['901', '06:00'], ['903', '12:00'], ['905', '18:00'], ['909', '22:30'], ['911', '09:30'], ['913', '14:30'], ['915', '20:30'],
   ['1001', '08:00'], ['1005', '19:30'], ['1007', '22:30'],
@@ -192,6 +228,8 @@ const DAILY = [
 ];
 const DAYS_AHEAD = 14;
 
+// Fare in EGP for one leg: SECOND class is 0.42 per km rounded to 5, never below 30 (Stripe has a minimum charge of about EGP 27, so a
+// smaller fare could not be paid); FIRST is 1.7 times that, rounded to 5.
 const fareOf = (km, cls) => {
   const second = Math.max(30, Math.round((km * 0.42) / 5) * 5); // never below the payment provider's minimum charge
   return cls === 'FIRST' ? Math.round((second * 1.7) / 5) * 5 : second;
@@ -200,6 +238,8 @@ const fareOf = (km, cls) => {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Time helpers (the railway's own calendar and clock)
 // ---------------------------------------------------------------------------------------------------------------------------------
+// Time helpers. The railway has its own calendar: localParts() gives the date and clock of an instant in ZONE (not the computer's zone),
+// addDays() adds days to a YYYY-MM-DD date in UTC arithmetic (no daylight-saving drift), hhmm() and toMinutes() convert minutes and "HH:mm".
 const partsFormat = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 function localParts(ms) {
   const p = Object.fromEntries(partsFormat.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
@@ -226,6 +266,8 @@ function stopTimes(line, departure) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // seed-demo
 // ---------------------------------------------------------------------------------------------------------------------------------
+// seed-demo, step by step. Every ensure* function is IDEMPOTENT: it lists what exists through the Gateway and creates or fixes only what
+// is missing, so running seed-demo again is safe. ensureStations creates missing stations and renames CAI/ALX if their name differs.
 async function ensureStations() {
   const existing = new Map((await must('list stations', call('GET', '/admin/stations'))).map((s) => [s.code, s]));
   const byCode = new Map();
@@ -246,6 +288,8 @@ async function ensureStations() {
   return byCode;
 }
 
+// Creates each train (ACTIVE) and, only if it has no coach yet, its coaches and seats (seat numbers like 3B, row and column). A train that
+// already has coaches is left alone, so a second run never doubles the seats.
 async function ensureTrains() {
   const existing = new Map((await must('list trains', call('GET', '/admin/trains'))).map((t) => [t.number, t]));
   const byNo = new Map();
@@ -278,6 +322,8 @@ async function ensureTrains() {
   return byNo;
 }
 
+// Creates each route from its station ids in order, then sets its fares as a whole (PUT replaces them) if fewer than expected exist:
+// one fare per segment for FIRST and SECOND, computed by fareOf. Complete fares are required before a trip can be created.
 async function ensureRoutes(stations) {
   const existing = new Map((await must('list routes', call('GET', '/admin/routes'))).map((r) => [r.name, r]));
   const byLine = new Map();
@@ -299,6 +345,9 @@ async function ensureRoutes(stations) {
   return byLine;
 }
 
+// How full a trip should be: a fraction of its seats, or 'FULL' / 'NEARLY' (all but 3 seats), or 0. A few fixed trips are pinned so the
+// demo always shows a full trip, a nearly full one and several half-full ones; trips of today are filled most; the small train M001 and
+// trips more than 3 days away stay empty. rng(tripId) makes the random part repeatable.
 function fillFraction(spec, trainNo, dayIndex, time, tripId) {
   const r = rng(tripId);
   const key = `${trainNo}|${dayIndex}|${time}`;
@@ -310,11 +359,18 @@ function fillFraction(spec, trainNo, dayIndex, time, tripId) {
   return 0;
 }
 
+// A small seeded pseudo-random generator (mulberry32 style), so a re-run picks the same seats for the same trip.
 function rng(seed) { // small deterministic generator, so a re-run picks the same seats
   let a = (seed * 2654435761) >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
+// This is the dev-only database path, used ONLY for trips that have already left (the API refuses to book those). It does not disable any
+// constraint and writes the same rows the service writes: a booking, its items, one seat_reservation row per seat and segment
+// (primary key trip, seat, segment, so a seat can never be booked twice), and for standing places a standing_hold row plus a conditional
+// raise of standing_usage.used (the table has CHECK used <= capacity, so an overbooking fails instead of corrupting). Seats already
+// reserved are skipped. Rows are written in blocks of 20 bookings, each block an anonymous PL/SQL block (v receives the new booking id).
+// Prices are the trip's own copied fares summed over the segments. Returns the number of bookings made, 0 if the trip already has demo bookings.
 /** Confirmed demo bookings on one trip, written with the same keys and checks as the service (never a seat twice, never above capacity). */
 function fillTrip(tripId, fraction) {
   const already = num('booking_seat', `select count(*) from booking where trip_id = ${tripId} and ${DEMO_MARKER_SQL}`);
@@ -418,11 +474,17 @@ async function fillTripApi(tripId, fraction, stopCount) {
   return made;
 }
 
+// Booking & Seat gets its copy of a trip in the same call that creates it; this only waits a short time to be sure before filling it.
 async function waitForTripCopy(tripId) { // Booking has its copy as soon as the create returned (the snapshot is pushed in the same call)
   for (let i = 0; i < 20; i += 1) { if (num('booking_seat', `select count(*) from trip where id = ${tripId}`) > 0) return true; await sleep(250); }
   return false;
 }
 
+// seed-demo flow: (1) guard: requireDevStack; (2) stations, trains, routes and fares; (3) trips: three "showcase" trips of today timed from
+// the current clock (one still running, two arrived, so the admin board shows every state), then the regular trips for today and the next
+// 14 days, skipping any that exist (key train|date|time); the service may refuse a time already past, which is counted, not fatal;
+// (4) one trip is cancelled with the real whole-trip cancellation to show a cancelled trip; (5) demo bookings per fillFraction: through
+// the API for trips that have not left, through the database for trips that have.
 async function seedDemo() {
   requireDevStack();
   log('Stations');
@@ -516,6 +578,10 @@ async function seedDemo() {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // reset-test-data: the rows that test, check and stress runs left behind
 // ---------------------------------------------------------------------------------------------------------------------------------
+// reset-test-data, part 1: find what test runs left. Test trains are numbered SM + 6 hex digits, test routes are named "Smoke " + 6 hex, test
+// stations are S + 6 hex + A/B/C (the names the smoke test makes), plus cancelled trips of non-demo trains. Bookings are those on those trips plus
+// the ended bookings of the two test accounts. SAFETY: a test trip that carries a booking of any other user is "protected": it is listed and
+// the real deletion stops, so nobody's booking is removed by mistake.
 function collectTestData() {
   const demoNumbers = quoteList(DEMO_TRAIN_NUMBERS);
   const trains = rows('train_schedule', `select id from train where regexp_like(train_number, '^SM[0-9A-F]{6}$')`).map(Number);
@@ -538,6 +604,7 @@ function collectTestData() {
   return { trains, routes, stations, trips: safeTrips, protectedTrips: [...protectedTrips], bookingIds, references, bookingRows };
 }
 
+// Counts the rows per table that would be deleted, for the dry run and for the audit file.
 function countsFor(d) {
   const c = {};
   c['train_schedule.station'] = d.stations.length;
@@ -558,6 +625,10 @@ function countsFor(d) {
   return c;
 }
 
+// Payment, Ticket and Notification are cleaned first because they only hold the booking id as a plain value. If a later step fails, the
+// bookings still exist and a second run finishes the job. Booking & Seat is done in ONE script (one rollback unit): first the standing
+// counters are given back for the live bookings, then children before parents (reservations, standing holds, items, outbox, bookings),
+// so the counters never drift from the bookings. No constraint is ever disabled.
 /** Deletes in dependency order, one transaction per schema: children before parents, and no constraint is ever disabled. */
 function deleteBookings(bookingIds, references) {
   if (bookingIds.length === 0) return;
@@ -575,6 +646,9 @@ function deleteBookings(bookingIds, references) {
     deleteIn('booking_item', 'booking_id', bookingIds), deleteIn('outbox', 'booking_id', bookingIds), deleteIn('booking', 'id', bookingIds), 'commit;'].join(NL));
 }
 
+// reset-test-data, part 2: guard requireDevStack; collect; write the audit file; print the counts; stop here with --dry-run; refuse if a
+// protected trip exists; delete bookings; delete the trip copies in Booking (their stops, coaches, seats, fares and counters go by ON DELETE
+// CASCADE), then the trips, trains, routes and stations in Train & Schedule. Keycloak and the audit_log tables are never touched.
 function resetTestData({ dryRun }) {
   requireDevStack();
   const d = collectTestData();
@@ -598,6 +672,9 @@ function resetTestData({ dryRun }) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // reset-demo: exactly what seed-demo made
 // ---------------------------------------------------------------------------------------------------------------------------------
+// reset-demo: removes exactly what seed-demo made. It finds the demo bookings by their markers and deletes them (as above), then deletes
+// the demo trips, trains, routes and stations THROUGH THE API so both services stay in step. The service refuses to delete anything that
+// still has a real booking; such items are kept and listed in the final message, not forced. --dry-run only writes the audit file and counts.
 async function resetDemo({ dryRun }) {
   requireDevStack();
   const bookingRows = rows('booking_seat', `select id||'|'||trip_id||'|'||reference from booking where ${DEMO_MARKER_SQL}`).map((l) => l.split('|'));
@@ -630,6 +707,9 @@ async function resetDemo({ dryRun }) {
 // ---------------------------------------------------------------------------------------------------------------------------------
 // verify (API only)
 // ---------------------------------------------------------------------------------------------------------------------------------
+// verify (API only, read-only): checks no duplicate stations or trips, every demo station and line (stops in order) exists, no test
+// stations are left, searches between the main cities for today and in two days return trips, and the admin board has trips in every state.
+// Exit code 1 if any check fails.
 async function verify() {
   let bad = 0;
   const check = (label, ok, detail = '') => { if (!ok) bad += 1; log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? `  (${detail})` : ''}`); };
@@ -661,6 +741,8 @@ async function verify() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
+// Command dispatch. Usage: reset-test-data | seed-demo | reset-demo | verify, with --dry-run for the two reset commands. An unknown
+// command prints the usage and exits 2; any thrown error prints its message and exits 1 (the error text never contains a password).
 const [command, ...flags] = process.argv.slice(2);
 const dryRun = flags.includes('--dry-run');
 try {

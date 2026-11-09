@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Security failures happen before any controller runs, so they are written here in the same JSON error shape as everything else. */
+// @Component: one bean used as both Spring Security hooks. AuthenticationEntryPoint answers "not authenticated" (401), AccessDeniedHandler
+// answers "authenticated but not allowed" (403), both in the shared JSON error shape. @Override marks the interface methods below.
 @Component
 public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
 
@@ -33,6 +35,7 @@ public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDenied
         write(response, HttpStatus.FORBIDDEN, ApiError.of("forbidden", "This route is not available."));
     }
 
+    // Writes status, content type and JSON body directly to the response (there is no controller at this point).
     private void write(HttpServletResponse response, HttpStatus status, ApiError body) throws IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

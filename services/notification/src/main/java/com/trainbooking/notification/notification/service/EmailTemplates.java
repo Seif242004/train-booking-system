@@ -14,9 +14,11 @@ import org.springframework.web.util.HtmlUtils;
 public class EmailTemplates {
 
     /** A finished email. */
+    // The three parts of a built email.
     public record Rendered(String subject, String text, String html) {
     }
 
+    // English names whatever the server locale is. Times are converted to the configured zone before formatting.
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH);
 
@@ -26,6 +28,13 @@ public class EmailTemplates {
         this.zone = zone;
     }
 
+    /*
+     * Builds subject, plain text and HTML from the request. Text and HTML are made together by paragraph(), so they say the same thing.
+     * Wording by kind and payment method: a card cancellation promises a full refund to the card (CLAUDE.md: full refund only); a COUNTER
+      * booking was paid at the desk, so it is handled at the support desk and no card refund is promised; a COMPLIMENTARY booking cost
+      * nothing.
+     * HtmlUtils.htmlEscape stops text from a request (names, lines, details) from injecting HTML into the email.
+     */
     public Rendered render(NotificationRequest request) {
         String subject = switch (request.kind()) {
             case TICKET -> "Your train ticket " + request.reference();
@@ -86,10 +95,12 @@ public class EmailTemplates {
         return new Rendered(subject, text.toString().stripTrailing() + "\n", html.toString());
     }
 
+    // Amount as plain text (no scientific notation) with the currency, EGP if none was sent.
     private static String money(NotificationRequest request) {
         return request.amount().toPlainString() + " " + (request.currency() == null ? "EGP" : request.currency());
     }
 
+    // Adds the same line to the text (blank line after) and to the HTML (escaped, in a p element).
     private static void paragraph(StringBuilder text, StringBuilder html, String line) {
         text.append(line).append("\n\n");
         html.append("<p>").append(HtmlUtils.htmlEscape(line)).append("</p>");

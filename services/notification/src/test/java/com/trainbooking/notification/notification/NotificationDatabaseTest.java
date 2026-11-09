@@ -69,6 +69,7 @@ class NotificationDatabaseTest extends DatabaseTest {
     }
 
     @Test
+    // Two threads released together by a latch race on the same dedupe key: the unique constraint must leave exactly one row.
     void twoRequestsWithTheSameKeyAtTheSameMoment_storeOne() throws Exception {
         ExecutorService pool = Executors.newFixedThreadPool(2);
         CountDownLatch go = new CountDownLatch(1);
@@ -124,6 +125,7 @@ class NotificationDatabaseTest extends DatabaseTest {
     }
 
     @Test
+    // Moves the fake clock past each retry time and checks the waits 2, 4, 8 ... up to the 300 s cap.
     void theBackoffGrows_andIsCappedAtFiveMinutes() {
         service.accept(ticketEmail("ticket:7:1"));
         mailServer.down(true);
@@ -169,10 +171,12 @@ class NotificationDatabaseTest extends DatabaseTest {
 
     // ---- the endpoint ------------------------------------------------------------------------------------------------
 
+    // A minimal valid JSON body as Booking would send it, for the endpoint tests below.
     private static final String BODY = """
             {"dedupeKey":"ticket:7:1","kind":"TICKET","to":"alice@example.com","toName":"Alice","reference":"TB-ABC234",
              "lines":["Seat 1A"],"amount":230.00,"currency":"EGP"}""";
 
+    // POST helper without the key header; tests add the header themselves.
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request(String body) {
         return post("/internal/notifications").contentType(MediaType.APPLICATION_JSON).content(body);
     }

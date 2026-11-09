@@ -11,10 +11,14 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 /** The words of the emails. Needs no database or mail server. */
+/**
+ * Pure tests of EmailTemplates (no database, no mail server): wording per kind and payment method, local time zone, HTML escaping.
+ */
 class EmailTemplatesTest {
 
     private final EmailTemplates templates = new EmailTemplates(ZoneId.of("Africa/Cairo"));
 
+    // Builds a request from the shared ticket sample with the given kind, amount, detail and name.
     private static NotificationRequest of(NotificationRequest.Kind kind, BigDecimal amount, String detail, String name) {
         NotificationRequest base = DatabaseTest.ticketEmail("k");
         return new NotificationRequest("k", kind, base.to(), name, base.reference(), base.trip(), base.lines(), amount, "EGP", detail, null);
@@ -63,6 +67,7 @@ class EmailTemplatesTest {
         assertThat(templates.render(request).text()).contains("your payment", "TB-ABC234");
     }
 
+    // Same, but with the payment method (CARD, COUNTER or COMPLIMENTARY).
     private static NotificationRequest by(NotificationRequest.Kind kind, String method) {
         NotificationRequest base = DatabaseTest.ticketEmail("k");
         return new NotificationRequest("k", kind, base.to(), base.toName(), base.reference(), base.trip(), base.lines(), new BigDecimal("230.00"), "EGP", null, null, method);

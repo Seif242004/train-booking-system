@@ -19,6 +19,7 @@ public class MutableClock extends Clock {
         now.set(instant);
     }
 
+    // Moves time forward; the dispatcher then sees retries as due.
     public void advance(Duration duration) {
         now.updateAndGet(current -> current.plus(duration));
     }

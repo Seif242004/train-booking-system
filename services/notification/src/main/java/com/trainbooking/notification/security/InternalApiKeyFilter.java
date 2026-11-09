@@ -26,12 +26,14 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class InternalApiKeyFilter extends OncePerRequestFilter {
 
+    // HEADER is the name of the request header; ROLE is given to a request that proved it knows the key, and the filter chain requires it.
     static final String HEADER = "X-Internal-Api-Key";
     static final String ROLE = "ROLE_INTERNAL";
 
     private final byte[] expectedKey;
     private final JsonMapper jsonMapper;
 
+    // Fails at start-up when the key is empty, so the service can never run unprotected.
     InternalApiKeyFilter(String key, JsonMapper jsonMapper) {
         if (key == null || key.isBlank()) {
             throw new IllegalStateException("INTERNAL_API_KEY must be set: it protects the /internal endpoints.");
@@ -40,6 +42,9 @@ class InternalApiKeyFilter extends OncePerRequestFilter {
         this.jsonMapper = jsonMapper;
     }
 
+    // On a missing or wrong key: 401 invalid_api_key and the chain stops. On the right key: an authenticated "internal-caller" with
+    // ROLE_INTERNAL is set.
+    // The compare is constant-time (MessageDigest.isEqual) so a timing attack cannot guess the key byte by byte.
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {

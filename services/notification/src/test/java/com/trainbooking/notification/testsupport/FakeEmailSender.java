@@ -22,6 +22,7 @@ public class FakeEmailSender implements EmailSender {
         refuses = email -> false;
     }
 
+    // down(true) makes every send fail like an unreachable mail server; refuses(...) fails only the emails the predicate matches.
     public void down(boolean down) {
         this.down = down;
     }
@@ -35,6 +36,7 @@ public class FakeEmailSender implements EmailSender {
     }
 
     /** Every call, successful or not (the id of the email). */
+    // Counts every call to send, including failed ones.
     public int attempts() {
         return attempts.size();
     }

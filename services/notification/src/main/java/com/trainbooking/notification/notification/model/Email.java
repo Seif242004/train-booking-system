@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
  * One email, as stored. {@code attachment} is null when there is none; the list queries leave it (and the bodies) out and
  * {@code EmailRepository.find} loads the whole row.
  */
+// byte[] attachment holds the PDF bytes (BLOB column); status, attempts and nextAttemptAt drive the retry loop in EmailDispatcher.
 public record Email(
         long id,
         String dedupeKey,

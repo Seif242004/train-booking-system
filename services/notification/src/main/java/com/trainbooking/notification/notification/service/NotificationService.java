@@ -20,12 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
  * A poller sends the email afterwards ({@link EmailDispatcher}). So a mail server that is down, or an address that is refused, can
  * never fail the payment, the confirmation or the cancellation that asked for the email.
  */
+// @Service marks the business-logic bean. The logger is only used for the concurrent-duplicate message.
 @Service
 public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
 
     /** The email, and whether this request stored it (false: the same dedupe key was stored by an earlier request). */
+    // created=true means this request stored the email (HTTP 202); false means an earlier request did (HTTP 200).
     public record Accepted(Email email, boolean created) {
     }
 
@@ -41,8 +43,17 @@ public class NotificationService {
         this.clock = clock;
     }
 
+    /*
+     * Stores the email and returns at once; sending is the dispatcher's job. @Transactional wraps the body in one database transaction,
+     * so the email row and its audit_log row commit together or not at all.
+     * Idempotency has two layers: (1) a lookup by dedupeKey returns the existing email; (2) if two requests with the same key race past
+     * the lookup, the unique constraint makes the second INSERT fail with DuplicateKeyException (ORA-00001) and we return the winner's row.
+      * Errors: an invalid base64 attachment throws IllegalArgumentException (answered as 500 by the global handler; Booking sends valid
+      * data).
+     */
     @Transactional
     public Accepted accept(NotificationRequest request) {
+        // Fast path: the same key was accepted before.
         Email existing = emails.findByDedupeKey(request.dedupeKey()).orElse(null);
         if (existing != null) {
             return new Accepted(existing, false);
@@ -54,6 +65,7 @@ public class NotificationService {
             Email stored = emails.insert(request.dedupeKey(), request.kind(), request.reference(), request.to(), request.toName(), rendered.subject(),
                     rendered.text(), rendered.html(), attachment == null ? null : attachment.fileName(), attachment == null ? null : attachment.contentType(),
                     bytes, OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC));
+            // Audit of the queueing, with the calling service as actor. Booking and Seat is the only caller.
             audit.record("booking-service", "email", stored.id(), "QUEUE", Map.of("kind", request.kind().name(), "reference", request.reference()));
             return new Accepted(stored, true);
         } catch (DuplicateKeyException e) {

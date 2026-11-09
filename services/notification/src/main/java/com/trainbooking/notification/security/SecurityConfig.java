@@ -15,11 +15,18 @@ import tools.jackson.databind.json.JsonMapper;
  * Notification has no user endpoints: users never call it, Booking and Seat does (CLAUDE.md, "Services"). So everything under
  * {@code /internal} needs the shared API key, and anything else is refused. The Gateway never forwards to this service.
  */
+// @Configuration declares the beans below; @EnableWebSecurity turns on Spring Security's web support. There is no JWT here: this service
+// has no users, only the shared key (CLAUDE.md, Identity).
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
+    // Two filter chains. @Bean registers each; @Order(1) is tried first and the securityMatcher decides which requests a chain handles.
+    // @Value injects a setting (trainbooking.internal-api-key, from INTERNAL_API_KEY).
+    // Chain 1: only /internal/**. Stateless (no session, no cookie), so CSRF protection (a browser-cookie attack) is not needed and is
+    // disabled.
+    // The key filter runs before the anonymous filter; then only ROLE_INTERNAL is allowed.
     @Order(1)
     SecurityFilterChain internalChain(HttpSecurity http, JsonErrorHandlers errorHandlers, JsonMapper jsonMapper,
                                       @Value("${trainbooking.internal-api-key}") String apiKey) throws Exception {
@@ -34,6 +41,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    // Chain 2: everything that is not /internal, denied for all (403 forbidden). This service has no public routes.
     @Order(2)
     SecurityFilterChain everythingElse(HttpSecurity http, JsonErrorHandlers errorHandlers) throws Exception {
         http

@@ -40,6 +40,8 @@ function plan(startRowText: string, rowCountText: string, columnsText: string): 
 }
 
 /** Seat layout of one coach: the seat map, a generator for rows by columns, and edit or delete of a single seat. */
+// Admin: seats of one coach (used in the train detail page). Endpoints: GET /admin/coaches/{id}/seats, POST /admin/coaches/{id}/seats (a list,
+// all or nothing), PUT /admin/seats/{id}, DELETE /admin/seats/{id}. The class of a seat is never sent: the server copies it from the coach.
 export function CoachSeats({ coach }: { coach: Coach }) {
   const [seats, setSeats] = useState<Seat[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,11 +73,13 @@ export function CoachSeats({ coach }: { coach: Coach }) {
     void load();
   }, [load]);
 
+  // The generator starts after the last existing row unless the admin typed another start row.
   const nextRow = seats && seats.length > 0 ? Math.max(...seats.map((s) => s.row)) + 1 : 1;
   const effectiveStartRow = startRowText ?? String(Math.min(nextRow, 99));
   const generated = useMemo(() => plan(effectiveStartRow, rowCountText, columnsText), [effectiveStartRow, rowCountText, columnsText]);
 
   // The seat map: rows down, columns across, empty cells where a position has no seat.
+  // The map is built from the seat list: distinct rows and columns, and a lookup by "row/column" to find the seat (or an empty cell).
   const rows = useMemo(() => [...new Set((seats ?? []).map((s) => s.row))].sort((a, b) => a - b), [seats]);
   const columns = useMemo(() => [...new Set((seats ?? []).map((s) => s.column))].sort(), [seats]);
   const bySpot = useMemo(() => new Map((seats ?? []).map((s) => [`${s.row}/${s.column}`, s])), [seats]);
@@ -136,6 +140,7 @@ export function CoachSeats({ coach }: { coach: Coach }) {
     }
   }
 
+  // A 404 counts as success: the seat is already gone.
   async function deleteSeat(seat: Seat) {
     const result = await gatewayRequest('DELETE', `/admin/seats/${seat.id}`);
     if (result.status === 204 || result.status === 404) {

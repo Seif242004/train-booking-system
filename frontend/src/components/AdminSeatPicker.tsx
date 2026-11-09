@@ -13,6 +13,7 @@ import { SeatShape, type SeatLook } from './SeatShape';
 const EXPIRED_MESSAGE = 'Your hold expired. Pick the seats again.';
 
 /** The columns of a coach split around the aisle, as on the passenger seat map. */
+// Builds the seat plan: columns sorted by letter and split in two halves around the aisle, and the seats grouped by row number.
 function planOf(coach: SeatMapCoach) {
   const columns = [...new Set(coach.seats.map((seat) => seat.column))].sort((a, b) => a.localeCompare(b));
   const leftCount = Math.ceil(columns.length / 2);
@@ -45,6 +46,9 @@ interface Props {
  * standing stepper, live updates through the same WebSocket) driven by the same hold endpoints, so the hold rules are the server's: the first pick
  * starts the 5 minutes, further picks join and never extend, deselecting releases, and when the time is up the selection is cleared with a message.
  */
+// Used inside the admin board's slide-over (BoardDetailPanel) to book for a passenger. Endpoints, all through the Gateway as the admin (the
+// admin holds the seats like a passenger would): GET /trips/{id}/seat-map, POST /bookings/pick, POST /bookings/{id}/release,
+// DELETE /bookings/{id}/hold. The 5-minute rule and the race handling are the server's; this component only displays the result.
 export function AdminSeatPicker({ tripId, stops, onHoldChange, onContinue, onCancel }: Props) {
   const lastStop = stops.length - 1;
   const [journey, setJourney] = useState<PickedJourney>({ fromStop: 0, toStop: lastStop });
@@ -59,6 +63,7 @@ export function AdminSeatPicker({ tripId, stops, onHoldChange, onContinue, onCan
   const countdown = useRef<Countdown | null>(null);
   const reloadTimer = useRef<number | undefined>(undefined);
 
+  // Reloads the whole seat map for the chosen journey. useCallback gives a stable function so the effects below can depend on it.
   const load = useCallback(async (from = journey.fromStop, to = journey.toStop) => {
     const result = await gatewayGet(`/trips/${tripId}/seat-map?from=${from}&to=${to}`);
     if (result.status === 200) {
@@ -75,6 +80,8 @@ export function AdminSeatPicker({ tripId, stops, onHoldChange, onContinue, onCan
   useEffect(() => { onHoldChange(hold); }, [hold, onHoldChange]);
 
   // The countdown comes from the server's expiry time corrected with the server's clock; the server decides when the hold is over.
+  // Countdown effect: restarts when the hold or its server time changes; ticks every 250 ms; at 0 it shows the expiry message and reloads after
+  // 1.5 s (the sweeper on the server releases an expired hold within about a second). The clean-up clears the interval and the timer.
   const expiresAt = hold?.expiresAt;
   const serverTime = hold?.serverTime;
   useEffect(() => {
@@ -115,6 +122,8 @@ export function AdminSeatPicker({ tripId, stops, onHoldChange, onContinue, onCan
   const myStanding = useMemo(() => new Map((hold?.items ?? []).filter((i) => i.type === 'STANDING').map((i) => [i.coachId, i.qty])), [hold]);
   const timeIsUp = left !== null && left <= 0;
 
+  // Runs one pick/release request. `busy` holds the keys of requests in flight, so a seat button is disabled while its request runs.
+  // On 409 seats_unavailable (another passenger won the race) only this pick failed; the other held seats stay held.
   async function act(key: string, request: () => Promise<GatewayResult>) {
     setProblem(null);
     setBusy((now) => new Set(now).add(key));
@@ -156,6 +165,7 @@ export function AdminSeatPicker({ tripId, stops, onHoldChange, onContinue, onCan
   const price = (c: CoachClass) => map.fares[c] ?? 0;
   const lookOf = (seat: SeatMapSeat): SeatLook => (mySeatIds.has(seat.id) ? 'mine' : seat.state === 'HELD' ? 'held' : seat.state === 'BOOKED' ? 'booked' : 'available');
 
+  // Never colour alone: each seat has a shape mark, a text label for screen readers and a tooltip. Your own seats are clickable to release.
   function seatButton(seat: SeatMapSeat | undefined, key: string) {
     if (!seat) return <span key={key} className="plan-seat-empty" aria-hidden="true" />;
     const mine = mySeatIds.has(seat.id);

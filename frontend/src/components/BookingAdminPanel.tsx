@@ -8,6 +8,7 @@ import { ErrorState } from './ErrorState';
 import { ListSkeleton } from './ListSkeleton';
 import { useToast } from './Toasts';
 
+// Words for each refund status (a separate field of the booking, mirrored from Payment). The admin must see a failed refund clearly.
 export const REFUND_TEXT: Record<RefundStatus, string> = {
   NONE: 'No refund',
   REFUND_PENDING: 'Refund pending: not finished yet',
@@ -67,6 +68,9 @@ interface Props {
  * the whole booking with a reason, and for a counter booking that was cancelled, mark it refunded at the counter. It shows only what the support
  * search already shows an admin.
  */
+// Endpoints (ADMIN only): GET /admin/bookings?ref= to find the booking, GET /admin/bookings/{id} for the audit fields, POST
+// /admin/bookings/{id}/cancel {reason}, POST /admin/bookings/{id}/refunded-at-counter. Errors are shown in words; trip_departed means
+// the train already left the boarding stop (the cancellation cutoff).
 export function BookingAdminPanel({ reference, onChanged }: Props) {
   const toast = useToast();
   const [row, setRow] = useState<AdminBooking | null>(null);

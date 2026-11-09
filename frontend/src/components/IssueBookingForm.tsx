@@ -22,6 +22,7 @@ interface Props {
   onHoldGone: (message: string) => void;
 }
 
+// ACCOUNT = the passenger has an account (found by exact email); WALK_IN = a person at the counter, with a name and optional contact data.
 type Mode = 'ACCOUNT' | 'WALK_IN';
 type Fields = 'lookup' | 'name' | 'email' | 'reason';
 const MIN_REASON = 5;
@@ -30,6 +31,9 @@ const MIN_REASON = 5;
  * The second step of booking from the board: who the passenger is, how it was paid, the order summary with the hold timer, and the button.
  * Errors show on blur and clear as soon as the value is fixed; after a failed submit the first invalid field gets the focus; what was typed stays.
  */
+// Endpoints (ADMIN only): GET /admin/passengers/lookup?q=<exact email> (404 when there is no such account) and POST /admin/bookings/{holdId}/issue.
+// A counter booking records that the money was taken at the counter; a complimentary one needs a reason and charges nothing. No Stripe is
+// involved. The amount is the server's price of the hold; nothing here sets a price.
 export function IssueBookingForm({ hold, map, onBack, onIssued, onHoldGone }: Props) {
   const [mode, setMode] = useState<Mode>('WALK_IN');
   const [lookup, setLookup] = useState('');
@@ -55,6 +59,7 @@ export function IssueBookingForm({ hold, map, onBack, onIssued, onHoldGone }: Pr
     return () => window.clearInterval(timer);
   }, [hold.expiresAt, hold.serverTime]);
 
+  // Validation runs on every render but is only SHOWN for fields the user has left ("touched") or after a submit, so an untouched field is not blamed.
   const errors: Partial<Record<Fields, string>> = {};
   if (mode === 'ACCOUNT' && !found) errors.lookup = 'Find the passenger by their exact email first.';
   if (mode === 'WALK_IN' && name.trim() === '') errors.name = 'Enter the passenger\'s full name.';

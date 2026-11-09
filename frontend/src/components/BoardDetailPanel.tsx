@@ -15,6 +15,7 @@ import { ListSkeleton } from './ListSkeleton';
 import { SeatShape, type SeatLook } from './SeatShape';
 import { useToast } from './Toasts';
 
+// Maps the board's seat states to the look of the shared SeatShape and to the word used in the screen-reader label.
 const LOOK: Record<BoardSeatState, SeatLook> = { FREE: 'available', HELD: 'held', TAKEN: 'booked' };
 const WORD: Record<BoardSeatState, string> = { FREE: 'free', HELD: 'held', TAKEN: 'taken' };
 
@@ -67,6 +68,7 @@ function ReadOnlySeat({ seat, now, selectedRef, onSelect }: { seat: BoardDetailS
   );
 }
 
+// One row of the counts table. capacity = confirmed + held + free (see boardTypes.ts).
 function CountRow({ name, counts }: { name: string; counts: SeatCounts }) {
   return (
     <tr>
@@ -80,6 +82,8 @@ function CountRow({ name, counts }: { name: string; counts: SeatCounts }) {
 }
 
 /** Cancels the whole trip (the existing admin flow): first says how many confirmed bookings it will cancel, by how they were paid. */
+// Admin, Flow 8: cancels the whole trip. ask() first counts the CONFIRMED bookings by payment method (GET /admin/bookings?tripId=&status=CONFIRMED,
+// at most 100 rows, hence "atLeast") so the admin sees what will happen; confirm() calls POST /admin/trips/{id}/cancel with the required reason.
 function TripCancelSection({ detail, onChanged }: { detail: BoardDetail; onChanged: () => void }) {
   const toast = useToast();
   const { trip } = detail;
@@ -154,12 +158,16 @@ interface Props {
   onAnswerClose: (answer: 'stay' | 'keep' | 'release') => void;
 }
 
+// The panel is a small state machine: view (read only) -> pick (select seats) -> issue (counter or complimentary form) -> done.
 type Step = 'view' | 'pick' | 'issue' | 'done';
 
 /**
  * The slide-over of one trip. View: counts per class and a coach plan; a taken seat opens its booking (cancel, mark refunded at the counter), a held
  * seat says when it ends. Book seats: select seats, then issue the booking (counter or complimentary) without Stripe. Cancel trip.
  */
+// Opened as a slide-over from the trips board (TripsBoard). Endpoint: GET /admin/board/trips/{id}, composed by the Gateway from Train & Schedule
+// and Booking & Seat. holdRef mirrors the latest hold so callbacks that outlive a render still see it. The parent is told about the hold
+// because closing the panel while a hold runs must ask the admin first (keep or release).
 export function BoardDetailPanel({ tripId, refreshKey, onChanged, onHoldChange, askClose, onAnswerClose }: Props) {
   const toast = useToast();
   const [detail, setDetail] = useState<BoardDetail | null>(null);
@@ -213,6 +221,7 @@ export function BoardDetailPanel({ tripId, refreshKey, onChanged, onHoldChange, 
     void load();
   }, [onChanged, load]);
 
+  // DELETE /bookings/{id}/hold releases every seat of the hold at once; the server ends the hold as ABANDONED.
   async function release(andClose: boolean) {
     const current = holdRef.current;
     if (current) await gatewayRequest('DELETE', `/bookings/${current.id}/hold`);

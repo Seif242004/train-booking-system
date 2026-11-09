@@ -8,6 +8,8 @@ const RETRY_MS = 3000;
  * The QR code of the ticket (the same code as in the PDF). An <img> cannot send the Authorization header, so the image is fetched with the
  * token, shown from an object URL, and the URL is revoked when the component goes away. A failure never hides the rest of the ticket.
  */
+// Route data: GET /bookings/{id}/ticket/qr through the Gateway (owner only). `load` retries a few times because the Ticket service creates the
+// ticket asynchronously after the payment. `isCurrent` tells it to stop when the effect was cleaned up (the page left or the id changed).
 export function TicketQr({ bookingId, reference }: { bookingId: number; reference: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);

@@ -13,6 +13,7 @@ interface Props {
   placeholder?: string;
 }
 
+// A station matches when the typed text is part of its name, code or city (case does not matter). An empty text matches everything.
 function matches(station: Station, text: string): boolean {
   const wanted = text.trim().toLowerCase();
   return wanted === '' || station.name.toLowerCase().includes(wanted) || station.code.toLowerCase().includes(wanted) || station.city.toLowerCase().includes(wanted);
@@ -22,6 +23,7 @@ function matches(station: Station, text: string): boolean {
  * A station field you can type in: the list narrows as you type, arrow keys move through it, Enter picks, Escape closes, and the x clears
  * the field. It is the ARIA combobox pattern with a list box. Only a station of the list can be chosen.
  */
+// Local state: `text` is what is in the box, `open` the list, `active` the highlighted option. The parent only stores the station CODE (`value`).
 export function StationCombobox({ id, label, stations, value, onChange, onBlurCheck, error, placeholder }: Props) {
   const listId = useId();
   const chosen = stations.find((s) => s.code === value);
@@ -41,6 +43,7 @@ export function StationCombobox({ id, label, stations, value, onChange, onBlurCh
     setText(chosen?.name ?? '');
   }, [chosen?.name, value]);
 
+  // useMemo recomputes the filtered list only when the stations or the text change. If the text is the chosen name, show the whole list.
   const options = useMemo(() => stations.filter((s) => matches(s, text === chosen?.name ? '' : text)), [stations, text, chosen?.name]);
 
   function pick(station: Station) {
@@ -50,6 +53,7 @@ export function StationCombobox({ id, label, stations, value, onChange, onBlurCh
     onBlurCheck?.(null);
   }
 
+  // Keyboard: arrows move the highlight, Enter picks it, Escape closes. The browser's default for these keys is cancelled with preventDefault.
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -67,6 +71,7 @@ export function StationCombobox({ id, label, stations, value, onChange, onBlurCh
     }
   }
 
+  // When the user leaves the field the text must become a real station: empty clears, an exact name or code is accepted, anything else is an error.
   function onBlur() {
     setOpen(false);
     const typed = text.trim();

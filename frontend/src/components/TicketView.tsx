@@ -21,6 +21,8 @@ interface Props {
  * The confirmed booking as a boarding pass: the check draws in, then the ticket rises. It shows the real data of the booking, the QR code (fetched
  * through the Gateway) and a Download PDF button; the PDF (the Ticket service's print of this same pass) is also e-mailed, and can be sent again.
  */
+// Pure display component: the page (TicketPage) loads the booking and owns the download and resend actions. The facts list is built here from the
+// booking's items: seat numbers, the number of standing places, the distinct classes and coaches. Times are shown as they are (see time.ts).
 export function TicketView({ booking, passenger, resend, onResend, onDownload, downloading }: Props) {
   const toast = useToast();
   async function copyReference() {

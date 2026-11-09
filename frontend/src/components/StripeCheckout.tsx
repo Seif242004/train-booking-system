@@ -43,6 +43,8 @@ interface Props {
 }
 
 /** Stripe's embedded payment form (Flow 4): it is part of our payment page, next to the countdown. */
+// <Elements> is Stripe's React provider: it gives the children access to Stripe.js and the PaymentIntent (identified by the clientSecret that Payment
+// created through the Gateway). PaymentElement is the card form that Stripe draws inside an iframe.
 export function StripeCheckout({ publishableKey, clientSecret, returnUrl, amountLabel, onSubmitted, seatsHref }: Props) {
   return (
     <Elements stripe={stripeFor(publishableKey)} options={{ clientSecret, appearance: APPEARANCE, fonts: FONTS }}>
@@ -51,6 +53,7 @@ export function StripeCheckout({ publishableKey, clientSecret, returnUrl, amount
   );
 }
 
+// Must be a separate component because useStripe and useElements only work inside <Elements>.
 function CheckoutForm({ returnUrl, amountLabel, onSubmitted, seatsHref }: Pick<Props, 'returnUrl' | 'amountLabel' | 'onSubmitted' | 'seatsHref'>) {
   const stripe = useStripe();
   const elements = useElements();

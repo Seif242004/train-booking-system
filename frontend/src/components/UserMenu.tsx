@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
+/** "Seif Tamer" gives "ST"; a single word gives its first two letters. Used for the round avatar. */
 export function initialsOf(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
   const letters = words.length > 1 ? words[0][0] + words[words.length - 1][0] : (words[0] ?? '?').slice(0, 2);
@@ -12,6 +13,8 @@ export function initialsOf(name: string): string {
  * The signed-in user's one menu: initials and first name on a button; it opens Account, My bookings, Admin (admins only) and Sign out.
  * A menu button pattern: aria-expanded, arrow keys, Home and End, Escape closes and returns the focus, a click outside closes.
  */
+// `items()` reads the menu entries from the DOM when needed. Effects: focus the first item when it opens, close on every address change,
+// and (while open) close on a pointer press outside the menu; the clean-up removes that listener.
 export function UserMenu() {
   const { user, hasRole, logout } = useAuth();
   const { pathname } = useLocation();
@@ -52,6 +55,8 @@ export function UserMenu() {
     }
   }
 
+  // Keyboard behaviour of the WAI-ARIA "menu" pattern: arrows move (wrapping around with %), Home/End jump, Escape closes and returns the focus
+  // to the button, Tab closes. preventDefault stops the page from scrolling for the keys handled here.
   function onMenuKey(event: KeyboardEvent) {
     const list = items();
     const index = list.indexOf(document.activeElement as HTMLElement);

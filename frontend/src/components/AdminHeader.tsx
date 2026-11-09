@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
+// Props are the inputs of a React component, passed like HTML attributes. `back`, `action` and `children` are optional (the "?").
 interface Props {
   title: string;
   /** A link back to the list this page belongs to (for the pages of one train or one route). */

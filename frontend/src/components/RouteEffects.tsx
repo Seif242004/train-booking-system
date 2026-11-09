@@ -3,6 +3,7 @@ import { useLocation, useNavigationType } from 'react-router-dom';
 import { titleFor } from '../routes';
 
 // Settling time after a route change in which scroll events are ignored: the browser clamps the old position while the new page renders.
+// Timing constants for the scroll handling below.
 const SETTLE_MS = 200;
 // How long a restored scroll position keeps trying while the page is still loading its content.
 const RESTORE_FOR_MS = 1500;
@@ -13,6 +14,8 @@ const RESTORE_FOR_MS = 1500;
  *  - focus moves to the new page's h1 (waiting for it when the page loads asynchronously);
  *  - Back and Forward restore the scroll position, a new page starts at the top.
  */
+// Renders nothing visible except a hidden live region. Refs hold values that must not trigger re-rendering: the scroll position of each
+// history entry (keyed by the router's location key), the current key, and the previous path.
 export function RouteEffects() {
   const { pathname, key } = useLocation();
   const navigationType = useNavigationType();
@@ -28,6 +31,8 @@ export function RouteEffects() {
     document.title = `${title} · Train Booking`;
   }, [title]);
 
+  // history.scrollRestoration = 'manual' stops the browser from restoring the position itself, because this component does it (pages load their data
+  // after the first paint, so the browser would scroll too early).
   // Remember where each history entry was scrolled to.
   useEffect(() => {
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

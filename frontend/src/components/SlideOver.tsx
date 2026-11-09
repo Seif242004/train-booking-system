@@ -10,6 +10,7 @@ interface Props {
   children: ReactNode;
 }
 
+// CSS selector of everything the keyboard can reach: used to keep Tab inside the panel (a "focus trap").
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -17,6 +18,8 @@ const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), select:
  * focus moves into it, Tab stays inside, Escape or the backdrop or the close button closes it, and focus goes back to the button that
  * opened it. The page behind does not scroll while it is open.
  */
+// closeRef always holds the latest onClose, so the effect below does not need to restart when the parent re-renders. createPortal draws the
+// panel directly under <body>, outside the page's layout boxes, so it cannot be clipped by them. useId gives a unique id for aria-labelledby.
 export function SlideOver({ open, title, onClose, wide = false, children }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);

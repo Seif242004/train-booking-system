@@ -11,6 +11,10 @@ const REFRESH_MS = 30_000;
  * A slim bar on every page while the signed-in user has a running hold: "Your seats are held for 3:42. Continue to payment". It uses
  * `GET /bookings` (My bookings), so nothing new on the server. The seat map and the payment page show the hold themselves and hide it.
  */
+// Mounted once in Layout. Two effects: (1) while signed in, load My bookings now, on every page change and every 30 seconds, and keep the
+// PENDING_PAYMENT one (the running hold); the clean-up stops the interval. (2) while a hold exists, a 500 ms tick recomputes the time left from
+// the server-corrected countdown (countdown.ts). When it reaches 0 the banner hides at once and asks the server again; the server (sweeper)
+// is what really ends the hold.
 export function HoldBanner() {
   const { authenticated } = useAuth();
   const { pathname } = useLocation();
@@ -18,6 +22,7 @@ export function HoldBanner() {
   const [left, setLeft] = useState(0);
   const countdown = useRef<Countdown | null>(null);
 
+  // useCallback keeps one function identity so the effects below do not restart on every render.
   const refresh = useCallback(async () => {
     try {
       const result = await gatewayGet('/bookings');

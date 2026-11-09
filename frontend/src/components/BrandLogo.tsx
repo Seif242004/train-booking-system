@@ -17,6 +17,7 @@ interface Props {
 }
 
 /** The etisalat logo: white for the red header and the dark footer, red for white surfaces. */
+// `ratio` is width divided by height, so the width can be set from the height and the image does not jump while loading.
 export function BrandLogo({ height = 30, home = true, variant = 'white' }: Props) {
   const { src, ratio } = LOGOS[variant];
   const image = <img src={src} alt="etisalat" height={height} width={Math.round(height * ratio)} />;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 /** A slim bar at the very top while the browser has no network. It disappears by itself when the connection returns. */
+// The effect adds two browser event listeners once and removes them on unmount. navigator.onLine is only a hint from the browser.
 export function OfflineBanner() {
   const [online, setOnline] = useState(() => navigator.onLine);
   useEffect(() => {

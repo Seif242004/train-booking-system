@@ -1,34 +1,46 @@
+// Gradle build file of the whole project (the "root project"). It holds only what every Spring service shares; each service has its own
+// build.gradle with its dependencies. The Gateway and the web app are built by npm, not by Gradle.
 plugins {
     // Declared once here so every Spring service uses the same Spring Boot version.
     // A service applies it with: id 'org.springframework.boot'
+    // "apply false": the plugin is put on the classpath at this version but not applied to the root project itself.
     id 'org.springframework.boot' version '4.1.2' apply false
 }
 
+// group and version become the coordinates of every artifact and part of the jar name (booking-seat-0.0.1-SNAPSHOT.jar), which
+// infra/docker/spring.Dockerfile relies on.
 group = 'com.trainbooking'
 version = '0.0.1-SNAPSHOT'
 
 // Conventions shared by all Spring services. Dependencies are declared in each service's own build.gradle.
+// "subprojects" runs this block once for every service listed in settings.gradle.
 subprojects {
     group = rootProject.group
     version = rootProject.version
 
+    // Where Gradle downloads libraries from: Maven Central.
     repositories {
         mavenCentral()
     }
 
+    // The block runs only for subprojects that apply the Java plugin, and at the moment they apply it.
     plugins.withType(JavaPlugin).configureEach {
         // Compile and test with JDK 21 regardless of the JDK that runs Gradle.
         java {
+            // The toolchain makes Gradle compile and run tests with a Java 21 JDK, downloading or finding one if the JDK that
+            // runs Gradle is another.
             toolchain {
                 languageVersion = JavaLanguageVersion.of(21)
             }
         }
 
         tasks.withType(JavaCompile).configureEach {
+            // Source files are read as UTF-8 on every operating system.
             options.encoding = 'UTF-8'
         }
 
         tasks.withType(Test).configureEach {
+            // Run the tests with JUnit 5 (the JUnit Platform).
             useJUnitPlatform()
         }
     }

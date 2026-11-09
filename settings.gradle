@@ -1,8 +1,10 @@
+// settings.gradle is read first by Gradle: it names the project and lists which folders are subprojects.
 rootProject.name = 'train-booking-system'
 
 // One Gradle subproject per Spring Boot service, living under services/.
 // Each service is included here when it is built.
 // The API Gateway and the frontend are Node projects and are not part of the Gradle build.
+// "services:train-schedule" means the folder services/train-schedule. The task name is then :services:train-schedule:bootJar.
 include 'services:train-schedule'
 include 'services:booking-seat'
 include 'services:payment'

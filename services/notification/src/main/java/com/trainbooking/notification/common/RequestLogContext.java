@@ -20,13 +20,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>Only the path is logged, never the query string, a header or a body: tokens and card data must not reach the logs.
  */
+// @Component registers the filter; Spring Boot adds every Filter bean to the servlet chain. It runs after the security chain (see class
+// comment).
 @Component
 class RequestLogContext extends OncePerRequestFilter {
 
+    // Logger name "access": one line per request, filterable in OpenObserve.
     private static final Logger log = LoggerFactory.getLogger("access");
+    // Takes the numeric id from paths like /bookings/42/... so the line carries bookingId. Notification has no such path today.
     private static final Pattern BOOKING = Pattern.compile("/(?:bookings|payments|tickets|refunds)/(\\d+)");
     private static final Pattern TRIP = Pattern.compile("/trips/(\\d+)");
 
+    // @Override: OncePerRequestFilter guarantees this runs once per request even with forwards. userId is removed in finally although this
+    // service never sets it (the same filter exists in every service); it would be the JWT sub where a JWT is used.
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         long start = System.nanoTime();
@@ -45,6 +51,7 @@ class RequestLogContext extends OncePerRequestFilter {
         }
     }
 
+    // Puts the first capture group of the pattern into the MDC when the path matches.
     private static void put(String key, Pattern pattern, String path) {
         Matcher matcher = pattern.matcher(path);
         if (matcher.find()) {

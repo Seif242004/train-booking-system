@@ -27,6 +27,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class SmtpEmailSenderMailpitTest {
 
+    // Checks that Mailpit's SMTP (1025) and API (8025) ports answer; used by @EnabledIf so the test is skipped without Mailpit.
     static boolean mailpitRunning() {
         try (Socket smtp = new Socket(); Socket api = new Socket()) {
             smtp.connect(new InetSocketAddress("localhost", 1025), 500);
@@ -37,6 +38,8 @@ class SmtpEmailSenderMailpitTest {
         }
     }
 
+    // Sends a real message through SMTP, then polls Mailpit's HTTP API (up to about 5 s) for it and checks sender, recipient, text, HTML
+    // and PDF.
     @Test
     @EnabledIf("mailpitRunning")
     void aTicketEmail_arrivesWithTextHtmlAndThePdfAttached() throws Exception {

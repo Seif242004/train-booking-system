@@ -40,6 +40,7 @@ public final class TestDatabase {
         return fromFile != null && !fromFile.isBlank() ? fromFile : fallback;
     }
 
+    // Reads KEY=VALUE lines of services/notification/.env (git-ignored) so a developer need not export variables.
     private static Map<String, String> readDotEnv() {
         Map<String, String> values = new HashMap<>();
         Path file = Path.of(".env");

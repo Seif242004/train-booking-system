@@ -22,6 +22,9 @@ import org.springframework.test.web.servlet.MockMvc;
  * {@code notification_test}, which is emptied before every test. The sender is a fake and the scheduler is off, so a test decides when
  * an email is sent and whether the "mail server" works.
  */
+// @SpringBootTest starts the whole application; "properties" sets the shared key, switches the scheduler off (a test calls the dispatcher
+// by hand) and fixes the time zone. @AutoConfigureMockMvc gives a MockMvc to call controllers without a real HTTP port. @Import adds the
+// fake clock and mail server. @RequiresTestDatabase skips the class when no test password is configured.
 @SpringBootTest(properties = {
         "trainbooking.internal-api-key=" + DatabaseTest.INTERNAL_KEY,
         "trainbooking.notification.enabled=false",
@@ -34,6 +37,7 @@ public abstract class DatabaseTest {
 
     public static final String INTERNAL_KEY = "test-internal-key";
 
+    // Points the datasource at the throwaway notification_test schema before the context starts.
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", TestDatabase::url);
@@ -54,6 +58,7 @@ public abstract class DatabaseTest {
     protected FakeEmailSender mailServer;
 
     @BeforeEach
+    // Runs before every test: refuses a schema that does not end in _test, then deletes all rows and resets the clock and the fake server.
     void emptyTheTestSchema() {
         String schema = jdbc.sql("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual").query(String.class).single();
         assertThat(schema).as("database tests must run on a *_test schema").endsWithIgnoringCase("_test");
@@ -63,10 +68,12 @@ public abstract class DatabaseTest {
         mailServer.reset();
     }
 
+    // COUNT(*) helper: pass "table WHERE ...".
     protected int rows(String tableAndWhere) {
         return jdbc.sql("SELECT COUNT(*) FROM " + tableAndWhere).query(Integer.class).single();
     }
 
+    // A valid ticket request with a trip and a tiny fake PDF, reused by the tests.
     public static NotificationRequest ticketEmail(String key) {
         return new NotificationRequest(key, NotificationRequest.Kind.TICKET, "alice@example.com", "Alice Example", "TB-ABC234",
                 new NotificationRequest.Trip("T100 Express", "Cairo", OffsetDateTime.parse("2026-11-02T06:00:00Z"), "Alexandria", OffsetDateTime.parse("2026-11-02T08:45:00Z")),

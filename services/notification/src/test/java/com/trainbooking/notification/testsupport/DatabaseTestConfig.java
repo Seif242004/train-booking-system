@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Primary;
 @TestConfiguration
 public class DatabaseTestConfig {
 
+    // @Bean registers the object; @Primary makes it win over the real clock (NotificationConfig) and the real SMTP sender
+    // (SmtpEmailSender).
     @Bean
     @Primary
     MutableClock testClock() {

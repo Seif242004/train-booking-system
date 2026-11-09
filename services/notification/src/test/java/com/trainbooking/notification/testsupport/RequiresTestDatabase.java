@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 @ExtendWith(RequiresTestDatabase.Condition.class)
 public @interface RequiresTestDatabase {
 
+    // JUnit calls this before the class runs; "disabled" makes the whole class show as SKIPPED with the reason.
     class Condition implements ExecutionCondition {
 
         @Override

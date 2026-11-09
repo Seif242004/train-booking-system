@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Service-to-service endpoint used by Booking and Seat (shared API key). Users never call Notification. */
+// @RestController: methods return the response body (JSON), not a view name. No business logic here: it only passes the request to the
+// service.
 @RestController
 public class NotificationController {
 
@@ -21,6 +23,10 @@ public class NotificationController {
     }
 
     /** Stores the email to send: 202 Accepted (it is sent afterwards, with retries), or 200 if the same dedupe key was accepted before. */
+    // @PostMapping maps POST /internal/notifications. @Valid runs Bean Validation on the body (400 when invalid); @RequestBody reads the
+    // JSON.
+    // The path is under /internal, so the API-key filter protects it (SecurityConfig). Response: 202 {id, status} for a new email, 200
+    // for a known dedupeKey.
     @PostMapping("/internal/notifications")
     ResponseEntity<Map<String, Object>> send(@Valid @RequestBody NotificationRequest request) {
         NotificationService.Accepted accepted = service.accept(request);

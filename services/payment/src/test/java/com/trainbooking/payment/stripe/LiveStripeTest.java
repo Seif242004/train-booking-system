@@ -48,6 +48,7 @@ class LiveStripeTest {
         return found;
     }
 
+    // @EnabledIf("testKeyPresent") below: these tests talk to the real Stripe sandbox and run only when a test key is configured.
     @Test
     @EnabledIf("testKeyPresent")
     void anUnpaidIntent_isCancelled_andIdempotencyKeysReturnTheSameIntent() {
@@ -65,7 +66,10 @@ class LiveStripeTest {
         assertThat(stripe.cancelIntent(intent.id()).status()).isEqualTo("canceled"); // cancelling again reports the state, no error
     }
 
-    /** Stripe's test cards, as payment-method tokens: 4242 4242 4242 4242 (success), 4000 0000 0000 0002 (declined), 4000 0000 0000 3220 (3D Secure). */
+    /**
+     * Stripe's test cards, as payment-method tokens: 4242 4242 4242 4242 (success), 4000 0000 0000 0002 (declined), 4000 0000 0000 3220
+     * (3D Secure).
+     */
     @Test
     @EnabledIf("testKeyPresent")
     void aDeclinedCard_leavesTheIntentOpenAndCancellable_andAThreeDSecureCardNeedsActionOnThePage() throws Exception {

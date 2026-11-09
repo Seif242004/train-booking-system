@@ -31,6 +31,7 @@ class RefundDatabaseTest extends DatabaseTest {
     RefundRetrier retrier;
 
     /** A paid booking: an intent that succeeded and was reported by the webhook. */
+    // Helper: a booking whose payment has SUCCEEDED (the only state that can be refunded).
     private void paidBooking() throws Exception {
         payments.create(new CreatePaymentRequest(BOOKING, new BigDecimal("230.00"), "EGP"));
         stripe.setStatus("pi_fake_1", "succeeded");

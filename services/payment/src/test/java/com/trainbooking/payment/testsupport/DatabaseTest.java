@@ -22,6 +22,10 @@ import org.springframework.test.web.servlet.MockMvc;
  * {@code payment_test}, which is emptied before every test. A guard refuses to run on any schema whose name does not end in
  * {@code _test}. The schedulers are off (tests call them by hand), Stripe and Booking are fakes, and the clock can be moved.
  */
+// @SpringBootTest starts the whole application (all beans, Flyway, security) for the test; "properties" override settings only for these
+// tests: a known internal key, the outbox scheduler off (tests call the loops by hand) and fake Stripe keys. @AutoConfigureMockMvc gives
+// a MockMvc that calls the controllers in-process, without a network port. @Import adds the fake beans of DatabaseTestConfig.
+// @RequiresTestDatabase skips the class when no test database password is set.
 @SpringBootTest(properties = {
         "trainbooking.internal-api-key=" + DatabaseTest.INTERNAL_KEY,
         "trainbooking.outbox.enabled=false",
@@ -36,6 +40,8 @@ public abstract class DatabaseTest {
     public static final String INTERNAL_KEY = "test-internal-key";
     public static final String WEBHOOK_SECRET = "whsec_test_secret";
 
+    // @DynamicPropertySource sets the datasource properties at run time from TestDatabase (the payment_test schema), after reading the
+    // .env files.
     @DynamicPropertySource
     static void database(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", TestDatabase::url);
@@ -58,6 +64,8 @@ public abstract class DatabaseTest {
     @Autowired
     protected FakeBookingNotifier booking;
 
+    // @BeforeEach runs before every test: it checks the schema name ends in _test (a guard against wiping a real schema), empties all
+    // tables child-first (refund references payment), and resets the clock and the fakes, so each test starts from nothing.
     @BeforeEach
     void emptyTheTestSchema() {
         String schema = jdbc.sql("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual").query(String.class).single();
@@ -86,6 +94,7 @@ public abstract class DatabaseTest {
         return mvc.perform(request);
     }
 
+    // Counts rows of a table, optionally with a WHERE clause (test-only helper; the argument is a literal written in the test).
     protected int rows(String tableAndWhere) {
         return jdbc.sql("SELECT COUNT(*) FROM " + tableAndWhere).query(Integer.class).single();
     }

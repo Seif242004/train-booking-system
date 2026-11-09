@@ -28,10 +28,13 @@ class WebhookRollbackDatabaseTest extends DatabaseTest {
     @Autowired
     PaymentService payments;
 
+    // @MockitoSpyBean wraps the real PaymentRepository in a Mockito spy: it behaves normally until a test makes one method throw (doThrow).
+    // The test shows the transaction rule: the webhook_event insert and the effect roll back together, so Stripe's retry works.
     @MockitoSpyBean
     PaymentRepository paymentRows;
 
     @Test
+    // Step by step: create a payment, make setStatus fail, deliver the signed event (500), see nothing recorded, then repair and redeliver.
     void aFailureWhileHandling_rollsBackTheEventRecordToo_soTheRetryWorks() throws Exception {
         payments.create(new CreatePaymentRequest(7L, new BigDecimal("230.00"), "EGP"));
         String payload = Events.paymentIntent("evt_1", "payment_intent.succeeded", "pi_fake_1", "succeeded");

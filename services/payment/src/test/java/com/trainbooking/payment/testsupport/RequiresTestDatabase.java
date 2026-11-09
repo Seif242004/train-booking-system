@@ -14,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * Gradle reports it as SKIPPED (see the test logging in build.gradle) instead of failing, so a missing database is
  * never mistaken for a pass.
  */
+// @Target(TYPE): usable on classes. @Retention(RUNTIME): kept at run time so JUnit can read it. @ExtendWith attaches the Condition below,
+// which JUnit asks before each class whether to run it.
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @ExtendWith(RequiresTestDatabase.Condition.class)

@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
 /** The beans the database tests replace: a clock that can be moved, a fake Stripe and a fake Booking. */
+// @TestConfiguration adds beans only for tests. @Primary makes Spring choose these beans over the real ones (clock, Stripe, Booking).
 @TestConfiguration
 public class DatabaseTestConfig {
 

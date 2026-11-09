@@ -25,6 +25,7 @@ class OutboxDatabaseTest extends DatabaseTest {
     @Autowired
     OutboxDispatcher dispatcher;
 
+    // Helper: creates a payment for the booking and delivers a signed payment_intent.succeeded webhook, so one outbox message exists.
     private void pay(long booking, String intent, String eventId) throws Exception {
         payments.create(new CreatePaymentRequest(booking, new BigDecimal("230.00"), "EGP"));
         deliver(Events.paymentIntent(eventId, "payment_intent.succeeded", intent, "succeeded")).andExpect(status().isOk());

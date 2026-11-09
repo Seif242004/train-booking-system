@@ -140,8 +140,8 @@ services:
   # Forwards Stripe's test-mode events to the Payment webhook through the Gateway, with the signature of the real events:
   #   docker compose --profile dev run --rm stripe-cli listen --api-key $STRIPE_SECRET_KEY --print-secret   -> prints the whsec_... secret once
   #   docker compose --profile dev up stripe-cli                                                             -> forwards the events
-  # Put the printed whsec_... in STRIPE_WEBHOOK_SECRET in .env. The Gateway runs on the host and listens on 127.0.0.1 by default, so for the
-  # forwarding to reach it from this container start it with HOST=0.0.0.0 (see gateway/README.md).
+  # Put the printed whsec_... in STRIPE_WEBHOOK_SECRET in .env. The Gateway runs as a container in this stack (service `gateway`, port 8080), and the CLI forwards to
+  # http://gateway:8080/webhooks/payment.
   stripe-cli:
     profiles: ["dev"]
     image: stripe/stripe-cli:latest

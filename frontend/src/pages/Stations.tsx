@@ -4,13 +4,7 @@ import { SlideOver } from '../components/SlideOver';
 import { gatewayRequest, readError } from '../api';
 import { ListSkeleton } from '../components/ListSkeleton';
 import { EmptyState } from '../components/EmptyState';
-
-interface Station {
-  id: number;
-  code: string;
-  name: string;
-  city: string;
-}
+import type { Station } from '../adminTypes';
 
 interface StationForm {
   code: string;

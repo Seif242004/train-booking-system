@@ -3,6 +3,15 @@
 This is a list only. Nothing here was fixed while writing the guide (no behaviour was changed). Items are grouped by where they live. "Observed" items are
 things noticed while reading the code for chapters 1, 2 and 12; they were not tested.
 
+## Fixed after the guide was written
+
+- Stale comment above `stripe-cli` in `docker-compose.yml` (the Gateway is a container now).
+- `Stations.tsx` now imports the shared `Station` type from `adminTypes.ts`.
+- Unused `nowMin` removed from `scripts/demo-data.mjs`.
+- Redundant `!issueCalls.isEmpty()` removed from the test helper `FakeTicketPort.issue`.
+
+The same items still appear in the chapter lists below as written; they are resolved.
+
 ## Train & Schedule (from chapter 3)
 
 - Duplicate and "in use" errors are recognised by **searching the database error text for a constraint name** (`UK_COACH_POSITION`, `FK_ROUTE_STOP_STATION` ...). Renaming a constraint in a migration would silently turn these 409 answers into 500.

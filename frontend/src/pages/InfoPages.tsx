@@ -5,6 +5,7 @@ import { config } from '../config';
 // Help and policy pages. They describe only what the system really does (docs/SRS.md, docs/ARCHITECTURE.md). The terms and the privacy
 // notice are drafts that need the supervisor's review before any real use.
 
+// Shared frame of the five text pages below (routes /help, /refunds, /terms, /privacy, /contact, all public).
 function DocPage({ title, lead, draft = false, children }: { title: string; lead: string; draft?: boolean; children: ReactNode }) {
   return (
     <section className="doc-page">

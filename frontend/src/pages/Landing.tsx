@@ -8,6 +8,7 @@ import { SearchForm, type SearchValues } from '../components/SearchForm';
 import { loadRecentSearches } from '../recentSearches';
 import { todayLocal } from '../time';
 
+// Helper that wraps SVG paths in the common icon <svg> element (aria-hidden: the text next to each icon says the same).
 const icon = (children: ReactNode) => (
   <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     {children}
@@ -47,6 +48,8 @@ const STEPS = [
  * The landing page ("/"): the hero photo with the search card, the three steps, and what you get. The search card hands over to the
  * search page. A signed-in visitor picks stations from the list; a signed-out one types the names and is sent to Keycloak first.
  */
+// Route "/" (public). The station list needs a token (GET /stations), so it is loaded only when signed in. A signed-out visitor types names and
+// search() sends them to Keycloak's login with the search address as the return address, so they land on the results after signing in.
 export function Landing() {
   const { status, authenticated, error, login, register } = useAuth();
   const navigate = useNavigate();

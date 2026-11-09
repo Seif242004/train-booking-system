@@ -11,6 +11,9 @@ import { useToast } from '../components/Toasts';
 import { lastSearchQuery } from '../recentSearches';
 
 /** The confirmed booking: boarding pass and next actions (`/bookings/:id/ticket`). A booking that is not confirmed goes back to where it belongs. */
+// Route /bookings/:id/ticket (signed-in; the owner only, others get 404 from the server). GET /bookings/{id} loads the booking. A booking still in
+// PENDING_PAYMENT goes back to the payment page and any other status to My bookings. Download: GET /bookings/{id}/ticket (PDF). Resend:
+// POST /bookings/{id}/resend-ticket answers 202 (the email is queued; an email failure never changes the booking).
 export function TicketPage() {
   const { id } = useParams();
   const { user } = useAuth();

@@ -27,6 +27,7 @@ function leftInClass(availability: JourneyAvailability, coachClass: CoachClass):
  * The one time shown for a stop in the stop line: when the train leaves the first stop and the passenger's boarding stop,
  * and when it arrives at every other stop.
  */
+// The Gateway sends a time per stop: departure for the first stop and for the boarding stop, arrival for all others.
 function stopTime(stop: TripStop, boardingIndex: number): string | null {
   return stop.stopIndex === 0 || stop.stopIndex === boardingIndex ? stop.departureTime : stop.arrivalTime;
 }
@@ -65,6 +66,8 @@ function StopLine({ trip }: { trip: TripSearchResult }) {
   );
 }
 
+// One trip of the results. A fare tile links to the seat map (/trips/{id}/seats?from=&to=&class=) with the stop indexes of the journey.
+// A sold-out class is shown as plain text (no link), and availability === null means Booking & Seat could not be asked: fares still show.
 function TripCard({ trip, index }: { trip: TripSearchResult; index: number }) {
   const later = daysLater(trip.departureTime, trip.arrivalTime);
   return (
@@ -123,6 +126,7 @@ function TripCard({ trip, index }: { trip: TripSearchResult; index: number }) {
   );
 }
 
+// Grey placeholder cards, shown only after 300 ms of waiting (see useDelayedFlag).
 function SkeletonCards() {
   return (
     <ul className="trip-list" aria-busy="true" aria-label="Loading trains">
@@ -167,6 +171,9 @@ function stationFor(stations: Station[], text: string): Station | undefined {
 }
 
 /** Passenger page: search the trips from one station to another on a date (FR-S1, Flow 2). */
+// Route /search (signed-in; a signed-out visitor is sent to Keycloak by RequireAuth and returns here). Endpoints: GET /stations (once) and
+// GET /trips?from=&to=&date= (from and to are station CODES). The Gateway adds seats-left per class from Booking & Seat. The address
+// (?from=&to=&date=) always mirrors the shown search, so Back from the seat map returns to the same results.
 export function SearchTrips() {
   const [stations, setStations] = useState<Station[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -183,6 +190,7 @@ export function SearchTrips() {
   const [searched, setSearched] = useState<Searched | null>(null);
   // The first departure tomorrow, for the suggestion under today's trains.
   const [tomorrowFirst, setTomorrowFirst] = useState<string | null>(null);
+  // A ref (not state): remembers that the address of the landing page was already handled, without causing a render.
   const handedOver = useRef(false);
   const showSkeleton = useDelayedFlag(searching);
 

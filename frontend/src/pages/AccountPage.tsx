@@ -7,6 +7,8 @@ import { config } from '../config';
 const ACCOUNT_CONSOLE = `${config.keycloakUrl}/realms/${config.keycloakRealm}/account`;
 
 /** The passenger's account: who they are, shortcuts and sign out. Only things a passenger understands; no technical details. */
+// Route /account (signed-in users; /profile redirects here). Shows only data already in the access token (name, email, roles): no request is made.
+// "notice" comes from router state: RequireAdmin redirects a non-admin here with the message "The admin area is only for administrators."
 export function AccountPage() {
   const { user, hasRole, logout } = useAuth();
   const notice = (useLocation().state as { notice?: string } | null)?.notice;

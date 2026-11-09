@@ -17,6 +17,8 @@ import tools.jackson.databind.json.JsonMapper;
  * Writes the news for Booking and Seat. It must run inside the transaction of the change that causes the news (MANDATORY), so that
  * the change and its message are saved together or not at all: a payment that succeeded can never be forgotten.
  */
+// Written in the same transaction as the change that causes the news: that is the outbox pattern (no lost payment, no message for a
+// rolled-back change). @Transactional(MANDATORY) throws if there is no transaction. JsonMapper turns the payload map into JSON.
 @Component
 public class OutboxWriter {
 

@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** Turns every failure inside a controller into the shared JSON error shape. */
+// @RestControllerAdvice: one place for the exceptions of all controllers. Each @ExceptionHandler maps an exception type to a status and
+// a stable error code. 400 validation_failed / malformed_request / invalid_signature, 404 no_payment_to_refund / not_found,
+// 405 method_not_allowed, 409 (PaymentConflictException code), 502 stripe_rejected, 503 stripe_unavailable / stripe_not_configured, 500.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 

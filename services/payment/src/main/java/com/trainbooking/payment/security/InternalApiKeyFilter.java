@@ -26,6 +26,7 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class InternalApiKeyFilter extends OncePerRequestFilter {
 
+    // The header name, and the authority granted to a caller that sent the right key.
     static final String HEADER = "X-Internal-Api-Key";
     static final String ROLE = "ROLE_INTERNAL";
 

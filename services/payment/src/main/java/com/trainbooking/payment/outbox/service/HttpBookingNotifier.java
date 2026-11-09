@@ -13,6 +13,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 /** Calls the internal endpoints of Booking and Seat with the shared API key. */
+// Production implementation of BookingNotifier. @ConditionalOnMissingBean: used only if no other BookingNotifier bean exists (tests
+// register a fake). @Value reads the Booking URL and the shared API key. Timeouts: 2 s to connect, 5 s to read.
+// Calls POST /internal/bookings/{id}/payment-result and /refund-status of Booking and Seat, with the header X-Internal-Api-Key.
 @Component
 @ConditionalOnMissingBean(value = BookingNotifier.class, ignored = HttpBookingNotifier.class)
 public class HttpBookingNotifier implements BookingNotifier {
@@ -42,6 +45,7 @@ public class HttpBookingNotifier implements BookingNotifier {
                 .retrieve().toBodilessEntity());
     }
 
+    // 404 and 400 mean Booking will never accept the message (BookingRejectedException). 401, 5xx, timeouts: try again (Unavailable).
     private <T> T send(java.util.function.Supplier<T> call) {
         try {
             return call.get();

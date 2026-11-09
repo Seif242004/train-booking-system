@@ -18,7 +18,10 @@ public interface StripeGateway {
     String SUCCEEDED = "succeeded";
     String CANCELED = "canceled";
 
-    /** False when there is no Stripe key: nothing that needs Stripe may even be started (no row is written for a payment that cannot be made). */
+    /**
+     * False when there is no Stripe key: nothing that needs Stripe may even be started (no row is written for a payment that cannot be
+     * made).
+     */
     default boolean configured() {
         return true;
     }

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
  * Runs the two retry loops of this service every second (configurable): the delivery of the outbox to Booking and Seat, and the
  * refunds Stripe could not be reached for. Switched off in tests, which call the loops by hand.
  */
+// @ConditionalOnProperty: the scheduler exists unless trainbooking.outbox.enabled=false (tests switch it off and call the loops by hand).
+// @Scheduled(fixedDelayString) runs a method again N ms AFTER the previous run finished (default 1000), so runs never overlap.
 @Component
 @ConditionalOnProperty(name = "trainbooking.outbox.enabled", havingValue = "true", matchIfMissing = true)
 public class OutboxScheduler {

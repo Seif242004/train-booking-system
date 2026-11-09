@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Security failures happen before any controller runs, so they are written here in the same JSON error shape as everything else. */
+// Two security hooks in one class: AuthenticationEntryPoint (no valid key -> 401) and AccessDeniedHandler (-> 403).
 @Component
 public class JsonErrorHandlers implements AuthenticationEntryPoint, AccessDeniedHandler {
 

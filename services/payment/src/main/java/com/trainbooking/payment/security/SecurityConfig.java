@@ -20,6 +20,9 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>anything else is refused.</li>
  * </ol>
  */
+// @Configuration + @EnableWebSecurity: this class defines the Spring Security setup. Each @Bean is one filter chain; @Order says which is
+// tried first (the first whose securityMatcher fits the path handles the request). STATELESS: no session, no cookie.
+// CSRF protection is switched off because it protects cookie-based browser sessions, and none of these routes uses cookies.
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {

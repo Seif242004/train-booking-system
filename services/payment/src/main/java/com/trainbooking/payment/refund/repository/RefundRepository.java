@@ -11,6 +11,8 @@ import java.util.Optional;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+// Data access of table refund. uk_refund_booking (one refund per booking) is what makes a second refund impossible (ORA-00001).
+// The row id doubles as the Stripe idempotency key ("refund-<id>"), so a retry can never refund twice.
 @Repository
 public class RefundRepository {
 
@@ -26,6 +28,7 @@ public class RefundRepository {
         return jdbc.sql("SELECT " + COLUMNS + " FROM refund WHERE booking_id = :b").param("b", bookingId).query(RefundRepository::map).optional();
     }
 
+    // SELECT ... FOR UPDATE locks the refund row until the end of the transaction (webhook and retrier take turns).
     public Optional<Refund> findByIdForUpdate(long id) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM refund WHERE id = :id FOR UPDATE").param("id", id).query(RefundRepository::map).optional();
     }
@@ -43,6 +46,7 @@ public class RefundRepository {
     }
 
     /** Refunds that Stripe has not been asked for yet (or could not be reached for) and are due. */
+    // FETCH FIRST :limit ROWS ONLY is the standard (Oracle 12c+) way to limit rows. "Due" = PENDING, no Stripe refund yet, time reached.
     public List<Refund> findDueWithoutStripeRefund(OffsetDateTime now, int limit) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM refund WHERE status = 'PENDING' AND stripe_refund_id IS NULL AND next_attempt_at <= :now "
                         + "ORDER BY id FETCH FIRST :limit ROWS ONLY")
@@ -59,6 +63,7 @@ public class RefundRepository {
                 .param("status", status.name()).param("f", truncate(failureReason)).param("now", now).param("id", id).update();
     }
 
+    // Counts the failed attempt and sets when to try next. The failure text is truncated to fit the column.
     public void scheduleRetry(long id, OffsetDateTime next, String error, OffsetDateTime now) {
         jdbc.sql("UPDATE refund SET attempts = attempts + 1, next_attempt_at = :next, failure_reason = :f, updated_at = :now WHERE id = :id")
                 .param("next", next).param("f", truncate(error)).param("now", now).param("id", id).update();

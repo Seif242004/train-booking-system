@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
+// Plain unit test (no Spring, no database): without a secret key the gateway refuses everything and says it is not configured.
 class StripeConfigTest {
 
     @Test

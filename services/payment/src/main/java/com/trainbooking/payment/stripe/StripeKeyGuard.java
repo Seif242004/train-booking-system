@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
  * {@code sk_test_} and a publishable key with {@code pk_test_}; a blank key is allowed (the service then answers 503 for anything that
  * needs Stripe). The message never contains the key itself.
  */
+// Runs in the constructor at start-up: a bad key stops the whole application from starting (fail fast). @Value reads the three settings.
+// Only the prefixes are checked and the message never contains the key.
 @Component
 public class StripeKeyGuard {
 

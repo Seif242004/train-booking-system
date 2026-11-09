@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Configuration;
  * Picks the Stripe gateway from the settings. Without a secret key the service still starts (so the rest of the system can run), but
  * every call that needs Stripe is answered with 503 {@code stripe_not_configured}. There is no fake Stripe in the running service.
  */
+// @Configuration: this class defines beans. @Bean methods are factories; @ConditionalOnMissingBean lets a test supply its own fake gateway.
+// @Value reads stripe.secret-key (env STRIPE_SECRET_KEY).
 @Configuration
 public class StripeConfig {
 

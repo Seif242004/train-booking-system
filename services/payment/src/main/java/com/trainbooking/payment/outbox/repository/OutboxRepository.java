@@ -8,6 +8,7 @@ import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+// Data access of table outbox (status PENDING, SENT or FAILED; index ix_outbox_due on (status, next_attempt_at) serves findDue).
 @Repository
 public class OutboxRepository {
 

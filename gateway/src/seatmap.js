@@ -52,6 +52,7 @@ export function composeSeatMap(layout, availability) {
   };
 }
 
+/** GET a JSON document with the caller's token and a timeout. Returns { status, body }; body is null when the answer is not JSON. */
 async function getJson(url, authorization, timeoutMs, fetchImpl) {
   const res = await fetchImpl(url, { headers: { authorization, accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
   const text = await res.text();
@@ -60,6 +61,7 @@ async function getJson(url, authorization, timeoutMs, fetchImpl) {
   return { status: res.status, body };
 }
 
+// Ids and stop indexes in the URL must be plain digits (at most 6), so nothing else reaches a backend URL.
 const isIndex = (value) => /^\d{1,6}$/.test(value ?? '');
 
 /** GET /trips/:id/seat-map?from=&to= */
@@ -82,6 +84,8 @@ export function seatMap(options = {}) {
     let layout;
     let availability;
     try {
+      // Both services are asked at the same time with the caller's token. Booking & Seat adds the caller's own hold (myHold) because it
+      // knows the token's sub.
       [layout, availability] = await Promise.all([
         getJson(new URL(`/trips/${id}/layout`, settings.trainScheduleUrl), authorization, settings.upstreamTimeoutMs, settings.fetchImpl),
         getJson(new URL(`/trips/${id}/availability?from=${from}&to=${to}`, settings.bookingSeatUrl), authorization, settings.upstreamTimeoutMs, settings.fetchImpl),

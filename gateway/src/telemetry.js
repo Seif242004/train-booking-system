@@ -1,4 +1,5 @@
-// OpenTelemetry traces to OpenObserve. This module is imported FIRST by server.js, before anything loads node:http, so the instrumentation
+// OpenTelemetry traces to OpenObserve. This module is imported FIRST by server.js, before anything loads node:http, so the
+// instrumentation
 // can patch it. It does nothing unless OTEL_EXPORTER_OTLP_ENDPOINT is set (the local `npm start` and the tests send nothing).
 //
 // The incoming request becomes a span, and every call the Gateway makes to a service (fetch) is a child span that carries the W3C
@@ -9,6 +10,7 @@ import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
 
+// Span attributes that can hold a full URL, and so a query string.
 const URL_ATTRIBUTES = ['url.full', 'http.url', 'http.target', 'url.query'];
 
 /**
@@ -29,6 +31,10 @@ export const queryStringRedactor = {
   forceFlush: async () => {},
 };
 
+// NodeSDK is the OpenTelemetry starter. HttpInstrumentation traces incoming requests; UndiciInstrumentation traces the fetch calls
+// (undici is
+// the library behind Node's fetch) and adds the traceparent header so Spring services continue the same trace. BatchSpanProcessor
+// exports in batches.
 if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
   // Basic auth for OpenObserve, set on the exporter itself (no header string to encode in an environment variable).
   const headers = process.env.OPENOBSERVE_USER

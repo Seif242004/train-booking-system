@@ -1,6 +1,7 @@
 import { trace } from '@opentelemetry/api';
 import { log } from './log.js';
 
+// Pull the booking id and trip id out of the path for the log line (digits only, so nothing else can be injected).
 const BOOKING = /\/bookings\/(\d+)/;
 const TRIP = /\/trips\/(\d+)/;
 
@@ -11,8 +12,10 @@ const TRIP = /\/trips\/(\d+)/;
  */
 export function accessLog(req, res, next) {
   if (req.path === '/health') return next();
+  // Read the clock now; the line is written when the response finishes, so the status and duration are known.
   const start = process.hrtime.bigint();
   res.on('finish', () => {
+    // req.user is set by requireAuth, which runs after this middleware; by the time the response finishes it is available.
     const path = req.originalUrl.split('?')[0];
     const fields = { method: req.method, path, status: res.statusCode, ms: Number((process.hrtime.bigint() - start) / 1_000_000n) };
     if (req.user?.sub) fields.userId = req.user.sub;

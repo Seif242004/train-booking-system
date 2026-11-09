@@ -24,6 +24,7 @@ export function forwardTo(baseUrl, pathPrefix, { requestHeaders = FORWARDED_REQU
 
   return async (req, res) => {
     const target = new URL(req.originalUrl, base);
+    // Safety check: the final URL must stay on the service's host and under the allowed path prefix.
     if (target.origin !== base.origin || !target.pathname.startsWith(pathPrefix)) {
       return sendError(res, 400, 'bad_request', 'The request path is not valid.');
     }
@@ -32,9 +33,11 @@ export function forwardTo(baseUrl, pathPrefix, { requestHeaders = FORWARDED_REQU
     for (const name of requestHeaders) {
       if (req.headers[name]) headers[name] = req.headers[name];
     }
+    // A body is sent only for methods that can have one and when express.raw produced a non-empty Buffer.
     const hasBody = !['GET', 'HEAD'].includes(req.method) && Buffer.isBuffer(req.body) && req.body.length > 0;
 
     try {
+      // fetch is Node's built-in HTTP client. A timeout turns a hung service into a 504; a refused connection into a 502.
       const upstream = await fetch(target, {
         method: req.method,
         headers,

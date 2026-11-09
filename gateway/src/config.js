@@ -1,8 +1,13 @@
 // Configuration comes from environment variables (loaded from .env by `node --env-file-if-exists`).
 // Every value has a development default, so `npm start` works on a fresh checkout.
 
+// Strip trailing slashes so the comparison with the token's iss claim is exact.
 const keycloakIssuer = (process.env.KEYCLOAK_ISSUER ?? 'http://localhost:8180/realms/train-booking').replace(/\/+$/, '');
 
+// Single settings object read by the other modules. Environment variables: PORT, HOST, KEYCLOAK_ISSUER, KEYCLOAK_JWKS_URI, CORS_ORIGIN,
+// TRAIN_SCHEDULE_URL, BOOKING_SEAT_URL, PAYMENT_URL, TICKET_URL, INTERNAL_API_KEY (a secret, from .env only),
+// OPENOBSERVE_URL/USER/PASSWORD,
+// UPSTREAM_TIMEOUT_MS, AVAILABILITY_TIMEOUT_MS.
 export const config = {
   port: Number(process.env.PORT ?? 8080),
   host: process.env.HOST ?? '127.0.0.1',
@@ -30,6 +35,7 @@ export const config = {
   availabilityTimeoutMs: Number(process.env.AVAILABILITY_TIMEOUT_MS ?? 3000),
 };
 
+// Fail at start-up, not later, on a port that cannot be right.
 if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
   throw new Error(`Invalid PORT: ${process.env.PORT}`);
 }

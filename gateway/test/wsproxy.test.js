@@ -33,6 +33,7 @@ function upgrade(port, headers, { path = '/ws', wait = 300, send } = {}) {
   });
 }
 
+// Pure tests of reading the token from the upgrade headers.
 describe('tokenFromUpgrade', () => {
   test('reads the token from the subprotocol, never from the URL', () => {
     assert.equal(tokenFromUpgrade({ 'sec-websocket-protocol': 'v12.stomp, access_token.abc.def.ghi' }), 'abc.def.ghi');

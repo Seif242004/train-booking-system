@@ -5,6 +5,7 @@ import express from 'express';
 import { createApp } from '../src/app.js';
 import { ticketQr } from '../src/ticket.js';
 
+// Tests of the QR PNG route; same rules as the PDF route.
 function listen(handler) {
   return new Promise((resolve) => {
     const server = createServer(handler);

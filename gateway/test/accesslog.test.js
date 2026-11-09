@@ -5,6 +5,7 @@ import express from 'express';
 import { accessLog } from '../src/accesslog.js';
 import { queryStringRedactor } from '../src/telemetry.js';
 
+// Tests of accesslog.js and of the span redactor in telemetry.js (node:test, the built-in runner; run with npm test).
 // Runs one request through the access log and returns the JSON lines the Gateway wrote to the console.
 async function lines(path, { user, headers } = {}) {
   const written = [];

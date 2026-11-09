@@ -1,12 +1,15 @@
-// The ticket PDF in the browser: GET /bookings/{id}/ticket. The Ticket service stays internal-only (it trusts the shared internal key and no
+// The ticket PDF in the browser: GET /bookings/{id}/ticket. The Ticket service stays internal-only (it trusts the shared internal key
+// and no
 // user token), so the Gateway is the one that decides who may download: the booking's own passenger, or an admin (support). The decision
 // is made by asking Booking & Seat for the booking WITH THE CALLER'S TOKEN, which answers 404 for anyone else's booking.
 import { config } from './config.js';
 import { log } from './log.js';
 import { sendError } from './errors.js';
 
+// A booking id is digits only (at most 12), because it goes into backend URLs.
 const isId = (value) => /^\d{1,12}$/.test(value ?? '');
 
+/** GET a JSON document with the given headers and a timeout. Returns { status, body }; body is null when the answer is not JSON. */
 async function getJson(url, headers, timeoutMs, fetchImpl) {
   const res = await fetchImpl(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
   const text = await res.text();
@@ -15,6 +18,10 @@ async function getJson(url, headers, timeoutMs, fetchImpl) {
   return { status: res.status, body };
 }
 
+/**
+ * Fills in the real settings (service URLs, internal key, timeout, fetch) for anything the caller did not override (the tests override
+ * them).
+ */
 function withDefaults(options) {
   return {
     bookingSeatUrl: config.bookingSeatUrl,
@@ -68,6 +75,10 @@ function ticketRoute(settings, deliver) {
   };
 }
 
+/**
+ * GET a file from the internal Ticket service. The user's token is NOT sent; the shared internal key is (that service accepts nothing
+ * else).
+ */
 function fromTicketService(settings, path) {
   return settings.fetchImpl(new URL(path, settings.ticketUrl), {
     headers: { 'x-internal-api-key': settings.internalApiKey },
@@ -87,9 +98,11 @@ export function ticketPdf(options = {}) {
     if (pdf.status !== 200) return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
 
     const bytes = Buffer.from(await pdf.arrayBuffer());
+    // The reference is cleaned to letters, digits, - and _ before it goes into the download file name (no header injection).
     const reference = String(booking.reference ?? id).replace(/[^A-Za-z0-9_-]/g, '');
     res.status(200);
     res.set('content-type', 'application/pdf');
+    // attachment: the browser saves the file. no-store: a private ticket must not stay in a shared cache.
     res.set('content-disposition', `attachment; filename="ticket-${reference}.pdf"`);
     res.set('cache-control', 'private, no-store');
     return res.send(bytes);

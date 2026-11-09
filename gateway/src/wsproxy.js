@@ -13,6 +13,7 @@ import { authenticate } from './auth.js';
 import { config } from './config.js';
 import { log } from './log.js';
 
+// The subprotocol that carries the token starts with this prefix.
 const TOKEN_PREFIX = 'access_token.';
 
 /** The token offered as a subprotocol, or from an Authorization header (for tools that can set one). Never from the URL. */
@@ -24,6 +25,7 @@ export function tokenFromUpgrade(headers) {
   return match ? match[1] : null;
 }
 
+/** Answers the upgrade request with a plain HTTP error line and closes the socket. No body, no details. */
 function reject(socket, status, text) {
   if (socket.writable) socket.write(`HTTP/1.1 ${status} ${text}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
   socket.destroy();
@@ -41,6 +43,8 @@ export function attachWebSocketProxy(server, options = {}) {
   };
   const upstreamUrl = new URL(settings.bookingSeatUrl);
 
+  // Node emits 'upgrade' when a client asks to switch protocol (here to WebSocket). `socket` is the raw TCP connection, `head` any
+  // bytes already read.
   server.on('upgrade', (req, socket, head) => {
     socket.on('error', () => socket.destroy()); // a browser that disappears must not crash the Gateway
     handle(req, socket, head).catch(() => reject(socket, 500, 'Internal Server Error'));
@@ -62,6 +66,8 @@ export function attachWebSocketProxy(server, options = {}) {
       return err?.status === 503 ? reject(socket, 503, 'Service Unavailable') : reject(socket, 401, 'Unauthorized');
     }
 
+    // A plain TCP connection to Booking & Seat. The Gateway does not speak WebSocket itself: after the checks it copies bytes both ways
+    // (pipe).
     const upstream = net.connect({ host: upstreamUrl.hostname, port: Number(upstreamUrl.port || 80) });
     upstream.setTimeout(settings.connectTimeoutMs, () => upstream.destroy());
     upstream.on('error', () => reject(socket, 502, 'Bad Gateway'));

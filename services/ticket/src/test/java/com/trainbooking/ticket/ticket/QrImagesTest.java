@@ -11,7 +11,6 @@ import com.lowagie.text.pdf.PdfObject;
 import com.lowagie.text.pdf.PdfReader;
 import com.lowagie.text.pdf.PRStream;
 import com.lowagie.text.pdf.PdfArray;
-import com.lowagie.text.pdf.PdfDictionary;
 import com.lowagie.text.pdf.PdfNumber;
 import com.trainbooking.ticket.testsupport.DatabaseTest;
 import com.trainbooking.ticket.ticket.service.QrImages;

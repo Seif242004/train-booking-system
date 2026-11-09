@@ -26,6 +26,7 @@ const FILTERS: Filter[] = ['UPCOMING', 'DEPARTED', 'ARRIVED', 'FULL', 'CANCELLED
 const FILTER_LABEL: Record<Filter, string> = { ...STATE_LABEL, FULL: 'Full' };
 
 /** Today's date in the railway's calendar, whatever the time zone of the browser is. */
+// The railway works in one time zone, so "today" is computed in Africa/Cairo and not in the browser's zone.
 const railwayDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' });
 function today(): string {
   return railwayDay.format(new Date());
@@ -87,6 +88,8 @@ function StateChip({ trip }: { trip: BoardTrip }) {
 }
 
 /** Live trips board of the admin support area: every trip with its lifecycle state and its seats, refreshed every few seconds. */
+// Used inside SupportPage (view "Trips board"). Filters live in the address (?range=&state=&q=&date=), so refresh and Back keep them. The data comes
+// from useBoardData (polling GET /admin/board/trips every 5 s). Clicking a row opens BoardDetailPanel. A running admin hold asks before the page closes.
 export function TripsBoard() {
   const [params, setParams] = useSearchParams();
   const range = (RANGES.some((r) => r.value === params.get('range')) ? params.get('range') : 'live') as Range;
@@ -147,6 +150,7 @@ export function TripsBoard() {
   }
 
   const search = q.trim().toLowerCase();
+  // Filtering by state and by search text happens in the browser on the rows already received.
   const rows = useMemo(() => {
     const trips = board.data?.trips ?? [];
     return trips.filter((t) => {

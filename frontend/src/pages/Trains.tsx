@@ -25,6 +25,8 @@ const EMPTY_FORM: TrainForm = { number: '', name: '', type: '', status: 'ACTIVE'
 const NO_FILTERS: Filters = { number: '', name: '', status: '' };
 
 /** Admin page for trains (Flow 7): list with filters, add, edit and delete, through the API Gateway. */
+// Route /admin/trains (ADMIN). Endpoints: GET /admin/trains (with the filters as a query string), POST /admin/trains, PUT/DELETE /admin/trains/{id}.
+// A train used by a trip cannot be deleted (409 train_in_use); the message from the server is shown.
 export function Trains() {
   const [trains, setTrains] = useState<Train[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

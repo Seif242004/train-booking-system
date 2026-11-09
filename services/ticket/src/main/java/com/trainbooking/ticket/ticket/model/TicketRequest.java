@@ -16,6 +16,11 @@ import java.util.List;
  * What the ticket shows (SRS FR-T2). Booking and Seat sends it when the booking is confirmed: everything on the ticket comes from the
  * booking, so this service needs no other data. The price is the amount the booking was paid, as the server worked it out.
  */
+// Bean Validation rules (jakarta.validation) on each component; they run when the controller method has {@code @Valid}. The messages are
+// the text of the 400 details. @NotBlank: text with a visible character. @NotNull: present. @NotEmpty: present and not an empty list.
+// @Size: length limits equal to the column sizes and to what fits the page. @DecimalMin: lowest allowed number. @Pattern: the whole
+// text must match the regular expression. @Min: lowest allowed integer. {@code List<@Valid Line>} also validates every line.
+// trainName and seatNumber are optional (a standing line has no seat number). paymentMethod is optional too and null means CARD.
 public record TicketRequest(
         @NotBlank(message = "is required") @Size(max = 20, message = "must be at most 20 characters") String reference,
         @NotBlank(message = "is required") @Size(max = 200, message = "must be at most 200 characters") String passengerName,
@@ -31,18 +36,21 @@ public record TicketRequest(
         @Pattern(regexp = "CARD|COUNTER|COMPLIMENTARY", message = "must be CARD, COUNTER or COMPLIMENTARY") String paymentMethod) {
 
     /** A card payment (the original shape). */
+    // The shorter constructor, for card payments. It exists so older callers and the tests need not name the payment method.
     public TicketRequest(String reference, String passengerName, String trainNumber, String trainName, String fromStation, OffsetDateTime departure,
                          String toStation, OffsetDateTime arrival, List<Line> lines, BigDecimal amount, String currency) {
         this(reference, passengerName, trainNumber, trainName, fromStation, departure, toStation, arrival, lines, amount, currency, "CARD");
     }
 
     /** CARD unless the booking was issued at the desk. */
+    // Never returns null: the footer of the PDF reads the payment method through this.
     public String method() {
         return paymentMethod == null ? "CARD" : paymentMethod;
     }
 
 
     /** One seat, or the standing places of one coach. */
+    // type SEAT has a seatNumber and qty 1; type STANDING has no seat number and qty places in the coach. price is the line price in EGP.
     public record Line(
             @NotNull(message = "is required") @Pattern(regexp = "SEAT|STANDING", message = "must be SEAT or STANDING") String type,
             @NotBlank(message = "is required") @Size(max = 20, message = "must be at most 20 characters") String coachCode,

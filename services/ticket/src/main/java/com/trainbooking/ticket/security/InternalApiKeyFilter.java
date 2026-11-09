@@ -26,12 +26,15 @@ import tools.jackson.databind.json.JsonMapper;
  */
 class InternalApiKeyFilter extends OncePerRequestFilter {
 
+    // The name of the header and the authority that this filter gives to a caller who proved it holds the key.
     static final String HEADER = "X-Internal-Api-Key";
     static final String ROLE = "ROLE_INTERNAL";
 
+    // Both sides are compared as bytes, so the comparison does not depend on how characters are encoded.
     private final byte[] expectedKey;
     private final JsonMapper jsonMapper;
 
+    // Fails at start-up (not at the first request) when the key is missing: a service with no key would otherwise be open or always closed.
     InternalApiKeyFilter(String key, JsonMapper jsonMapper) {
         if (key == null || key.isBlank()) {
             throw new IllegalStateException("INTERNAL_API_KEY must be set: it protects the /internal endpoints.");
@@ -40,7 +43,11 @@ class InternalApiKeyFilter extends OncePerRequestFilter {
         this.jsonMapper = jsonMapper;
     }
 
+    // {@code @Override}: this method replaces the one of OncePerRequestFilter, and the compiler checks the signature.
     @Override
+    // 1. Read the header. 2. Compare in constant time. 3. Wrong or missing: answer 401 in the shared JSON error shape and stop (the chain
+    // is not called, so no controller runs). 4. Right: put an authenticated "internal-caller" into the security context with the
+    // authority ROLE_INTERNAL and continue. The security context is per request (the chain is stateless), so nothing is remembered.
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String sent = request.getHeader(HEADER);

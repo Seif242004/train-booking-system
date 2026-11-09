@@ -13,8 +13,10 @@ import java.util.Map;
 import javax.imageio.ImageIO;
 
 /**
- * Draws a QR code as a PNG: dark modules on white, a quiet zone of {@value #QUIET_ZONE_MODULES} modules (the minimum the standard asks for),
- * and every module a whole number of pixels, so the image is crisp and is never resampled by this code. The ticket page and the PDF use this one
+  * Draws a QR code as a PNG: dark modules on white, a quiet zone of {@value #QUIET_ZONE_MODULES} modules (the minimum the standard asks
+  * for),
+  * and every module a whole number of pixels, so the image is crisp and is never resampled by this code. The ticket page and the PDF use
+  * this one
  * method for the same token; only the size differs.
  */
 public final class QrImages {
@@ -26,10 +28,16 @@ public final class QrImages {
     /** The size asked for the PDF: many pixels per module, so the print stays sharp when the page is scaled down. */
     public static final int PRINT_SIZE = 900;
 
+    // A utility class (only static methods): the private constructor stops anyone from creating an instance.
     private QrImages() {
     }
 
     /** At most {@code size} pixels wide and high (the largest whole number of pixels per module that fits). */
+    // Steps: 1. Let ZXing (the QR library) compute the module matrix. Its writer is asked for a 1 x 1 image, which gives one pixel per
+    // module
+    // including the quiet zone, so the real module count is known. Error correction level M recovers about 15% of damaged modules.
+    // 2. scale = the largest whole pixels-per-module that fits the size (at least 1). 3. Paint every pixel black or white by its module.
+    // 4. Encode as PNG. TYPE_BYTE_BINARY keeps the file small (1 bit per pixel). Errors become an unchecked IllegalStateException.
     public static byte[] png(String content, int size) {
         try {
             // Asking for a 1 x 1 image gives the code at one pixel per module, quiet zone included.

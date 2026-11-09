@@ -30,16 +30,19 @@ import org.slf4j.LoggerFactory;
 /**
  * Draws the PDF of a ticket (SRS FR-T2) as a print of the boarding pass on the ticket page: ONE A5 landscape page, a white card with a red
  * logo and "Train ticket" on top, the route with big times, a grid of facts, a dashed perforation with notches, the QR code panel with the
- * booking reference, and a footer with the payment line and the validity note. Everything is placed by absolute coordinates, text is real text
+  * booking reference, and a footer with the payment line and the validity note. Everything is placed by absolute coordinates, text is
+  * real text
  * (it can be selected and extracted), fonts are the built-in Helvetica and Courier families (WinAnsi), and every text is made safe for that
  * encoding first, so no name can break the rendering. It has no state, so it is tested without a database.
  */
 public class TicketPdfRenderer {
 
+    // Warns (never fails) when the logo is missing or cannot be read.
     private static final Logger LOG = LoggerFactory.getLogger(TicketPdfRenderer.class);
 
     /**
-     * The ONE place the PDF takes its logo from: a PNG on the classpath (at least 1000 px wide, so it stays sharp when printed). OpenPDF cannot draw
+      * The ONE place the PDF takes its logo from: a PNG on the classpath (at least 1000 px wide, so it stays sharp when printed). OpenPDF
+      * cannot draw
      * an SVG and no SVG library is added, so the official file is dropped here as a PNG; swapping the logo is a change of this file only.
      */
     public static final String LOGO_RESOURCE = "brand/logo-red.png";
@@ -55,6 +58,8 @@ public class TicketPdfRenderer {
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.ENGLISH);
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm", Locale.ENGLISH);
 
+    // All lengths are PDF points (1 pt = 1/72 inch); MM converts millimetres to points. The fonts are the built-in ones, so no font file
+    // is embedded.
     // A5 landscape is 595 x 420 pt (210 x 148 mm); the card sits 10 mm from the edges.
     private static final float MM = 72f / 25.4f;
     private static final float MARGIN = 10 * MM;
@@ -62,18 +67,24 @@ public class TicketPdfRenderer {
     private static final float HEADER = 58;
     private static final float FOOTER = 66;
     private static final float LOGO_WIDTH = 34 * MM;
-    /** The logo PNG has transparent margins around the drawing; the logo is moved left by this share of its width so the drawing meets the card padding. */
+    /**
+     * The logo PNG has transparent margins around the drawing; the logo is moved left by this share of its width so the drawing meets the
+     * card padding.
+     */
     private static final float LOGO_INSET = 0.05f;
     private static final float QR_SIZE = 44 * MM;
 
+    // Tells which characters the built-in PDF fonts can show (the Windows-1252 set). The encoder is not thread safe, so safe() locks on it.
     private static final CharsetEncoder WIN_ANSI = Charset.forName("windows-1252").newEncoder();
 
+    // The zone for all printed times. logo is the PNG bytes or null. regular, bold and mono are the three fonts of the page.
     private final ZoneId zone;
     private final byte[] logo;
     private final BaseFont regular;
     private final BaseFont bold;
     private final BaseFont mono;
 
+    // The normal constructor: loads the logo from the classpath.
     public TicketPdfRenderer(ZoneId zone) {
         this(zone, loadLogo(LOGO_RESOURCE));
     }
@@ -105,6 +116,10 @@ public class TicketPdfRenderer {
         }
     }
 
+    // Entry point. Builds a one-page A5 landscape document in memory (nothing is written to disk) and draws it on the direct content layer,
+    // which is the raw drawing surface of the page. Output: the PDF bytes. Errors become an unchecked IllegalStateException. It stores
+    // nothing
+    // and uses only its arguments, so it is safe to call from several threads.
     public byte[] render(TicketRequest ticket, String qrToken) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document document = new Document(new Rectangle(PageSize.A5.getHeight(), PageSize.A5.getWidth()), 0, 0, 0, 0); // landscape: a real 595 x 420 page, not a rotated one
@@ -125,6 +140,10 @@ public class TicketPdfRenderer {
 
     // ---- the page ------------------------------------------------------------------------------------------------------------------
 
+    // Layout: the card (rounded rectangle), the header (logo left, "Train ticket" right, a rule and a red accent), the main area on the
+    // left
+    // (route and facts), the code panel on the right (QR and reference), the footer (payment and the validity note), the dashed
+    // perforation between main area and code panel with a notch at each end, and the line above the footer. All by absolute coordinates.
     private void draw(PdfContentByte cb, Rectangle page, TicketRequest t, String qrToken) throws DocumentException, IOException {
         float x0 = MARGIN;
         float y0 = MARGIN;
@@ -178,6 +197,7 @@ public class TicketPdfRenderer {
         cb.stroke();
     }
 
+    // A half circle in the card colour with an outline, drawn at the edge of the card: it looks like the cut-out of a torn ticket.
     private void notch(PdfContentByte cb, float cx, float cy, float startAngle) {
         float r = 8;
         cb.saveState();
@@ -192,6 +212,7 @@ public class TicketPdfRenderer {
         cb.restoreState();
     }
 
+    // Draws the logo scaled to LOGO_WIDTH, keeping its proportions. If it cannot be drawn the page simply has no logo.
     private void drawLogo(PdfContentByte cb, float x, float centerY) {
         if (logo == null) {
             return;
@@ -209,6 +230,8 @@ public class TicketPdfRenderer {
 
     // ---- the main area: the route and the facts --------------------------------------------------------------------------------------
 
+    // The big departure and arrival times (converted to the zone), a line with two dots between them, the station names under them (smaller
+    // when long, up to two lines), and the facts grid. Times are real text, so they can be selected and extracted.
     private void drawMain(PdfContentByte cb, TicketRequest t, float left, float right, float top, float bottom) {
         String dep = TIME.format(t.departure().atZoneSameInstant(zone));
         String arr = TIME.format(t.arrival().atZoneSameInstant(zone));
@@ -243,7 +266,8 @@ public class TicketPdfRenderer {
         lines(cb, regular, stationSize, INK_2, left, stationTop, PdfContentByte.ALIGN_LEFT, from, 1.15f);
         lines(cb, regular, stationSize, INK_2, right, stationTop, PdfContentByte.ALIGN_RIGHT, to, 1.15f);
 
-        // Facts grid, 3 columns by 2 rows, with the labels and the order of the page: Date, Train, Passenger / Class, Coach, Seats or Places.
+        // Facts grid, 3 columns by 2 rows, with the labels and the order of the page: Date, Train, Passenger / Class, Coach, Seats or
+        // Places.
         float gridTop = stationTop - 2 * stationSize * 1.15f - 20;
         float col = (right - left) / 3f;
         float cell = col - 10;
@@ -263,24 +287,33 @@ public class TicketPdfRenderer {
         fact(cb, "Class", String.join(", ", classes), left, row2, cell, 3);
         fact(cb, "Coach", String.join(", ", coaches), left + col, row2, cell, 3);
         boolean anySeat = t.lines().stream().anyMatch(l -> "SEAT".equals(l.type()));
-        // The seats cell takes the rest of the height: with many seats the text gets smaller, and only as a last resort is it cut with "and N more".
+        // The seats cell takes the rest of the height: with many seats the text gets smaller, and only as a last resort is it cut with
+        // "and N more".
         float seatsBottom = bottom + 8;
         label(cb, anySeat ? "Seats" : "Places", left + 2 * col, row2);
         List<String> tokens = seatTokens(t);
         drawFitted(cb, tokens, left + 2 * col, row2 - 14, cell, row2 - 14 - seatsBottom);
     }
 
+    // One cell of the grid: a small label and a bold value that gets smaller and then wraps if it is long.
     private void fact(PdfContentByte cb, String label, String value, float x, float top, float width, int maxLines) {
         label(cb, label, x, top);
         List<String> v = block(value, bold, 10, 7, width, maxLines);
         lines(cb, bold, fitSize(v, bold, 10, 7, width), INK, x, top - 14, PdfContentByte.ALIGN_LEFT, v, 1.2f);
     }
 
+    // The small grey caption of a cell.
     private void label(PdfContentByte cb, String label, float x, float top) {
         text(cb, regular, 7.5f, MUTED, x, top - 2, PdfContentByte.ALIGN_LEFT, label);
     }
 
-    /** The seats of the ticket as words that can wrap: "12, 13, 14" for one coach, "Coach 3: 12, 13 · Coach 4: 7" for several, plus the standing places. */
+    /**
+     * The seats of the ticket as words that can wrap: "12, 13, 14" for one coach, "Coach 3: 12, 13 · Coach 4: 7" for several, plus the
+     * standing places.
+     */
+    // Builds the seat list as words so it can wrap. One coach: "1A, 1B". Several coaches: "Coach A1: 1A, 1B · Coach B2: 7". Standing
+    // places are
+    // added as "2 standing places" to their coach. The middle dot separates the coaches.
     private List<String> seatTokens(TicketRequest t) {
         Map<String, List<String>> seatsByCoach = new LinkedHashMap<>();
         Map<String, Integer> standingByCoach = new LinkedHashMap<>();
@@ -319,7 +352,12 @@ public class TicketPdfRenderer {
         return tokens;
     }
 
-    /** Draws the words in the box with the biggest size that fits; at the smallest size it shows what fits and ends with "and N more". Never silent. */
+    /**
+     * Draws the words in the box with the biggest size that fits; at the smallest size it shows what fits and ends with "and N more".
+     * Never silent.
+     */
+    // Never silently drops a seat: it tries the sizes from large to small, and only if even the smallest does not fit does it show what
+    // fits followed by "and N more". The cell below the seats has the rest of the page height.
     private void drawFitted(PdfContentByte cb, List<String> tokens, float x, float top, float width, float height) {
         float[] sizes = {10, 9, 8, 7.5f, 7, 6.5f};
         for (float size : sizes) {
@@ -345,17 +383,21 @@ public class TicketPdfRenderer {
         lines(cb, bold, size, INK, x, top, PdfContentByte.ALIGN_LEFT, wrapTokens(List.of("and " + tokens.size() + " more"), bold, size, width), 1.2f);
     }
 
+    // Counts the seat words in a part of the list, without the separators, for the "and N more" text.
     private static int countSeatWords(List<String> words) {
         return (int) words.stream().filter(w -> !w.equals("·")).count();
     }
 
     // ---- the code panel -------------------------------------------------------------------------------------------------------------
 
+    // The right panel. The QR is drawn from the PRINT_SIZE picture, scaled down to 44 mm: many pixels per module keep it sharp in print.
+    // The reference is in a monospaced bold font and shrinks until it fits.
     private void drawCode(PdfContentByte cb, TicketRequest t, String qrToken, float left, float right, float top, float bottom) throws DocumentException, IOException {
         float cx = (left + right) / 2;
         float qrTop = top - 22;
         Image qr = Image.getInstance(QrImages.png(qrToken, QrImages.PRINT_SIZE));
-        // Dark on white, drawn square and unsmoothed by the viewer for a whole number of printed pixels per module is not needed: the image is far bigger than the print.
+        // Dark on white, drawn square and unsmoothed by the viewer for a whole number of printed pixels per module is not needed: the
+        // image is far bigger than the print.
         qr.scaleAbsolute(QR_SIZE, QR_SIZE);
         qr.setAbsolutePosition(cx - QR_SIZE / 2, qrTop - QR_SIZE);
         cb.addImage(qr);
@@ -373,6 +415,10 @@ public class TicketPdfRenderer {
 
     // ---- the footer -----------------------------------------------------------------------------------------------------------------
 
+    // The payment line depends on the method: card "Total paid", counter "Paid at counter", complimentary "no charge, fare value ...".
+    // The amount is the amount the server calculated (money is never taken from the client). The per-line breakdown is shown only if it
+    // fits
+    // in two lines.
     private void drawFooter(PdfContentByte cb, TicketRequest t, float left, float right, float top, float bottom) {
         String fare = t.amount().toPlainString() + " " + t.currency();
         // The payment line says how it was paid: by card, at the counter, or not at all (the fare value is still shown).
@@ -395,6 +441,7 @@ public class TicketPdfRenderer {
                 "Valid while the booking is confirmed. If the booking is cancelled, the code stops working.");
     }
 
+    // Joins the parts with a middle dot between them, as separate words.
     private static List<String> joinWith(List<String> parts) {
         List<String> words = new ArrayList<>();
         for (int i = 0; i < parts.size(); i++) {
@@ -410,6 +457,7 @@ public class TicketPdfRenderer {
 
     // ---- text helpers ---------------------------------------------------------------------------------------------------------------
 
+    // The one place that writes a text: always through safe(), so no text can break the WinAnsi encoding.
     private void text(PdfContentByte cb, BaseFont font, float size, Color color, float x, float y, int align, String value) {
         cb.beginText();
         cb.setFontAndSize(font, size);
@@ -419,6 +467,7 @@ public class TicketPdfRenderer {
     }
 
     /** Lines of text, the first one with its top at {@code top}. */
+    // Draws several lines downwards, each one lower by size * leading (the leading is the line spacing factor).
     private void lines(PdfContentByte cb, BaseFont font, float size, Color color, float x, float top, int align, List<String> lines, float leading) {
         float y = top - size;
         for (String line : lines) {
@@ -427,7 +476,12 @@ public class TicketPdfRenderer {
         }
     }
 
-    /** One text in a box of the given width: on one line at the biggest size down to {@code min}, otherwise wrapped over up to {@code maxLines} lines. */
+    /**
+     * One text in a box of the given width: on one line at the biggest size down to {@code min}, otherwise wrapped over up to {@code
+     * maxLines} lines.
+     */
+    // Fits one text in a width: first one line at the biggest size that fits down to min; else wrapped over at most maxLines lines at the
+    // biggest size that works; else the smallest size with "..." at the end of the last line.
     private List<String> block(String value, BaseFont font, float max, float min, float width, int maxLines) {
         String v = safe(value);
         if (font.getWidthPoint(v, max) <= width) {
@@ -455,6 +509,7 @@ public class TicketPdfRenderer {
     }
 
     /** The biggest size (from max down to min) at which the lines fit the width; the lines were made for that range. */
+    // The biggest size between max and min at which every line fits the width.
     private float fitSize(List<String> lines, BaseFont font, float max, float min, float width) {
         for (float size = max; size > min; size -= 0.5f) {
             boolean fits = true;
@@ -471,6 +526,7 @@ public class TicketPdfRenderer {
         return min;
     }
 
+    // Splits at spaces.
     private List<String> wrap(String value, BaseFont font, float size, float width) {
         return wrapTokens(List.of(value.split(" ")), font, size, width);
     }
@@ -511,14 +567,17 @@ public class TicketPdfRenderer {
         return lines;
     }
 
+    // "FIRST" becomes "First" for the class cell.
     private static String capitalise(String value) {
         return value == null || value.isEmpty() ? "" : value.substring(0, 1).toUpperCase(Locale.ENGLISH) + value.substring(1).toLowerCase(Locale.ENGLISH);
     }
 
     /**
-     * Makes a text safe for the WinAnsi fonts: a character the encoding has stays; an accented letter outside it loses its accent; anything else
+      * Makes a text safe for the WinAnsi fonts: a character the encoding has stays; an accented letter outside it loses its accent;
+      * anything else
      * becomes a question mark. It never throws and never changes the length of the information more than that.
      */
+    // Package-private on purpose: the tests call it directly.
     static String safe(String value) {
         if (value == null) {
             return "";

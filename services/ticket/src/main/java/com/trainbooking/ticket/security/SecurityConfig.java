@@ -15,12 +15,18 @@ import tools.jackson.databind.json.JsonMapper;
  * Ticket has no user endpoints: users never call it, Booking and Seat does (CLAUDE.md, "Services"). So everything under
  * {@code /internal} needs the shared API key, and anything else is refused. The Gateway never forwards to this service.
  */
+// {@code @Configuration} makes this a configuration class; {@code @EnableWebSecurity} switches on the web filter chain of Spring Security,
+// which we define below as two {@code SecurityFilterChain} beans. Spring tries the chains in {@code @Order} and uses the first whose
+// matcher fits the request.
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     @Bean
     @Order(1)
+    // Chain 1: everything under /internal/**. {@code @Order(1)} makes it the first chain tried.
+    // Steps: no CSRF protection (CSRF protects cookie sessions, and there are none); stateless (no session is created or read); our own key
+    // filter runs before the anonymous filter, so it sets the login first; every request must hold the authority ROLE_INTERNAL.
     SecurityFilterChain internalChain(HttpSecurity http, JsonErrorHandlers errorHandlers, JsonMapper jsonMapper,
                                       @Value("${trainbooking.internal-api-key}") String apiKey) throws Exception {
         http
@@ -35,6 +41,7 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
+    // Chain 2: every other path is denied (denyAll). The service has no user endpoints and nothing public.
     SecurityFilterChain everythingElse(HttpSecurity http, JsonErrorHandlers errorHandlers) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())

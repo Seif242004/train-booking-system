@@ -1,7 +1,11 @@
 /* Login theme "train-booking": the same look as the web app (docs/design/DESIGN.md), on top of the built-in keycloak.v2 theme.
    CSS only. The page is split: a photo panel on the left (the realm's header element) and the form on the right (the main card). */
+/* The web font. This is the only request to another site; if it fails, the browser falls back to system-ui (see --tb-font). */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+/* Design tokens, the same names and values as the web app. :root is the top element, so every rule below can read them with var(--name).
+   Red = brand and primary action, ink = text, line = borders, ok/warn/danger = the three message kinds (each a background and a
+   text colour). */
 :root {
   --tb-red: #e10801;
   --tb-red-hover: #b80600;
@@ -32,6 +36,8 @@
   --keycloak-bg-logo-url: none;
 }
 
+/* Page base: no margin, full height, our font and text colour on white. Both selectors are used because the parent theme puts the
+   login class on html on some pages and the id on body on others. */
 html.login-pf body,
 body#keycloak-bg {
   margin: 0;
@@ -42,11 +48,13 @@ body#keycloak-bg {
   background: #fff;
 }
 
+/* Keyboard focus ring for everything: :focus-visible matches only when the focus came from the keyboard, not from a mouse click. */
 :focus-visible {
   outline: 3px solid var(--tb-ink);
   outline-offset: 2px;
 }
 
+/* The page container. The parent theme centres it in the middle of the screen; we want a full-height split layout instead. */
 .pf-v5-c-login {
   display: block; /* the parent theme centres its page vertically; ours starts at the top */
   min-height: 100vh;
@@ -55,6 +63,8 @@ body#keycloak-bg {
 }
 
 /* ---- Split layout ------------------------------------------------------------------------------------------------------------------ */
+/* Two equal columns on a wide screen: the photo (area "header") and the form (area "main"). minmax(0, 1fr) lets a column shrink below its
+   content width, which stops long text from pushing the layout wider than the screen. */
 .pf-v5-c-login__container {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -79,6 +89,7 @@ body#keycloak-bg {
   background: var(--tb-ink);
 }
 
+/* The photo layer. It is 6% bigger than the panel on every side (inset: -6%) so the slow zoom and shift never show an edge. */
 #kc-header::before {
   content: '';
   position: absolute;
@@ -88,6 +99,7 @@ body#keycloak-bg {
   will-change: transform;
 }
 
+/* The dark gradient over the photo keeps the white text readable: darker at the top (logo) and strongest at the bottom (headline). */
 #kc-header::after {
   content: '';
   position: absolute;
@@ -112,6 +124,7 @@ body#keycloak-bg {
   color: #fff !important;
 }
 
+/* The e& wordmark, drawn as a background image of an empty box, so no image tag is needed in the Keycloak template. */
 #kc-header-wrapper::before {
   content: '';
   display: block;
@@ -120,6 +133,8 @@ body#keycloak-bg {
   background: url('../img/logo-etisalat-white.png') no-repeat left center / contain;
 }
 
+/* The headline is the "content" text of a pseudo-element. The next three rules replace it on other pages, using the page id that
+   Keycloak writes in the body (data-page-id). Text in CSS is not translated and not read well by every screen reader; it is decoration. */
 #kc-header-wrapper::after {
   content: 'Your train is one sign-in away.';
   display: block;
@@ -144,6 +159,8 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   content: 'Train Booking';
 }
 
+/* The slow zoom and drift of the photo (used by animation: tb-drift above). "from" is the start, "to" the end; "alternate" plays
+   it back. */
 @keyframes tb-drift {
   from {
     transform: scale(1) translate3d(0, 0, 0);
@@ -154,6 +171,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
 }
 
 /* Right: the form card, centred. */
+/* The form card. It has no box of its own (no border, no shadow): the white page is the card. tb-in fades it in from 16px lower. */
 .pf-v5-c-login__main {
   grid-area: main;
   align-self: center;
@@ -168,6 +186,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   animation: tb-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
+/* Entrance animation of the card (see animation: tb-in above). */
 @keyframes tb-in {
   from {
     opacity: 0;
@@ -179,6 +198,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   }
 }
 
+/* Card header: the page title and, below it, the language chooser. */
 .pf-v5-c-login__main-header {
   display: block;
   padding: 0;
@@ -199,6 +219,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   margin-top: 12px;
 }
 
+/* Card body: the form. */
 .pf-v5-c-login__main-body {
   padding: 24px 0 0;
 }
@@ -219,6 +240,8 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   color: var(--tb-ink-2);
 }
 
+/* The field box. PatternFly draws an underline with its own variables and pseudo-elements; we set those variables to transparent and hide
+   the pseudo-elements below, and draw a full rounded border instead. min-height 54px keeps a comfortable touch target. */
 .pf-v5-c-form-control {
   --pf-v5-c-form-control--BorderColor: transparent;
   --pf-v5-c-form-control--hover--BorderBottomColor: transparent;
@@ -235,11 +258,14 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   display: none;
 }
 
+/* :focus-within matches the box while the input inside it has focus: red border plus a soft red ring. */
 .pf-v5-c-form-control:focus-within {
   border-color: var(--tb-red);
   box-shadow: 0 0 0 4px rgba(225, 8, 1, 0.12);
 }
 
+/* A field with a button next to it (the "show password" eye). The group draws the border, so the input and the button inside lose
+   theirs. */
 .pf-v5-c-input-group {
   align-items: stretch;
   background: #fff;
@@ -268,11 +294,14 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   border-radius: 0 12px 12px 0;
 }
 
+/* A field with an error: the border turns dark red. aria-invalid is set by Keycloak's script, and the :has() selector lets the outer box
+   react to the state of the input inside it. */
 .pf-v5-c-form-control:has(input[aria-invalid='true']),
 .pf-v5-c-form-control.pf-m-error {
   border-color: var(--tb-danger-text);
 }
 
+/* The text typed by the user: 16px, because a smaller size makes iOS Safari zoom the page when a field gets focus. */
 .pf-v5-c-form-control input,
 .pf-v5-c-form-control select {
   min-height: 52px;
@@ -284,6 +313,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   background: transparent;
 }
 
+/* The box shows the focus already (red border); the browser's own outline on the inner input is removed to avoid a double ring. */
 .pf-v5-c-form-control input:focus-visible,
 .pf-v5-c-form-control select:focus-visible {
   outline: none;
@@ -319,6 +349,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
 }
 
 /* ---- Buttons ---------------------------------------------------------------------------------------------------------------------- */
+/* All buttons: at least 44px high (a comfortable touch target), rounded, with a short colour transition. */
 .pf-v5-c-button {
   display: inline-flex;
   align-items: center;
@@ -344,6 +375,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   transform: scale(0.98);
 }
 
+/* Primary button ("Sign in", "Register"): solid red, white text. The hover rule that follows darkens it. */
 .pf-v5-c-button.pf-m-primary {
   min-height: 56px;
   font-size: 17px;
@@ -357,6 +389,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   background: var(--tb-red-hover);
 }
 
+/* Secondary buttons: white with a border; they turn red-bordered with a light tint on hover. */
 .pf-v5-c-button.pf-m-secondary,
 .pf-v5-c-button.pf-m-tertiary {
   min-height: 54px;
@@ -375,6 +408,7 @@ body[data-page-id='login-info'] #kc-header-wrapper::after {
   color: var(--tb-red-text);
 }
 
+/* The small button inside an input group (show/hide password). */
 .pf-v5-c-button.pf-m-control {
   min-height: 52px;
   color: var(--tb-ink-2);
@@ -397,6 +431,7 @@ a:hover {
   color: var(--tb-red-hover);
 }
 
+/* The "Remember me" and "Forgot password?" row. Links here get a 44px tall hit area so they are easy to tap. */
 #kc-form-options,
 .pf-v5-c-form__group.pf-m-action {
   margin-top: 0;
@@ -411,6 +446,8 @@ a:hover {
 }
 
 /* ---- Messages: errors say what happened, success and info are calm --------------------------------------------------------------- */
+/* Message box (alert). The base style is the calm grey "info" look; the pf-m-danger, pf-m-success and pf-m-warning rules below only change
+   the colours. The icon (::before) is hidden: the text and the colour say it. */
 .pf-v5-c-alert {
   margin: 20px 0 0;
   padding: 14px 16px;
@@ -484,6 +521,7 @@ a:hover {
   color: var(--tb-muted);
 }
 
+/* Divider lines (for example above the social login buttons, if a realm has them) are a light grey. */
 hr {
   border-color: var(--tb-line-soft);
 }
@@ -523,6 +561,7 @@ hr {
   }
 }
 
+/* For people who asked their system to reduce motion: no photo drift, no card entrance and no transitions. */
 @media (prefers-reduced-motion: reduce) {
   #kc-header::before {
     inset: 0;

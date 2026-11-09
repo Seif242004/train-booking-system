@@ -11,9 +11,12 @@
 
 # Subshell so that `set -e` and `exit` cannot leak into the entrypoint if it sources this file.
 (
+  # set -e: stop at the first command that fails, so a half-created set of schemas is reported and not hidden.
   set -e
 
+  # create_schema NAME PASSWORD: creates a tablespace and a database user called NAME. Called once per service below.
   create_schema() {
+    # `local` keeps the variables inside the function. "$1" and "$2" are the first and second argument.
     local name="$1" password="$2"
 
     if [ -z "$password" ]; then
@@ -23,6 +26,12 @@
 
     echo "Creating schema ${name}"
     # The password is quoted in the DDL so it may contain any character except a double quote.
+    # sqlplus is Oracle's command-line client. "/ as sysdba" logs in as the administrator through the operating system (no password), which
+    # works because this script runs inside the database container. -s = silent. "<<SQL" starts a here-document: every line up to the
+    # closing "SQL" is typed into sqlplus. The marker is not quoted, so the shell replaces ${name} and ${password} before sqlplus
+    # sees the text.
+    # "WHENEVER SQLERROR EXIT FAILURE" makes sqlplus quit with an error code on the first SQL error, which then stops this script (set -e).
+    # Do not add shell comments inside the here-document: they would be sent to sqlplus as text.
     sqlplus -s / as sysdba <<SQL
 WHENEVER SQLERROR EXIT FAILURE
 SET VERIFY OFF
@@ -45,6 +54,8 @@ EXIT
 SQL
   }
 
+  # One schema per service, so a service cannot read another one's tables. Each password comes from the container's environment, which
+  # docker-compose.yml fills from .env. An empty password stops the script (see the check at the top of create_schema).
   create_schema train_schedule "${TRAIN_SCHEDULE_DB_PASSWORD}"
   create_schema booking_seat   "${BOOKING_SEAT_DB_PASSWORD}"
   # Throwaway schema for the Booking & Seat database tests, so they never touch the dev data. It is optional: it is
@@ -75,4 +86,5 @@ SQL
   fi
   # Keycloak stores its users in Oracle too (docs/ARCHITECTURE.md, Flow 1). It gets its own schema like the services.
   create_schema keycloak       "${KEYCLOAK_DB_PASSWORD}"
+# If the subshell failed, make the whole init script fail, so the Oracle container does not report a healthy start with missing schemas.
 ) || exit 1

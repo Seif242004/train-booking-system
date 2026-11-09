@@ -19,6 +19,10 @@ export const EXPIRED_MESSAGE = 'Your 5 minutes ran out. The seats were released,
 export const TRIP_CANCELLED_MESSAGE = 'This trip was cancelled.';
 
 /** Passenger page (Flow 3, 4 and 5): the hold, its 5:00 countdown, and the payment. */
+// Route /bookings/:id/pay (signed-in, owner only). Flow: GET /bookings/{id} loads the hold; POST /bookings/{id}/payment ("Continue to payment")
+// makes Booking re-check the hold and ask Payment (which asks Stripe) for a PaymentIntent, and answers with the clientSecret and the PUBLISHABLE key
+// (the secret key never leaves the server). Stripe's form then takes the card inside its own iframe. The browser's "payment succeeded" is NOT
+// trusted: the booking becomes CONFIRMED only when Stripe's signed webhook reached Payment and Payment told Booking; the polling below sees it.
 export function PaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,8 +35,10 @@ export function PaymentPage() {
   // The payment (Stripe's form): asked from the server once when the page opens. 'waiting': Stripe took the payment (or it is being
   // processed) and the page waits for the server's confirmation, which comes from Stripe's signed webhook.
   const [payment, setPayment] = useState<{ state: 'idle' | 'loading' | 'ready' | 'waiting' | 'unavailable'; start?: PaymentStart; message?: string }>({ state: 'idle' });
+  // A ref guard: the payment is requested once per page visit, even though React StrictMode runs effects twice in development.
   const paymentAsked = useRef(false);
 
+  // Polling every 2 s is the safety net behind the WebSocket push: it also notices a status change if the live connection is down.
   const load = useCallback(async () => {
     const result = await gatewayGet(`/bookings/${id}`);
     if (result.status !== 200) {

@@ -32,6 +32,7 @@ function positionOf(plan: { left: string[]; right: string[] }, column: string): 
 }
 
 /** The seats whose state differs between two maps. */
+// Compares two maps seat by seat; used to highlight seats that another passenger just took.
 function changedSeatIds(before: SeatMap, after: SeatMap): number[] {
   const old = new Map(before.coaches.flatMap((c) => c.seats).map((seat) => [seat.id, seat.state]));
   return after.coaches.flatMap((c) => c.seats).filter((seat) => old.get(seat.id) !== seat.state).map((seat) => seat.id);
@@ -62,6 +63,11 @@ function planOf(coach: SeatMapCoach): { left: string[]; right: string[]; rows: {
  * the first pick starts the 5 minutes, shown here as a countdown, and later picks join the same hold without extending it.
  * Clicking a seat of your own releases it at once. "Continue to payment" opens the payment page with the time that is left.
  */
+// Route /trips/:id/seats?from=&to=&class= (signed-in; from and to are STOP INDEXES of the journey). Data: GET /trips/{id}/seat-map?from=&to=
+// (composed by the Gateway from the layout of Train & Schedule and the availability of Booking & Seat; it also carries `myHold`, the caller's own hold).
+// Actions, all in Booking & Seat: POST /bookings/pick (first pick creates the hold with a 5 minute timer, later picks join it and never extend it),
+// POST /bookings/{id}/release (one seat or some standing places), DELETE /bookings/{id}/hold (everything). The page never decides who wins a race:
+// on 409 seats_unavailable only that pick failed and the held seats stay held. Prices shown here are for display; the server prices the hold.
 export function SeatMapPage() {
   const { id } = useParams();
   const [query] = useSearchParams();
@@ -75,6 +81,7 @@ export function SeatMapPage() {
 
   const [map, setMap] = useState<SeatMap | null>(null);
   // The live events are applied to the map as it is right now, also when several arrive before the page has drawn again.
+  // Why a ref next to the state: live events can arrive several times before React re-draws, and each must be applied on top of the latest map.
   const mapRef = useRef<SeatMap | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -114,6 +121,8 @@ export function SeatMapPage() {
 
   // The countdown of the hold, from the server's expiry time corrected with the server's clock (FR-H4). It only shows the time;
   // the server decides when the hold is over and tells this page (HOLD_EXPIRED) or the next reload.
+  // Effect: starts the countdown whenever the hold (or its server time) changes and stops it on clean-up. The time comes from the server, never from
+  // the browser clock alone (countdown.ts). At 0 the page reloads after 1.5 s because the 1-second sweeper on the server releases the hold by then.
   const expiresAt = hold?.expiresAt;
   const serverTime = hold?.serverTime;
   useEffect(() => {
@@ -177,6 +186,7 @@ export function SeatMapPage() {
   mineRef.current = mySeatIds;
   const myStanding = useMemo(() => new Map((hold?.items ?? []).filter((i) => i.type === 'STANDING').map((i) => [i.coachId, i.qty])), [hold]);
 
+  // Marks one seat (or "coach:<id>") as "request in flight" and always clears it, even when the request throws (finally).
   const withBusy = useCallback(async (key: string, action: () => Promise<void>) => {
     setBusy((current) => new Set(current).add(key));
     try {
@@ -298,6 +308,8 @@ export function SeatMapPage() {
     );
   }
 
+  // closed: the trip is cancelled or being cancelled (CANCELLING) in either service, so nothing can be picked. sameJourney: the user may hold only one
+  // journey per trip, so seats of another journey are shown as a message with a link or a release button.
   const closed = map.status === 'CANCELLED' || map.tripStatus !== 'OPEN';
   const timeIsUp = left !== null && left <= 0;
   const canPick = !closed && sameJourney && !timeIsUp;
@@ -324,6 +336,7 @@ export function SeatMapPage() {
   const plan = shownCoach ? planOf(shownCoach) : null;
   const stops = map.journey.toStop - map.journey.fromStop + 1;
 
+  // Every seat is a real <button> with a text label. State is shown by shape and text as well as colour.
   function seatButton(seat: SeatMapSeat | undefined, key: string) {
     if (!seat || !plan) return <span key={key} className="plan-seat-empty" aria-hidden="true" />;
     const mine = mySeatIds.has(seat.id);

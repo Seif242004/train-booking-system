@@ -514,7 +514,6 @@ async function seedDemo() {
   }
 
   // The showcase trips of today, timed from the current clock: one still running and two that have arrived (so the board shows every state).
-  const nowMin = localParts(now).hour * 60 + localParts(now).minute;
   const floor5 = (m) => Math.floor(m / 5) * 5;
   const showcase = [['911', 50], ['913', 270], ['915', 360]]; // [train, minutes ago it left]: one still running, two arrived. These trains' regular slot of today is replaced by these.
   for (const [trainNo, ago] of showcase) {
@@ -526,7 +525,6 @@ async function seedDemo() {
     const trip = await createTrip(trainNo, 'ALEX', date, time);
     if (trip) trainDays.add(`${trainNo}|${date}`);
   }
-  void nowMin;
 
   for (let d = 0; d <= DAYS_AHEAD; d += 1) {
     const date = addDays(today, d);

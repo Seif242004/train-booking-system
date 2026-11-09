@@ -43,7 +43,7 @@ public class FakeTicketPort implements TicketPort {
     public void issue(long bookingId, TicketData data) {
         check();
         issueCalls.add(bookingId);
-        if (!issueCalls.isEmpty() && issued.stream().noneMatch(t -> t.reference().equals(data.reference()))) {
+        if (issued.stream().noneMatch(t -> t.reference().equals(data.reference()))) {
             issued.add(data); // idempotent, like the real one: one ticket per booking
         }
     }

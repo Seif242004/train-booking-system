@@ -7,6 +7,8 @@ import { requireRole } from '../src/auth.js';
 import { composeBoardDetail } from '../src/board.js';
 import { forwardTo } from '../src/proxy.js';
 
+// Tests of the counter and complimentary booking routes (admin only) and the hold expiry shown on the board detail.
+// listen starts a throwaway HTTP server on a free port.
 function listen(handler) {
   return new Promise((resolve) => {
     const server = createServer(handler);

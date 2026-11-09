@@ -15,6 +15,8 @@ const paymentServer = createServer((req, res) => {
   });
 });
 
+// Tests that the Stripe webhook is forwarded byte for byte with only the signature headers, needs no token, and is POST on one exact
+// path only.
 describe('the Stripe webhook route', () => {
   let gateway;
   let base;

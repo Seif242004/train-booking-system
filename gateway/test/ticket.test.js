@@ -5,6 +5,7 @@ import express from 'express';
 import { createApp } from '../src/app.js';
 import { ticketPdf } from '../src/ticket.js';
 
+// Tests of the PDF ticket route: ownership by the caller's token, admin access, status checks and the internal key towards Ticket.
 function listen(handler) {
   return new Promise((resolve) => {
     const server = createServer(handler);

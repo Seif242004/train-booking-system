@@ -25,6 +25,7 @@ const AVAILABILITY = {
   standing: [{ coachId: 32, capacity: 10, remaining: 8 }],
 };
 
+// Tests of seatmap.js: the pure composition first, then the route against fake services.
 describe('composeSeatMap', () => {
   test('every seat gets its state, every coach its standing places, and the journey is described', () => {
     const map = composeSeatMap(LAYOUT, AVAILABILITY);

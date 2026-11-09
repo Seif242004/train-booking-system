@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { after, before, describe, test } from 'node:test';
 import { createApp } from '../src/app.js';
 
+// Class comment: these tests check that the admin bookings and trip-cancel routes refuse a missing or garbage token.
 // The admin bookings route needs a valid ADMIN token. Verifying tokens needs Keycloak's keys, so the test only checks the refusals that
 // happen before any key is needed (no token), and that an unknown method/path is not routed.
 describe('the admin bookings route', () => {

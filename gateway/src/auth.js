@@ -11,6 +11,8 @@ import { log } from './log.js';
 //   keys, the set is refreshed once, but not more often than every 30 s. This stops a stream of forged tokens
 //   from turning into a stream of requests to Keycloak.
 // - timeoutDuration: a hung Keycloak must not hang the Gateway.
+// JWKS = JSON Web Key Set, the list of public keys Keycloak signs tokens with. A token is a JWT (JSON Web Token):
+// header.payload.signature.
 const jwks = createRemoteJWKSet(new URL(config.jwksUri), {
   cacheMaxAge: 10 * 60 * 1000,
   cooldownDuration: 30 * 1000,
@@ -19,6 +21,7 @@ const jwks = createRemoteJWKSet(new URL(config.jwksUri), {
 
 // Errors that mean "this token is not acceptable" (401). Anything else coming out of jwtVerify is a problem
 // with reaching or reading Keycloak's key set, which is not the caller's fault (503).
+// jose throws different error classes; they are sorted into "bad token" (401) and "cannot reach the keys" (503) below.
 const BAD_TOKEN_ERRORS = [
   errors.JWTExpired,
   errors.JWTClaimValidationFailed, // wrong issuer, or a malformed claim
@@ -35,6 +38,7 @@ const KEY_SET_UNAVAILABLE_ERRORS = [
   TypeError, // what fetch throws when the connection fails ("fetch failed")
 ];
 
+// Builds the WWW-Authenticate header that goes with a 401 (the standard way to say "send a Bearer token").
 const bearerChallenge = (detail = '') => ({ 'WWW-Authenticate': `Bearer realm="train-booking"${detail}` });
 
 /**
@@ -76,6 +80,7 @@ export async function authenticate(authorizationHeader) {
   }
 
   // Roles come only from realm_access.roles (Keycloak realm roles, for example USER and ADMIN).
+  // Defensive: if the claim is missing or not a list, the caller simply has no roles (so every role check fails closed).
   const roles = Array.isArray(payload.realm_access?.roles)
     ? payload.realm_access.roles.filter((role) => typeof role === 'string')
     : [];

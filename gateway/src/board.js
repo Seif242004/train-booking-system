@@ -1,4 +1,5 @@
-// The detail of one trip on the admin trips board: GET /admin/board/trips/{id}. Same pattern as the seat map: the layout (coaches and seats,
+// The detail of one trip on the admin trips board: GET /admin/board/trips/{id}. Same pattern as the seat map: the layout (coaches and
+// seats,
 // Train & Schedule) is put together with the state of every seat for the FULL journey (Booking & Seat, admin read). The list endpoint
 // (/admin/board/trips) is a plain forward to Booking & Seat and is mounted in app.js.
 import { config } from './config.js';
@@ -35,6 +36,7 @@ export function composeBoardDetail(layout, detail) {
   };
 }
 
+/** GET a JSON document with the caller's token and a timeout. Returns { status, body }; body is null when the answer is not JSON. */
 async function getJson(url, authorization, timeoutMs, fetchImpl) {
   const res = await fetchImpl(url, { headers: { authorization, accept: 'application/json' }, signal: AbortSignal.timeout(timeoutMs) });
   const text = await res.text();
@@ -45,6 +47,7 @@ async function getJson(url, authorization, timeoutMs, fetchImpl) {
 
 /** GET /admin/board/trips/:id. Mount it after requireAuth and requireRole('ADMIN'). */
 export function boardTripDetail(options = {}) {
+  // Settings can be replaced in tests (fake services and fetch).
   const settings = {
     trainScheduleUrl: config.trainScheduleUrl,
     bookingSeatUrl: config.bookingSeatUrl,
@@ -55,11 +58,13 @@ export function boardTripDetail(options = {}) {
 
   return async (req, res) => {
     const { id } = req.params;
+    // The id goes into a URL: only digits are accepted.
     if (!/^\d{1,12}$/.test(id)) return sendError(res, 400, 'bad_request', 'The trip id is not valid.');
     const authorization = req.headers.authorization;
     let layout;
     let detail;
     try {
+      // The two services are called at the same time. Both get the caller's token; Booking & Seat checks the ADMIN role again.
       [layout, detail] = await Promise.all([
         getJson(new URL(`/trips/${id}/layout`, settings.trainScheduleUrl), authorization, settings.upstreamTimeoutMs, settings.fetchImpl),
         getJson(new URL(`/admin/board/trips/${id}`, settings.bookingSeatUrl), authorization, settings.upstreamTimeoutMs, settings.fetchImpl),
@@ -69,12 +74,14 @@ export function boardTripDetail(options = {}) {
       log('error', 'Service unreachable', { cause: String(err?.cause?.code ?? err) });
       return sendError(res, 502, 'upstream_unavailable', 'The service is unavailable. Try again shortly.');
     }
+    // A 4xx from either service is relayed (for example 404 unknown trip); anything else is a 502.
     for (const answer of [layout, detail]) {
       if (answer.status !== 200 || !answer.body) {
         const status = answer.status >= 400 && answer.status < 500 ? answer.status : 502;
         return res.status(status).json(answer.body?.error ? answer.body : { error: { code: 'upstream_unavailable', message: 'The service is unavailable. Try again shortly.' } });
       }
     }
+    // The board is live data for one admin: no cache may keep it.
     res.set('cache-control', 'private, no-store');
     res.json(composeBoardDetail(layout.body, detail.body));
   };

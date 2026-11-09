@@ -11,6 +11,7 @@ const TRIPS = [
   { tripId: 4, fromStopIndex: 1, toStopIndex: 2, trainNumber: 'T100' },
 ];
 
+// listen starts a throwaway HTTP server on a free port (a fake service).
 function listen(handler) {
   return new Promise((resolve) => {
     const server = createServer(handler);

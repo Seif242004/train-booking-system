@@ -7,6 +7,8 @@ import { requireRole } from '../src/auth.js';
 import { boardTripDetail, composeBoardDetail } from '../src/board.js';
 import { forwardTo } from '../src/proxy.js';
 
+// Tests of the admin trips board: composeBoardDetail (pure) and the routes with fake Train & Schedule and Booking & Seat servers.
+// listen starts a throwaway HTTP server on a free port so the real fetch calls are exercised.
 function listen(handler) {
   return new Promise((resolve) => {
     const server = createServer(handler);

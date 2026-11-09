@@ -49,6 +49,8 @@ export function tripSearch(options = {}) {
     ...options,
   };
 
+  // The handler. Steps: 1) ask Train & Schedule for the trips; 2) if that is not a normal success, relay it as it is; 3) otherwise add
+  // availability.
   return async (req, res) => {
     const target = new URL(req.originalUrl, settings.trainScheduleUrl);
     if (target.pathname !== '/trips') return sendError(res, 400, 'bad_request', 'The request path is not valid.');

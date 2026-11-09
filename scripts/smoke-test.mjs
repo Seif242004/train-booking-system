@@ -15,23 +15,36 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Setup. Node runs this file as an ES module (.mjs), so top-level `await` is allowed below. ROOT is the repository root (this file lives in
+// scripts/), so the script works from any current directory. It uses only Node built-ins: no npm install is needed.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// Minimal .env parser: keep only lines shaped KEY=VALUE, split at the FIRST "=" (a value may contain "="). No quotes or comments are handled.
+// The values (passwords, Stripe key) stay in memory and are never printed.
 const env = Object.fromEntries(readFileSync(`${ROOT}/.env`, 'utf8').split(/\r?\n/).filter((l) => /^[A-Z_0-9]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+// The public doors of the stack, each overridable by an environment variable: the Gateway (the only entry to the services), Keycloak (login),
+// Mailpit (the dev SMTP inbox, to see the emails) and OpenObserve (log search). The script never talks to a Spring service directly.
 const GW = process.env.GATEWAY_URL ?? 'http://localhost:8080';
 const KC = process.env.KEYCLOAK_URL ?? 'http://localhost:8180';
 const MAILPIT = process.env.MAILPIT_URL ?? 'http://localhost:8025/api/v1';
 const OO = process.env.OPENOBSERVE_URL ?? 'http://localhost:5080/api/default';
+// Guard 1: test mode only. The script confirms payments with Stripe's test cards through the Stripe API, so a live key must never be accepted.
+// It stops here, before doing anything, when the key in .env is not a sk_test_ key.
 const SK = env.STRIPE_SECRET_KEY ?? '';
 if (!SK.startsWith('sk_test_')) throw new Error('STRIPE_SECRET_KEY must be a test-mode key (sk_test_...) in .env');
 
+// Result counters. The exit code at the end is 1 when `failed` is above 0, so the script can be used in a pipeline.
 let passed = 0;
 let failed = 0;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Prints one line, PASS or FAIL, and counts it. A failing check does not stop the run (later steps may still tell something useful),
+// except where the code tests the return value of check() and exits early (the health check). The detail is shown only for a failure.
 function check(label, ok, detail = '') {
   if (ok) passed++; else failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${ok || !detail ? '' : `  -> ${detail}`}`);
   return ok;
 }
+// Polls `fn` every `every` ms until it returns something truthy or `ms` have passed; returns the last value. The stack is asynchronous
+// (Stripe webhook, outbox, email dispatcher), so most checks wait for a state instead of reading it once.
 async function waitFor(fn, ms = 60000, every = 700) {
   const end = Date.now() + ms;
   let value;
@@ -44,6 +57,12 @@ async function waitFor(fn, ms = 60000, every = 700) {
 }
 
 // ---- Keycloak: the real authorization code + PKCE login, as the browser does it -------------------------------------------------
+// Logs in exactly like the browser does (authorization code flow with PKCE), without a browser, in 4 steps:
+//  1. Make a random code verifier and its SHA-256 challenge (PKCE: only the holder of the verifier can redeem the code).
+//  2. GET Keycloak's auth endpoint for the public client `web-app`; keep its cookies and read the login form's action URL from the HTML.
+//  3. POST the username and password to that action with the cookies; Keycloak answers a redirect whose `code` query parameter is the code.
+//  4. POST the code and the verifier to the token endpoint; the answer holds the access token (a JWT with the realm roles).
+// Returns the access token only. A wrong password or a changed login page makes the regex or URL parsing throw, which ends the script.
 async function login(username, password) {
   const b64url = (b) => Buffer.from(b).toString('base64url');
   const verifier = b64url(randomBytes(48));
@@ -63,6 +82,8 @@ async function login(username, password) {
   return token.access_token;
 }
 
+// One call through the Gateway with an optional bearer token and JSON body. Never throws on an HTTP error: it returns { status, body } so a
+// check can assert on a 401, 403, 404 or 409. A body that is not JSON is returned as text.
 async function call(method, path, token, body) {
   const headers = {};
   if (token) headers.authorization = `Bearer ${token}`;
@@ -74,11 +95,15 @@ async function call(method, path, token, body) {
   return { status: res.status, body: parsed };
 }
 
+// Calls the Stripe REST API directly with the test secret key (form encoded, as Stripe wants). It stands in for the browser's card form:
+// the real page confirms the PaymentIntent with Stripe.js; here the script confirms it with a Stripe test payment method (pm_card_visa ...).
+// Card data never touches our servers, and none is typed here either.
 const stripe = async (path, form) => (await fetch(`https://api.stripe.com/v1/${path}`, {
   method: form ? 'POST' : 'GET',
   headers: { authorization: `Bearer ${SK}`, ...(form ? { 'content-type': 'application/x-www-form-urlencoded' } : {}) },
   body: form ? new URLSearchParams(form) : undefined,
 })).json();
+// Lists the emails Mailpit received (the dev SMTP server), used to see the ticket and cancellation emails.
 const mails = async () => (await (await fetch(`${MAILPIT}/messages?limit=200`)).json()).messages ?? [];
 
 /** The text of the content streams of a PDF made by OpenPDF (Flate-compressed, text in literal strings), the number of pages and of images. */
@@ -96,6 +121,10 @@ function inspectPdf(buffer) {
 }
 
 // ---- start --------------------------------------------------------------------------------------------------------------------------
+// ===== Flow of the run (each console.log('--- ...') line starts a section) =====
+// Section 1, the doors. Guard 2: if the Gateway does not answer /health with 200, the script prints FAIL and exits with 1 (stack not up).
+// Then it logs in as the two dev users and checks that the Gateway answers 401 without or with a bad token, 403 for a passenger on an
+// admin route, and 200 for the admin (JWT signature, expiry and role are checked by the Gateway).
 console.log('--- the stack is up, and the doors are locked');
 const health = await fetch(`${GW}/health`).then((r) => r.status).catch(() => 0);
 if (!check('Gateway /health is UP', health === 200, `status ${health}: is the stack running?`)) process.exit(1);
@@ -108,6 +137,9 @@ check('a passenger on an admin route: 403', (await call('GET', '/admin/stations'
 check('an admin on an admin route: 200', (await call('GET', '/admin/stations', admin)).status === 200);
 
 // ---- the timetable ------------------------------------------------------------------------------------------------------------------
+// Section 2. The admin builds its own timetable through the admin endpoints: three stations, a train with one SECOND coach, six seats and
+// ten standing places, a route with fares (100 + 130 EGP) and a trip four days ahead. `tag` (6 random hex digits) is put in every code and
+// name, so a run never collides with the demo data and the clean-up at the end can find exactly what this run made.
 console.log('--- the admin builds a trip');
 const tag = randomBytes(3).toString('hex').toUpperCase();
 const day = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
@@ -126,6 +158,7 @@ const created = await call('POST', '/admin/trips', admin, { trainId: train.id, r
 check('the trip is created (and pushed to Booking & Seat)', created.status === 201, JSON.stringify(created.body)?.slice(0, 200));
 const tripId = created.body.id;
 
+// Section 3. Search (composed by the Gateway: timetable from Train & Schedule plus availability from Booking & Seat) and the seat map.
 console.log('--- the passenger searches and looks at the seat map');
 const search = await call('GET', `/trips?from=S${tag}A&to=S${tag}C&date=${day}`, user);
 const found = search.body?.trips?.find((t) => t.tripId === tripId);
@@ -136,6 +169,9 @@ check('the seat map is composed by the Gateway', map.status === 200 && JSON.stri
 const seat = Object.fromEntries(seats.map((s) => [s.seatNumber, s.id]));
 const journey = { tripId, fromStop: 0, toStop: 2 };
 
+// Journey 1, the happy path. First pick creates the hold (201). A second user cannot take the held seat (409) or read the booking (404).
+// "Continue to payment" makes the Stripe PaymentIntent; the script confirms it with the success test card; Stripe's signed webhook goes
+// through the Gateway to Payment, which reports to Booking, and the booking becomes CONFIRMED. Then the ticket email must reach Mailpit.
 // ---- Journey 1: pay with the success card ----------------------------------------------------------------------------------------------
 console.log('--- a passenger holds a seat and pays (card 4242 4242 4242 4242)');
 const hold = await call('POST', '/bookings/pick', user, { ...journey, seatId: seat['1A'] });
@@ -152,6 +188,8 @@ const ticketMail = await waitFor(async () => (await mails()).find((m) => /ticket
 check('the ticket email (with the PDF) reached Mailpit', Boolean(ticketMail) && ticketMail.Attachments >= 1, ticketMail ? `attachments ${ticketMail.Attachments}` : 'no email');
 check('My bookings lists it', (await call('GET', '/bookings', user)).body?.some((x) => x.booking.id === hold.body.id));
 
+// Journey 2, a declined card. The decline leaves the hold alone (FR-P5): the booking stays PENDING_PAYMENT, and a retry on the SAME
+// PaymentIntent with a good card confirms it.
 // ---- Journey 2: decline, then retry inside the same hold --------------------------------------------------------------------------------
 console.log('--- a declined card (4000 0000 0000 0002), then the retry inside the same hold (FR-P5)');
 const hold2 = await call('POST', '/bookings/pick', user, { ...journey, seatId: seat['1B'] });
@@ -164,6 +202,8 @@ await stripe(`payment_intents/${intent2}/confirm`, { payment_method: 'pm_card_vi
 const retried = await waitFor(async () => { const r = await call('GET', `/bookings/${hold2.body.id}`, user); return r.body?.status === 'CONFIRMED' ? r.body : null; });
 check('the retry with the good card confirms the booking', Boolean(retried));
 
+// Journey 3, 3D Secure. Stripe answers requires_action, so nothing is confirmed. Deselecting the last seat ends the hold (ABANDONED) and
+// the PaymentIntent must be cancelled at Stripe FIRST (timeout and release never charge and never refund).
 // ---- Journey 3: 3D Secure --------------------------------------------------------------------------------------------------------------
 console.log('--- 3D Secure (4000 0000 0000 3220): the card needs the cardholder, so nothing is confirmed');
 const hold3 = await call('POST', '/bookings/pick', user, { ...journey, seatId: seat['1C'] });
@@ -175,6 +215,9 @@ check('deselecting the last seat releases it at once and ends the hold', (await 
   && (await call('GET', `/bookings/${hold3.body.id}`, user)).body?.status === 'ABANDONED');
 check('its PaymentIntent was cancelled at Stripe first', (await waitFor(async () => (await stripe(`payment_intents/${intent3}`)).status === 'canceled')) === true);
 
+// Cancellation. A user cannot cancel another user's booking (404). The owner's cancel is instant and ends in a full Stripe refund
+// (REFUNDED, one refund for the whole amount in piastres) and an email. A passenger gets 403 on the admin cancel; the admin finds the
+// booking by reference and cancels another with a reason, which records the actor and the role.
 // ---- Cancellation ---------------------------------------------------------------------------------------------------------------------
 console.log('--- the passenger cancels (instant, full refund), the admin cancels another for support');
 check('another user cannot cancel it (404)', (await call('POST', `/bookings/${hold.body.id}/cancel`, admin)).status === 404);
@@ -192,8 +235,14 @@ const adminCancelled = await call('POST', `/admin/bookings/${hold2.body.id}/canc
 check('the admin cancels it with a reason', adminCancelled.status === 200 && adminCancelled.body.status === 'CANCELLED');
 check('it records who cancelled and why', (await call('GET', `/admin/bookings/${hold2.body.id}`, admin)).body?.cancelledByRole === 'ADMIN');
 
+// Counter and complimentary bookings (no Stripe). The admin finds a passenger by EXACT email (a partial email finds nobody), holds a
+// seat, and issues it as COUNTER; issuing twice returns the same booking (idempotent). The board shows the seat TAKEN, the passenger
+// cannot cancel it (cancel_at_desk), the PDF has one page, the reference, "Paid at counter", the logo and the QR code. An admin cancel gives
+// MANUAL_REFUND_DUE (no card refund) and then "refunded at the counter"; a complimentary booking needs a reason (400 without) and its
+// cancel gives NOT_APPLICABLE.
 // ---- Counter and complimentary bookings (docs/design/COUNTER-BOOKING.md) -------------------------------------------------------------------
 console.log('--- the admin issues a counter booking and a complimentary one, without Stripe');
+// Reads one seat of the admin board for this run's trip (state FREE or TAKEN, plus the booking reference).
 const boardSeat = async (seatNumber) => {
   const detail = (await call('GET', `/admin/board/trips/${tripId}`, admin)).body;
   return detail?.coaches?.flatMap((c) => c.seats).find((s) => s.seatNumber === seatNumber);
@@ -233,6 +282,9 @@ check('then with a reason it is issued (walk-in, COMPLIMENTARY)', complimentary.
 const freeCancelled = await call('POST', `/admin/bookings/${complimentary.body.id}/cancel`, admin, { reason: 'Smoke test: guest cancelled' });
 check('cancelling it gives NOT_APPLICABLE and the seat is FREE', freeCancelled.body?.refundStatus === 'NOT_APPLICABLE' && (await boardSeat('1C'))?.state === 'FREE');
 
+// Whole-trip cancellation (Flow 8). One confirmed booking and one open hold exist. The admin cancels the trip (a passenger gets 403);
+// the trip goes CANCELLING, then CANCELLED when nothing is pending: the confirmed booking is cancelled and refunded, the hold ends
+// EXPIRED, and the trip disappears from search.
 // ---- Whole-trip cancellation ----------------------------------------------------------------------------------------------------------
 console.log('--- the admin cancels the whole trip');
 const hold4 = await call('POST', '/bookings/pick', user, { ...journey, seatId: seat['2A'] });
@@ -248,9 +300,12 @@ check('the confirmed booking was cancelled and refunded', (await waitFor(async (
 check('the hold was released (EXPIRED)', (await call('GET', `/bookings/${hold5.body.id}`, user)).body?.status === 'EXPIRED');
 check('the trip left the search results', !(await call('GET', `/trips?from=S${tag}A&to=S${tag}C&date=${day}`, user)).body?.trips?.some((t) => t.tripId === tripId));
 
+// Observability. Queries OpenObserve's search API with the root login from .env: the Gateway stream has the booking id and user id, the
+// audit logger has the cancellation, traces exist, and no "access_token" or "Bearer" text is in the Gateway logs (tokens must never be logged).
 // ---- Observability --------------------------------------------------------------------------------------------------------------------
 console.log('--- OpenObserve received the structured logs, the audit trail and the traces');
 const auth = `Basic ${Buffer.from(`${env.OPENOBSERVE_USER}:${env.OPENOBSERVE_PASSWORD}`).toString('base64')}`;
+// Runs an OpenObserve SQL search over the last 20 minutes; returns the hits or [] on any error.
 async function ooSearch(sql, type = 'logs') {
   const now = Date.now() * 1000;
   const res = await fetch(`${OO}/_search?type=${type}`, { method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' },
@@ -267,6 +322,8 @@ check('OpenTelemetry traces arrived', Boolean(traces));
 const leaked = await ooSearch(`SELECT * FROM "gateway" WHERE match_all('access_token') OR match_all('Bearer')`);
 check('no token appears in the Gateway logs', leaked.length === 0);
 
+// Clean-up: unless --keep is given, run `demo-data.mjs reset-test-data` as a child process so the run leaves no test rows behind.
+// That command removes the rows by the tag patterns (never users, never Keycloak). A clean-up failure prints a hint and does not change the exit code.
 // Everything this run created carries the tag (stations S<tag>A..C, train SM<tag>, route "Smoke <tag>", bookings of the dev accounts). Remove it,
 // so running the test never pollutes the demo data. `--keep` leaves it in place for inspection.
 if (!process.argv.includes('--keep')) {
@@ -274,5 +331,6 @@ if (!process.argv.includes('--keep')) {
   console.log(cleanup.status === 0 ? '--- the data of this run was removed (scripts/demo-data.mjs reset-test-data)' : `--- clean-up failed, run scripts/demo-data.mjs reset-test-data by hand: ${(cleanup.stderr || cleanup.stdout).slice(0, 300)}`);
 }
 
+// Summary and exit code: 0 if no check failed, 1 otherwise. Not covered here: the 5-minute hold timeout (covered by the Booking tests).
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

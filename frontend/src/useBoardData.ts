@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { gatewayGet, readError } from './api';
 import type { BoardResponse, BoardTrip } from './boardTypes';
 
+// Polling interval, longest wait after repeated errors, and how long a changed row stays highlighted.
 const REFRESH_MS = 5000;
 const MAX_BACKOFF_MS = 60_000;
 const HIGHLIGHT_MS = 2200;
@@ -34,6 +35,8 @@ export function useBoardData(query: string): BoardData {
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [changed, setChanged] = useState<ReadonlySet<number>>(new Set());
+  // Refs (useRef) keep values between renders without causing a new render when they change. `generation` counts filter changes so that a slow
+  // answer for old filters is thrown away; `loadRef` always points to the newest load function so timers never call a stale one.
   const signatures = useRef<Map<number, string> | null>(null);
   const failures = useRef(0);
   const timer = useRef<number | undefined>(undefined);
@@ -41,11 +44,14 @@ export function useBoardData(query: string): BoardData {
   const generation = useRef(0);
   const loadRef = useRef<() => Promise<void>>(async () => undefined);
 
+  // Restarts the one polling timer: at most one timer is ever pending.
   const schedule = useCallback((delay: number) => {
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => void loadRef.current(), delay);
   }, []);
 
+  // One poll: skip while the tab is hidden, ask the Gateway, drop the answer if the filters changed, compare row signatures with the previous
+  // answer to find changed rows (for the highlight), reset the failure count on success, or back off exponentially on failure.
   loadRef.current = async () => {
     if (document.hidden) return; // resumed by the visibilitychange listener
     const mine = generation.current;
@@ -87,6 +93,8 @@ export function useBoardData(query: string): BoardData {
   }, [query]);
 
   useEffect(() => {
+    // Page Visibility: when the user returns to the tab, poll at once and reset the failure back-off. The effect below registers the listener once
+    // and removes it (and both timers) when the page using the hook goes away.
     function onVisible() {
       if (!document.hidden) {
         failures.current = 0;

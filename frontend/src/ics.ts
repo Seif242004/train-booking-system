@@ -1,5 +1,6 @@
 import type { Booking } from './bookingTypes';
 
+// utc: ISO time -> iCalendar basic format (20261102T060000Z). esc: escapes the characters that have a meaning in iCalendar text values.
 const utc = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 const esc = (text: string) => text.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
 
@@ -9,6 +10,7 @@ export function calendarFile(booking: Booking): string | null {
   const end = booking.trip.to.arrivalTime;
   if (!start || !end) return null;
   const summary = `Train ${booking.trip.trainNumber}: ${booking.trip.from.stationName} to ${booking.trip.to.stationName}`;
+  // Lines must end with CRLF in iCalendar, which is why the file is joined with \r\n.
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -28,6 +30,7 @@ export function calendarFile(booking: Booking): string | null {
 }
 
 /** Hands a text file to the browser as a download. */
+// Standard browser trick: make a temporary object URL for the content, click a hidden link with the "download" attribute, then free the URL.
 export function saveFile(name: string, type: string, content: string | Blob): void {
   const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type }));
   const link = document.createElement('a');

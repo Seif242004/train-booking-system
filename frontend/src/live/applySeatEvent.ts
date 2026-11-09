@@ -20,6 +20,8 @@ export type Applied =
  *   only free again for the whole journey if the event covers every segment of the journey; otherwise another hold on the rest of
  *   the journey may remain, which the event cannot tell, so the map is loaded again. The same holds for the standing places.
  */
+// Pure function (no React, no network), so it can be unit tested. Order of checks: version first (reload or stale), then whether the event
+// touches this journey, then the event type. A "segment" is the leg between two neighbouring stops; a journey from stop i to stop j uses i..j-1.
 export function applySeatEvent(map: SeatMap, event: SeatEvent): Applied {
   if (map.version === null || event.version > map.version + 1) {
     return { kind: 'reload' };
@@ -28,6 +30,7 @@ export function applySeatEvent(map: SeatMap, event: SeatEvent): Applied {
     return { kind: 'stale' };
   }
 
+  // The list of segment numbers of the user's journey, for example fromStop 1 and toStop 4 give [1, 2, 3].
   const journey = Array.from({ length: map.journey.toStop - map.journey.fromStop }, (_, i) => map.journey.fromStop + i);
   const eventSegments = event.segments.length === 0 ? journey : event.segments; // empty: every segment
   const shared = journey.filter((segment) => eventSegments.includes(segment));

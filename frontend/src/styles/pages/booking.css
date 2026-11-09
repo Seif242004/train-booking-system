@@ -1,6 +1,7 @@
 /* The booking flow: step indicator, seat map, hold countdown, payment and the ticket. */
 
 /* ---- Steps ---------------------------------------------------------------------------------------------------------------------- */
+/* ---- The four booking steps (Search, Seats, Payment, Ticket). ---- */
 .booking-steps {
   display: flex;
   flex-wrap: wrap;
@@ -65,6 +66,7 @@
 }
 
 /* ---- Trip summary and the two columns ------------------------------------------------------------------------------------------- */
+/* ---- Seat map page: trip summary bar, two-column layout, class tabs, legend, standing zone and the stepper. ---- */
 .trip-summary {
   display: flex;
   flex-wrap: wrap;
@@ -290,6 +292,7 @@
 }
 
 /* ---- Hold card (countdown) and the selection list -------------------------------------------------------------------------------- */
+/* ---- The hold countdown card. It turns coral in the last minute (.is-low) and the bar shows the share of the 5 minutes left. ---- */
 .hold-card {
   padding: 20px 22px;
   color: #fff;
@@ -345,6 +348,7 @@
   color: #e4e0ee;
 }
 
+/* ---- Selection list and total. ---- */
 .selection-card {
   padding: 22px;
   background: var(--white);
@@ -463,6 +467,7 @@
 }
 
 /* ---- Payment -------------------------------------------------------------------------------------------------------------------- */
+/* ---- Payment page. ---- */
 .pay-layout {
   display: flex;
   flex-wrap: wrap;
@@ -557,6 +562,7 @@
 }
 
 /* ---- Ticket --------------------------------------------------------------------------------------------------------------------- */
+/* ---- Ticket page: the confirmation check that draws itself, then the ticket with its perforation and QR code. ---- */
 .ticket-page {
   max-width: 760px;
   margin: 0 auto;

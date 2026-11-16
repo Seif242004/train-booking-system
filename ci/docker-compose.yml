@@ -22,8 +22,8 @@ services:
     ports:
       - "127.0.0.1:9090:8080"
     environment:
-      # Heap cap (the build tools run as child processes). The setup wizard is replaced by Configuration as Code.
-      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=false
+      # Heap cap (the build tools run as child processes). The setup wizard is replaced by Configuration as Code. ALLOW_LOCAL_CHECKOUT lets the job use the mounted /repo folder as its Git source (local testing).
+      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=false -Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true
       CASC_JENKINS_CONFIG: /casc/casc.yaml
       KUBECONFIG: /var/jenkins_home/.kube/config
       GRADLE_USER_HOME: /var/jenkins_home/.gradle

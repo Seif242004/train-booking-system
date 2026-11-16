@@ -70,6 +70,14 @@ public class OutboxRepository {
         jdbc.sql("UPDATE outbox SET status = 'FAILED', attempts = attempts + 1, last_error = :e WHERE id = :id").param("e", truncate(error)).param("id", id).update();
     }
 
+    /** Backlog figures for the saturation metrics: jobs waiting, and when the oldest of them was queued (null when none). */
+    public record Backlog(long pending, OffsetDateTime oldestPendingSince) {}
+
+    public Backlog backlog() {
+        return jdbc.sql("SELECT COUNT(*) AS n, MIN(created_at) AS oldest FROM outbox WHERE status = 'PENDING'")
+                .query((rs, row) -> new Backlog(rs.getLong("n"), rs.getObject("oldest", OffsetDateTime.class))).single();
+    }
+
     private static String truncate(String text) {
         return text == null ? null : text.substring(0, Math.min(text.length(), 480));
     }

@@ -4,9 +4,14 @@
 //
 // The incoming request becomes a span, and every call the Gateway makes to a service (fetch) is a child span that carries the W3C
 // traceparent header, so one trace follows a request from the browser through the Gateway into the Spring service.
+import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { getHeapStatistics } from 'node:v8';
+import { metrics } from '@opentelemetry/api';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
 
@@ -42,6 +47,13 @@ if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
     : undefined;
   const sdk = new NodeSDK({
     serviceName: process.env.OTEL_SERVICE_NAME ?? 'gateway',
+    // Saturation metrics, exported every 30 s (OTEL_METRIC_EXPORT_INTERVAL overrides, in ms).
+    metricReaders: [
+      new PeriodicExportingMetricReader({
+        exporter: new OTLPMetricExporter({ headers }),
+        exportIntervalMillis: Number(process.env.OTEL_METRIC_EXPORT_INTERVAL ?? 30000),
+      }),
+    ],
     spanProcessors: [queryStringRedactor, new BatchSpanProcessor({ exporter: new OTLPTraceExporter({ headers }) })],
     instrumentations: [
       new HttpInstrumentation({ ignoreIncomingRequestHook: (req) => req.url === '/health' }),
@@ -50,5 +62,35 @@ if (process.env.OTEL_EXPORTER_OTLP_ENDPOINT) {
     ],
   });
   sdk.start();
+  registerSaturationMetrics();
   process.on('SIGTERM', () => void sdk.shutdown());
+}
+
+/**
+ * The Gateway's saturation signals as observable gauges (read once per export): memory, CPU and event-loop delay. The event-loop delay
+ * is the p99 of the delay histogram of the last interval, in milliseconds, and the histogram is reset after each read.
+ */
+function registerSaturationMetrics() {
+  const meter = metrics.getMeter('gateway');
+  const loop = monitorEventLoopDelay({ resolution: 20 });
+  loop.enable();
+  let lastCpu = process.cpuUsage();
+  let lastAt = process.hrtime.bigint();
+
+  meter.createObservableGauge('process.memory.rss', { unit: 'By' }).addCallback((r) => r.observe(process.memoryUsage().rss));
+  meter.createObservableGauge('nodejs.heap.used', { unit: 'By' }).addCallback((r) => r.observe(process.memoryUsage().heapUsed));
+  meter.createObservableGauge('nodejs.heap.limit', { unit: 'By' }).addCallback((r) => r.observe(getHeapStatistics().heap_size_limit));
+  // CPU as a fraction of one core since the previous read.
+  meter.createObservableGauge('process.cpu.utilization', { unit: '1' }).addCallback((r) => {
+    const now = process.hrtime.bigint();
+    const cpu = process.cpuUsage(lastCpu);
+    const elapsedMicros = Number(now - lastAt) / 1000;
+    if (elapsedMicros > 0) r.observe((cpu.user + cpu.system) / elapsedMicros);
+    lastCpu = process.cpuUsage();
+    lastAt = now;
+  });
+  meter.createObservableGauge('nodejs.eventloop.delay.p99', { unit: 'ms' }).addCallback((r) => {
+    r.observe(loop.percentile(99) / 1e6);
+    loop.reset();
+  });
 }

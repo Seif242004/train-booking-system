@@ -26,7 +26,9 @@ x-spring-service: &spring-service
     LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
     OTEL_EXPORTER_OTLP_ENDPOINT: http://openobserve:5080/api/default
     OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-    OTEL_METRICS_EXPORTER: none
+    # Metrics (JVM memory and CPU, the Hikari connection pool, the outbox gauges) go over OTLP to OpenObserve every 30 s: the saturation signals.
+    OTEL_METRICS_EXPORTER: otlp
+    OTEL_METRIC_EXPORT_INTERVAL: "30000"
     # The ids set in the logging context (user, booking, trip, actor) become attributes of every log record in OpenObserve.
     OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_CAPTURE_MDC_ATTRIBUTES: "*"
     OPENOBSERVE_USER: ${OPENOBSERVE_USER:?set OPENOBSERVE_USER in .env}

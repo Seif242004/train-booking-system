@@ -16,6 +16,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.flywaydb:flyway-database-oracle'
+	// Only for the outbox backlog gauges (OutboxMetrics). The OpenTelemetry Java agent of the image supplies the implementation.
+	implementation 'io.opentelemetry:opentelemetry-api:1.60.0'
 	runtimeOnly 'com.oracle.database.jdbc:ojdbc17'
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'

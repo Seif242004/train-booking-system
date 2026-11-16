@@ -356,6 +356,8 @@ public class PaymentService {
     // Used by the webhook for payment_intent.payment_failed. The text is cut to 480 characters to fit the column (500).
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordFailedAttempt(Payment payment, String reason) {
+        // One warning per failed attempt: the observability alert "payment failures" counts these lines.
+        log.warn("Payment attempt failed for booking {}", payment.bookingId());
         if (payment.status() == PaymentStatus.PROCESSING) {
             payments.setStatus(payment.id(), PaymentStatus.PENDING, now());
         }

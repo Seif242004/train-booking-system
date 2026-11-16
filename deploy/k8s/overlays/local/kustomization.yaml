@@ -1,0 +1,25 @@
+# Overlay "local": namespace tbs, images from the local registry, and the NodePorts that the kind port mappings publish on the host
+# (30080 -> 8080 Gateway, 30173 -> 5173 web app). The pipeline sets the image tags with `kustomize edit set image` (kubectl kustomize edit).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: tbs
+resources:
+  - namespace.yaml
+  - ../../base
+images:
+  - { name: tbs/train-schedule, newName: localhost:5001/tbs/train-schedule, newTag: latest }
+  - { name: tbs/booking-seat, newName: localhost:5001/tbs/booking-seat, newTag: latest }
+  - { name: tbs/payment, newName: localhost:5001/tbs/payment, newTag: latest }
+  - { name: tbs/ticket, newName: localhost:5001/tbs/ticket, newTag: latest }
+  - { name: tbs/notification, newName: localhost:5001/tbs/notification, newTag: latest }
+  - { name: tbs/gateway, newName: localhost:5001/tbs/gateway, newTag: latest }
+  - { name: tbs/frontend, newName: localhost:5001/tbs/frontend, newTag: latest }
+patches:
+  - target: { kind: Service, name: gateway }
+    patch: |-
+      - { op: add, path: /spec/type, value: NodePort }
+      - { op: add, path: /spec/ports/0/nodePort, value: 30080 }
+  - target: { kind: Service, name: frontend }
+    patch: |-
+      - { op: add, path: /spec/type, value: NodePort }
+      - { op: add, path: /spec/ports/0/nodePort, value: 30173 }

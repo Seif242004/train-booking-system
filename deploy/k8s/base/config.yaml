@@ -1,0 +1,39 @@
+# Non-secret settings, copied from docker-compose.yml. The Compose names (oracle, keycloak, openobserve, mailpit) resolve inside the
+# cluster because the kind node is attached to the Compose network (scripts/ci.mjs); the app services are cluster Services with the
+# same names as in Compose.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tbs-config
+data:
+  # The browser's address of Keycloak: it is the token's "iss". The keys are fetched on the internal address.
+  KEYCLOAK_ISSUER: http://localhost:8180/realms/train-booking
+  KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/train-booking/protocol/openid-connect/certs
+  CORS_ORIGIN: http://localhost:5173
+  TRAIN_SCHEDULE_URL: http://train-schedule:8081
+  BOOKING_SEAT_URL: http://booking-seat:8082
+  PAYMENT_URL: http://payment:8083
+  TICKET_URL: http://ticket:8084
+  NOTIFICATION_URL: http://notification:8085
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://openobserve:5080/api/default
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+---
+# Settings of the five Spring services only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tbs-spring
+data:
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+  OTEL_METRICS_EXPORTER: otlp
+  OTEL_METRIC_EXPORT_INTERVAL: "30000"
+  OTEL_INSTRUMENTATION_LOGBACK_APPENDER_EXPERIMENTAL_CAPTURE_MDC_ATTRIBUTES: "*"
+  TZ: Africa/Cairo
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/train-booking/protocol/openid-connect/certs
+  TRAIN_SCHEDULE_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+  BOOKING_SEAT_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+  PAYMENT_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+  TICKET_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+  NOTIFICATION_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
+  # A 512 Mi container: the heap may use 60 % (the JVM default of 25 % is too small); serial GC keeps the footprint low.
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60 -XX:+UseSerialGC"

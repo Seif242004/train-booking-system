@@ -1,0 +1,58 @@
+# ticket: one replica, replaced by "Recreate" (not rolled): its pollers (sweeper, outbox) must never run in two pods at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ticket
+  labels: { app: ticket }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: ticket }
+  template:
+    metadata:
+      labels: { app: ticket }
+    spec:
+      containers:
+        - name: ticket
+          # The overlay maps this name to localhost:5001/tbs/ticket:<git sha>.
+          image: tbs/ticket
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+          # Shared, non-secret settings (same names and values as docker-compose.yml).
+          envFrom:
+            - configMapRef: { name: tbs-config }
+            - configMapRef: { name: tbs-spring }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: ticket }
+            - { name: INTERNAL_API_KEY, valueFrom: { secretKeyRef: { name: tbs-secrets, key: INTERNAL_API_KEY } } }
+            - { name: OPENOBSERVE_USER, valueFrom: { secretKeyRef: { name: tbs-secrets, key: OPENOBSERVE_USER } } }
+            - { name: OPENOBSERVE_PASSWORD, valueFrom: { secretKeyRef: { name: tbs-secrets, key: OPENOBSERVE_PASSWORD } } }
+            - { name: TICKET_DB_PASSWORD, valueFrom: { secretKeyRef: { name: tbs-secrets, key: TICKET_DB_PASSWORD } } }
+            - { name: TICKET_SIGNING_KEY, valueFrom: { secretKeyRef: { name: tbs-secrets, key: TICKET_SIGNING_KEY } } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          # The service has no health endpoint (none is added), so the probes check that the port accepts connections.
+          # The startup probe allows up to 5 minutes (Flyway migrations, agent start) before liveness takes over.
+          startupProbe:
+            tcpSocket: { port: 8084 }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: { port: 8084 }
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 8084 }
+            periodSeconds: 15
+            failureThreshold: 4
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ticket
+spec:
+  selector: { app: ticket }
+  ports:
+    - { port: 8084, targetPort: 8084 }

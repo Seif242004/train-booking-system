@@ -1,0 +1,63 @@
+# notification: one replica, replaced by "Recreate" (not rolled): its pollers (sweeper, outbox) must never run in two pods at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification
+  labels: { app: notification }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: notification }
+  template:
+    metadata:
+      labels: { app: notification }
+    spec:
+      containers:
+        - name: notification
+          # The overlay maps this name to localhost:5001/tbs/notification:<git sha>.
+          image: tbs/notification
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8085
+          # Shared, non-secret settings (same names and values as docker-compose.yml).
+          envFrom:
+            - configMapRef: { name: tbs-config }
+            - configMapRef: { name: tbs-spring }
+          env:
+            - { name: OTEL_SERVICE_NAME, value: notification }
+            - { name: INTERNAL_API_KEY, valueFrom: { secretKeyRef: { name: tbs-secrets, key: INTERNAL_API_KEY } } }
+            - { name: OPENOBSERVE_USER, valueFrom: { secretKeyRef: { name: tbs-secrets, key: OPENOBSERVE_USER } } }
+            - { name: OPENOBSERVE_PASSWORD, valueFrom: { secretKeyRef: { name: tbs-secrets, key: OPENOBSERVE_PASSWORD } } }
+            - { name: NOTIFICATION_DB_PASSWORD, valueFrom: { secretKeyRef: { name: tbs-secrets, key: NOTIFICATION_DB_PASSWORD } } }
+            - { name: MAIL_HOST, valueFrom: { secretKeyRef: { name: tbs-secrets, key: MAIL_HOST } } }
+            - { name: MAIL_PORT, valueFrom: { secretKeyRef: { name: tbs-secrets, key: MAIL_PORT } } }
+            - { name: MAIL_USERNAME, valueFrom: { secretKeyRef: { name: tbs-secrets, key: MAIL_USERNAME } } }
+            - { name: MAIL_PASSWORD, valueFrom: { secretKeyRef: { name: tbs-secrets, key: MAIL_PASSWORD } } }
+            - { name: MAIL_AUTH, valueFrom: { secretKeyRef: { name: tbs-secrets, key: MAIL_AUTH } } }
+            - { name: MAIL_STARTTLS, valueFrom: { secretKeyRef: { name: tbs-secrets, key: MAIL_STARTTLS } } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          # The service has no health endpoint (none is added), so the probes check that the port accepts connections.
+          # The startup probe allows up to 5 minutes (Flyway migrations, agent start) before liveness takes over.
+          startupProbe:
+            tcpSocket: { port: 8085 }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket: { port: 8085 }
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 8085 }
+            periodSeconds: 15
+            failureThreshold: 4
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification
+spec:
+  selector: { app: notification }
+  ports:
+    - { port: 8085, targetPort: 8085 }

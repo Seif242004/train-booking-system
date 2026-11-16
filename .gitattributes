@@ -8,3 +8,8 @@ gradlew text eol=lf
 *.bat text eol=crlf
 
 *.jar binary
+
+# CI: scripts that run in Linux containers (Jenkins, kind) must stay LF.
+Jenkinsfile text eol=lf
+ci/** text eol=lf
+deploy/** text eol=lf

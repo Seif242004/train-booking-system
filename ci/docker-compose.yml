@@ -1,0 +1,76 @@
+# Local CI: a registry and Jenkins. Started by `node scripts/ci.mjs up` (with --env-file ../.env); not part of the application stack.
+# The two networks already exist when this file is used: "kind" (the cluster) and the application Compose network (Oracle, Keycloak ...).
+name: tbs-ci
+services:
+  registry:
+    image: registry:2
+    container_name: kind-registry
+    restart: unless-stopped
+    # Pushed to as localhost:5001/tbs/<name>:<tag> by the Docker daemon; pulled by the cluster through the node's mirror.
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    networks: [kind]
+  jenkins:
+    build: ./jenkins
+    image: tbs-ci/jenkins:2.580.2
+    container_name: tbs-jenkins
+    restart: unless-stopped
+    # root: the Docker socket of Docker Desktop is owned by root.
+    user: root
+    ports:
+      - "127.0.0.1:9090:8080"
+    environment:
+      # Heap cap (the build tools run as child processes). The setup wizard is replaced by Configuration as Code.
+      JAVA_OPTS: -Xms256m -Xmx768m -Djenkins.install.runSetupWizard=false
+      CASC_JENKINS_CONFIG: /casc/casc.yaml
+      KUBECONFIG: /var/jenkins_home/.kube/config
+      GRADLE_USER_HOME: /var/jenkins_home/.gradle
+      npm_config_cache: /var/jenkins_home/.npm
+      JENKINS_ADMIN_USER: ${JENKINS_ADMIN_USER:-admin}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:?set JENKINS_ADMIN_PASSWORD in .env}
+      # A local folder (mounted below) or an https address of the GitHub repository.
+      JENKINS_GIT_URL: ${JENKINS_GIT_URL:?set JENKINS_GIT_URL in .env}
+      JENKINS_GIT_BRANCH: ${JENKINS_GIT_BRANCH:-main}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?set INTERNAL_API_KEY in .env}
+      TICKET_SIGNING_KEY: ${TICKET_SIGNING_KEY:?set TICKET_SIGNING_KEY in .env}
+      TRAIN_SCHEDULE_DB_PASSWORD: ${TRAIN_SCHEDULE_DB_PASSWORD:?}
+      BOOKING_SEAT_DB_PASSWORD: ${BOOKING_SEAT_DB_PASSWORD:?}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?}
+      TICKET_DB_PASSWORD: ${TICKET_DB_PASSWORD:?}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:?}
+      BOOKING_SEAT_TEST_DB_PASSWORD: ${BOOKING_SEAT_TEST_DB_PASSWORD:-}
+      PAYMENT_TEST_DB_PASSWORD: ${PAYMENT_TEST_DB_PASSWORD:-}
+      TICKET_TEST_DB_PASSWORD: ${TICKET_TEST_DB_PASSWORD:-}
+      NOTIFICATION_TEST_DB_PASSWORD: ${NOTIFICATION_TEST_DB_PASSWORD:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      OPENOBSERVE_USER: ${OPENOBSERVE_USER:?}
+      OPENOBSERVE_PASSWORD: ${OPENOBSERVE_PASSWORD:?}
+      KEYCLOAK_DEV_USER_PASSWORD: ${KEYCLOAK_DEV_USER_PASSWORD:?}
+      KEYCLOAK_DEV_ADMIN_PASSWORD: ${KEYCLOAK_DEV_ADMIN_PASSWORD:?}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_AUTH: ${MAIL_AUTH:-}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      - ./jenkins/casc.yaml:/casc/casc.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The working copy, read-only, so a local folder can be the Git source (JENKINS_GIT_URL=/repo).
+      - ..:/repo:ro
+    networks: [kind, app]
+networks:
+  kind:
+    external: true
+  app:
+    external: true
+    name: train-booking_default
+volumes:
+  registry-data:
+  jenkins-home:

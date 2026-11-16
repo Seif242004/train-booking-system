@@ -1,0 +1,76 @@
+# Jenkins Configuration as Code. Every ${NAME} is read from the Jenkins container's environment (set by ci/docker-compose.yml from the
+# root .env); no value is written here. ${NAME:-} gives an empty string when the key is not set.
+jenkins:
+  systemMessage: "Local CI/CD for the train booking system"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_USER}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+unclassified:
+  location:
+    url: http://localhost:9090/
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          # One secret-text credential per value the pipeline needs; the Jenkinsfile reads them by these ids.
+          - string: { scope: GLOBAL, id: INTERNAL_API_KEY, secret: "${INTERNAL_API_KEY}" }
+          - string: { scope: GLOBAL, id: TICKET_SIGNING_KEY, secret: "${TICKET_SIGNING_KEY}" }
+          - string: { scope: GLOBAL, id: TRAIN_SCHEDULE_DB_PASSWORD, secret: "${TRAIN_SCHEDULE_DB_PASSWORD}" }
+          - string: { scope: GLOBAL, id: BOOKING_SEAT_DB_PASSWORD, secret: "${BOOKING_SEAT_DB_PASSWORD}" }
+          - string: { scope: GLOBAL, id: PAYMENT_DB_PASSWORD, secret: "${PAYMENT_DB_PASSWORD}" }
+          - string: { scope: GLOBAL, id: TICKET_DB_PASSWORD, secret: "${TICKET_DB_PASSWORD}" }
+          - string: { scope: GLOBAL, id: NOTIFICATION_DB_PASSWORD, secret: "${NOTIFICATION_DB_PASSWORD}" }
+          # Passwords of the *_test schemas (optional: without them the Oracle database tests are skipped).
+          - string: { scope: GLOBAL, id: BOOKING_SEAT_TEST_DB_PASSWORD, secret: "${BOOKING_SEAT_TEST_DB_PASSWORD:-}" }
+          - string: { scope: GLOBAL, id: PAYMENT_TEST_DB_PASSWORD, secret: "${PAYMENT_TEST_DB_PASSWORD:-}" }
+          - string: { scope: GLOBAL, id: TICKET_TEST_DB_PASSWORD, secret: "${TICKET_TEST_DB_PASSWORD:-}" }
+          - string: { scope: GLOBAL, id: NOTIFICATION_TEST_DB_PASSWORD, secret: "${NOTIFICATION_TEST_DB_PASSWORD:-}" }
+          # Stripe, test mode only.
+          - string: { scope: GLOBAL, id: STRIPE_SECRET_KEY, secret: "${STRIPE_SECRET_KEY:-}" }
+          - string: { scope: GLOBAL, id: STRIPE_PUBLISHABLE_KEY, secret: "${STRIPE_PUBLISHABLE_KEY:-}" }
+          - string: { scope: GLOBAL, id: STRIPE_WEBHOOK_SECRET, secret: "${STRIPE_WEBHOOK_SECRET:-}" }
+          # OpenObserve login (services send logs and traces with it) and the smoke test's Keycloak dev users.
+          - string: { scope: GLOBAL, id: OPENOBSERVE_USER, secret: "${OPENOBSERVE_USER}" }
+          - string: { scope: GLOBAL, id: OPENOBSERVE_PASSWORD, secret: "${OPENOBSERVE_PASSWORD}" }
+          - string: { scope: GLOBAL, id: KEYCLOAK_DEV_USER_PASSWORD, secret: "${KEYCLOAK_DEV_USER_PASSWORD}" }
+          - string: { scope: GLOBAL, id: KEYCLOAK_DEV_ADMIN_PASSWORD, secret: "${KEYCLOAK_DEV_ADMIN_PASSWORD}" }
+          # Mail settings of the Notification service (empty = Mailpit defaults).
+          - string: { scope: GLOBAL, id: MAIL_HOST, secret: "${MAIL_HOST:-}" }
+          - string: { scope: GLOBAL, id: MAIL_PORT, secret: "${MAIL_PORT:-}" }
+          - string: { scope: GLOBAL, id: MAIL_USERNAME, secret: "${MAIL_USERNAME:-}" }
+          - string: { scope: GLOBAL, id: MAIL_PASSWORD, secret: "${MAIL_PASSWORD:-}" }
+          - string: { scope: GLOBAL, id: MAIL_AUTH, secret: "${MAIL_AUTH:-}" }
+          - string: { scope: GLOBAL, id: MAIL_STARTTLS, secret: "${MAIL_STARTTLS:-}" }
+          # Read-only token for a private GitHub repository (optional).
+          - usernamePassword: { scope: GLOBAL, id: github-token, username: git, password: "${GITHUB_TOKEN:-unused}" }
+jobs:
+  - script: |
+      // The one pipeline job. The Jenkinsfile comes from the repository itself; Jenkins polls it every 2 minutes (no webhook can reach localhost).
+      def gitUrl = System.getenv('JENKINS_GIT_URL')
+      def gitBranch = System.getenv('JENKINS_GIT_BRANCH') ?: 'main'
+      pipelineJob('train-booking') {
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url(gitUrl)
+                  // The token is used only for an https address.
+                  if (gitUrl.startsWith('https://')) credentials('github-token')
+                }
+                branch('*/' + gitBranch)
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+        }
+        triggers { scm('H/2 * * * *') }
+      }

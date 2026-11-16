@@ -11,7 +11,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +20,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // Minimal .env parser: keep only lines shaped KEY=VALUE, split at the FIRST "=" (a value may contain "="). No quotes or comments are handled.
 // The values (passwords, Stripe key) stay in memory and are never printed.
-const env = Object.fromEntries(readFileSync(`${ROOT}/.env`, 'utf8').split(/\r?\n/).filter((l) => /^[A-Z_0-9]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+// A missing .env is allowed (the CI pipeline passes the same names as process environment variables, which win over the file).
+const dotEnv = existsSync(`${ROOT}/.env`) ? readFileSync(`${ROOT}/.env`, 'utf8') : '';
+const fileEnv = Object.fromEntries(dotEnv.split(/\r?\n/).filter((l) => /^[A-Z_0-9]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+const env = { ...fileEnv, ...process.env };
 // The public doors of the stack, each overridable by an environment variable: the Gateway (the only entry to the services), Keycloak (login),
 // Mailpit (the dev SMTP inbox, to see the emails) and OpenObserve (log search). The script never talks to a Spring service directly.
 const GW = process.env.GATEWAY_URL ?? 'http://localhost:8080';
@@ -75,7 +78,9 @@ async function login(username, password) {
   absorb(page);
   const html = await page.text();
   const action = html.match(/<form[^>]*id="kc-form-login"[^>]*>/)[0].match(/action="([^"]+)"/)[1].replaceAll('&amp;', '&');
-  const post = await fetch(action, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: jar() }, body: new URLSearchParams({ username, password, credentialId: '' }) });
+  // Keycloak writes its public address (localhost:8180) into the form; the request goes to KEYCLOAK_URL (they differ only inside CI).
+  const loginUrl = `${KC}${new URL(action).pathname}${new URL(action).search}`;
+  const post = await fetch(loginUrl, { method: 'POST', redirect: 'manual', headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: jar() }, body: new URLSearchParams({ username, password, credentialId: '' }) });
   const code = new URL(post.headers.get('location')).searchParams.get('code');
   const token = await (await fetch(`${KC}/realms/train-booking/protocol/openid-connect/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'authorization_code', client_id: 'web-app', code, redirect_uri: 'http://localhost:5173/', code_verifier: verifier }) })).json();

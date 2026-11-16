@@ -1,0 +1,10 @@
+# kind cluster "tbs": one node. The Gateway (NodePort 30080) and the web app (NodePort 30173) are published on the host's loopback
+# ports 8080 and 5173, the same ports the Compose app uses, so the Keycloak, CORS and Stripe settings that assume them keep working.
+# The registry mirror (localhost:5001 -> the kind-registry container) is added by scripts/ci.mjs after the node starts.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - { containerPort: 30080, hostPort: 8080, listenAddress: "127.0.0.1", protocol: TCP }
+      - { containerPort: 30173, hostPort: 5173, listenAddress: "127.0.0.1", protocol: TCP }

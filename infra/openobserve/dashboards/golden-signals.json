@@ -1,0 +1,1908 @@
+{
+  "version": 8,
+  "title": "tbs-Golden signals",
+  "description": "Latency, traffic, errors and saturation per service, and business health. Created by scripts/observability.mjs.",
+  "role": "",
+  "owner": "",
+  "variables": {
+    "list": [],
+    "showDynamicFilters": false
+  },
+  "defaultDatetimeDuration": {
+    "type": "relative",
+    "relativeTimePeriod": "1h",
+    "startTime": 0,
+    "endTime": 0
+  },
+  "tabs": [
+    {
+      "tabId": "default",
+      "name": "Golden signals",
+      "panels": [
+        {
+          "id": "Panel_ID0001",
+          "type": "line",
+          "title": "Latency p50 (ms)",
+          "description": "Median server-side response time per service, from the traces.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(approx_percentile_cont(duration, 0.5) / 1000.0, 1) AS y_axis_1 FROM \"default\" WHERE span_kind = '2' GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "traces",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "ms",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 0,
+            "y": 0,
+            "w": 16,
+            "h": 9,
+            "i": 1
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0002",
+          "type": "line",
+          "title": "Latency p95 (ms)",
+          "description": "95th percentile per service. The alert watches the Gateway above 1000 ms.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(approx_percentile_cont(duration, 0.95) / 1000.0, 1) AS y_axis_1 FROM \"default\" WHERE span_kind = '2' GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "traces",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "ms",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 16,
+            "y": 0,
+            "w": 16,
+            "h": 9,
+            "i": 2
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0003",
+          "type": "line",
+          "title": "Latency p99 (ms)",
+          "description": "99th percentile per service.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(approx_percentile_cont(duration, 0.99) / 1000.0, 1) AS y_axis_1 FROM \"default\" WHERE span_kind = '2' GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "traces",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "ms",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 32,
+            "y": 0,
+            "w": 16,
+            "h": 9,
+            "i": 3
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0004",
+          "type": "line",
+          "title": "Traffic: requests per minute",
+          "description": "Server requests per minute per service.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, count(*) AS y_axis_1 FROM \"default\" WHERE span_kind = '2' GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "traces",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "requests/min",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 0,
+            "y": 9,
+            "w": 16,
+            "h": 9,
+            "i": 4
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0005",
+          "type": "line",
+          "title": "Errors: 5xx rate (%)",
+          "description": "Share of 5xx responses per service. The alert fires above 5 % with at least 20 requests in 5 minutes.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(sum(CASE WHEN http_response_status_code >= '500' THEN 1 ELSE 0 END) * 100.0 / count(*), 2) AS y_axis_1 FROM \"default\" WHERE span_kind = '2' GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "traces",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "% 5xx",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 16,
+            "y": 9,
+            "w": 16,
+            "h": 9,
+            "i": 5
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0006",
+          "type": "line",
+          "title": "Saturation: DB pool use (%)",
+          "description": "Used connections / maximum pool size per Spring service.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT u.x_axis_1 AS x_axis_1, u.breakdown_1 AS breakdown_1, round(u.v * 100.0 / l.v, 1) AS y_axis_1 FROM (SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, max(value) AS v FROM db_client_connections_usage WHERE state = 'used' GROUP BY x_axis_1, breakdown_1) u JOIN (SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, max(value) AS v FROM db_client_connections_max GROUP BY x_axis_1, breakdown_1) l ON u.x_axis_1 = l.x_axis_1 AND u.breakdown_1 = l.breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "db_client_connections_usage",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "% of pool",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 32,
+            "y": 9,
+            "w": 16,
+            "h": 9,
+            "i": 6
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0007",
+          "type": "line",
+          "title": "Saturation: JVM live heap (% of max)",
+          "description": "Old generation after the last GC / maximum heap, per Spring service.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT u.x_axis_1 AS x_axis_1, u.breakdown_1 AS breakdown_1, round(u.v * 100.0 / l.v, 1) AS y_axis_1 FROM (SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, max(value) AS v FROM jvm_memory_used_after_last_gc WHERE jvm_memory_pool_name = 'G1 Old Gen' GROUP BY x_axis_1, breakdown_1) u JOIN (SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, max(value) AS v FROM jvm_memory_limit WHERE jvm_memory_pool_name = 'G1 Old Gen' GROUP BY x_axis_1, breakdown_1) l ON u.x_axis_1 = l.x_axis_1 AND u.breakdown_1 = l.breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "jvm_memory_used_after_last_gc",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "% of max heap",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 0,
+            "y": 18,
+            "w": 16,
+            "h": 9,
+            "i": 7
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0008",
+          "type": "line",
+          "title": "Saturation: CPU (%)",
+          "description": "JVM process CPU (Spring services) and Gateway CPU as % of one core.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(max(value) * 100, 1) AS y_axis_1 FROM jvm_cpu_recent_utilization GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "jvm_cpu_recent_utilization",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "% CPU",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            },
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(max(value) * 100, 1) AS y_axis_1 FROM process_cpu_utilization GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "process_cpu_utilization",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "% CPU",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 16,
+            "y": 18,
+            "w": 16,
+            "h": 9,
+            "i": 8
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0009",
+          "type": "line",
+          "title": "Saturation: Gateway event-loop delay p99 (ms) and RSS (MB)",
+          "description": "The idle baseline of the delay is about 20 ms.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(max(value), 1) AS y_axis_1 FROM nodejs_eventloop_delay_p99 GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "nodejs_eventloop_delay_p99",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "ms",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            },
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, service_name AS breakdown_1, round(max(value) / 1048576.0, 0) AS y_axis_1 FROM process_memory_rss GROUP BY x_axis_1, breakdown_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "process_memory_rss",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "MB",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [
+                  {
+                    "label": "service",
+                    "alias": "breakdown_1",
+                    "column": "breakdown_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 32,
+            "y": 18,
+            "w": 16,
+            "h": 9,
+            "i": 9
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0010",
+          "type": "bar",
+          "title": "Business: bookings confirmed and cancelled",
+          "description": "From the booking audit lines.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, count(*) AS y_axis_1 FROM \"default\" WHERE service_name = 'booking-seat' AND entity = 'booking' AND action = 'CONFIRM' GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "logs",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "confirmed",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            },
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, count(*) AS y_axis_1 FROM \"default\" WHERE service_name = 'booking-seat' AND entity = 'booking' AND action = 'CANCEL' GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "logs",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "cancelled",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 0,
+            "y": 27,
+            "w": 16,
+            "h": 9,
+            "i": 10
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0011",
+          "type": "bar",
+          "title": "Business: failed payment attempts",
+          "description": "Payment attempts that Stripe reported as failed.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, count(*) AS y_axis_1 FROM \"default\" WHERE service_name = 'payment' AND body LIKE 'Payment attempt failed%' GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "logs",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "failures",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 16,
+            "y": 27,
+            "w": 16,
+            "h": 9,
+            "i": 11
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0012",
+          "type": "bar",
+          "title": "Business: refund and outbox failures",
+          "description": "Refund failures, dead outbox jobs and e-mail send failures.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, count(*) AS y_axis_1 FROM \"default\" WHERE severity = 'ERROR' AND (body LIKE 'Stripe refused refund%' OR body LIKE 'Refund % could not be sent to Stripe%' OR body LIKE '%flagged REFUND_FAILED%') GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "logs",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "refund failures",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            },
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, count(*) AS y_axis_1 FROM \"default\" WHERE severity = 'ERROR' AND body LIKE 'Outbox job%giving up%' GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "logs",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "dead outbox jobs",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            },
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, count(*) AS y_axis_1 FROM \"default\" WHERE service_name = 'notification' AND (body LIKE 'Email %not sent, next try%' OR body LIKE 'Email %giving up%') GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "default",
+                "stream_type": "logs",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "email failures",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 32,
+            "y": 27,
+            "w": 16,
+            "h": 9,
+            "i": 12
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        },
+        {
+          "id": "Panel_ID0013",
+          "type": "line",
+          "title": "Saturation: outbox backlog (booking-seat)",
+          "description": "Pending jobs and age in seconds of the oldest.",
+          "config": {
+            "show_legends": true,
+            "legends_position": "bottom",
+            "decimals": 1,
+            "line_thickness": 1.5,
+            "step_value": "0",
+            "top_results_others": false,
+            "axis_border_show": false,
+            "label_option": {
+              "position": "outside",
+              "rotate": 0
+            },
+            "show_symbol": false,
+            "line_interpolation": "smooth",
+            "legend_width": {
+              "unit": "px"
+            },
+            "base_map": {
+              "type": "osm"
+            },
+            "map_type": {
+              "type": "world"
+            },
+            "map_view": {
+              "zoom": 1,
+              "lat": 0,
+              "lng": 0
+            },
+            "map_symbol_style": {
+              "size": "by Value",
+              "size_by_value": {
+                "min": 1,
+                "max": 100
+              },
+              "size_fixed": 2
+            },
+            "drilldown": [],
+            "mark_line": [],
+            "connect_nulls": false,
+            "no_value_replacement": "",
+            "wrap_table_cells": false,
+            "table_transpose": false,
+            "table_dynamic_columns": false,
+            "color": {
+              "mode": "palette-classic-by-series",
+              "fixedColor": [
+                "#53ca53"
+              ],
+              "seriesBy": "last"
+            }
+          },
+          "queryType": "sql",
+          "queries": [
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, max(value) AS y_axis_1 FROM tbs_outbox_pending GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "tbs_outbox_pending",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "pending jobs",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            },
+            {
+              "query": "SELECT histogram(_timestamp, '1 minute') AS x_axis_1, max(value) AS y_axis_1 FROM tbs_outbox_oldest_pending_age GROUP BY x_axis_1 ORDER BY x_axis_1",
+              "customQuery": true,
+              "vrlFunctionQuery": "",
+              "joinStreams": [],
+              "fields": {
+                "stream": "tbs_outbox_oldest_pending_age",
+                "stream_type": "metrics",
+                "x": [
+                  {
+                    "label": "Time",
+                    "alias": "x_axis_1",
+                    "column": "x_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "y": [
+                  {
+                    "label": "oldest age (s)",
+                    "alias": "y_axis_1",
+                    "column": "y_axis_1",
+                    "color": null,
+                    "aggregationFunction": null,
+                    "isDerived": false
+                  }
+                ],
+                "z": [],
+                "breakdown": [],
+                "filter": {
+                  "filterType": "group",
+                  "logicalOperator": "AND",
+                  "conditions": []
+                }
+              },
+              "config": {
+                "promql_legend": "",
+                "layer_type": "scatter",
+                "weight_fixed": 1,
+                "limit": 0,
+                "min": 0,
+                "max": 100,
+                "time_shift": []
+              }
+            }
+          ],
+          "layout": {
+            "x": 0,
+            "y": 36,
+            "w": 16,
+            "h": 9,
+            "i": 13
+          },
+          "htmlContent": "",
+          "markdownContent": "",
+          "customChartContent": ""
+        }
+      ]
+    }
+  ]
+}

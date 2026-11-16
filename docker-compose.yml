@@ -186,6 +186,16 @@ services:
       ZO_DATA_DIR: /data
       # The pollers (hold sweeper every second, outbox, e-mail) make many small traces: keep two weeks, not the default ten years.
       ZO_COMPACT_DATA_RETENTION_DAYS: "14"
+      # SMTP for the alert e-mails. Same rule as the Notification service: Mailpit of the dev profile unless MAIL_* is set in .env.
+      # OpenObserve starts without a reachable SMTP server (an alert e-mail then fails and is logged, nothing else breaks).
+      ZO_SMTP_ENABLED: "true"
+      ZO_SMTP_HOST: ${MAIL_HOST:-mailpit}
+      ZO_SMTP_PORT: ${MAIL_PORT:-1025}
+      ZO_SMTP_USER_NAME: ${MAIL_USERNAME:-}
+      ZO_SMTP_PASSWORD: ${MAIL_PASSWORD:-}
+      # "off" = plain SMTP (Mailpit), "starttls" when MAIL_STARTTLS=true.
+      ZO_SMTP_ENCRYPTION: ${OPENOBSERVE_SMTP_ENCRYPTION:-off}
+      ZO_SMTP_FROM_EMAIL: ${ALERT_EMAIL_FROM:-tbs-alerts@example.invalid}
     volumes:
       # Named volume with the logs, traces and dashboards of OpenObserve.
       - openobserve-data:/data

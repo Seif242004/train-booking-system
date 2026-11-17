@@ -49,7 +49,8 @@ pipeline {
               echo "DB TESTS SKIPPED: $reason"
               unset BOOKING_SEAT_TEST_DB_PASSWORD PAYMENT_TEST_DB_PASSWORD TICKET_TEST_DB_PASSWORD NOTIFICATION_TEST_DB_PASSWORD
             fi
-            bash ./gradlew --no-daemon --console=plain test
+            # cleanTest: a cached result must not hide whether the database tests really ran.
+            bash ./gradlew --no-daemon --console=plain cleanTest test
           '''
         }
         // Gateway and web app. `npm run build` of the web app runs tsc first.

@@ -36,4 +36,6 @@ data:
   TICKET_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
   NOTIFICATION_DB_URL: jdbc:oracle:thin:@//oracle:1521/FREEPDB1
   # A 512 Mi container: the heap may use 60 % (the JVM default of 25 % is too small); serial GC keeps the footprint low.
+  # Oracle Free allows 200 processes in all: 5 connections per service keep room for Keycloak, OpenObserve and the Gradle database tests.
+  SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "5"
   JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=60 -XX:+UseSerialGC"

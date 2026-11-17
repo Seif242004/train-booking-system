@@ -1,4 +1,4 @@
-# Pinned plugins (pipeline, git, credentials, configuration as code, job dsl); their dependencies are resolved by jenkins-plugin-cli.
+# Pinned plugins (pipeline, stage timings, git, credentials, configuration as code, job dsl); their dependencies are resolved by jenkins-plugin-cli.
 workflow-aggregator:608.v67378e9d3db_1
 git:5.11.0
 credentials:1514.vb_01eb_014e7d4
@@ -6,3 +6,4 @@ credentials-binding:728.v902a_273b_8947
 plain-credentials:199.v9f8e1f741799
 configuration-as-code:2147.v8a_8d38668c72
 job-dsl:3732.v9a_c49a_61a_313
+pipeline-stage-view:2.41

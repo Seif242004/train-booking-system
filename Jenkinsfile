@@ -38,11 +38,15 @@ pipeline {
           string(credentialsId: 'NOTIFICATION_TEST_DB_PASSWORD', variable: 'NOTIFICATION_TEST_DB_PASSWORD')
         ]) {
           sh '''#!/bin/bash
-            if [ "$RUN_DB_TESTS" = "true" ] && (exec 3<>/dev/tcp/oracle/1521) 2>/dev/null; then
+            reason=""
+            if [ "${RUN_DB_TESTS:-true}" != "true" ]; then reason="RUN_DB_TESTS is off"
+            elif ! bash -c "exec 3<>/dev/tcp/oracle/1521" 2>/dev/null; then reason="Oracle is not reachable from Jenkins"
+            fi
+            if [ -z "$reason" ]; then
               echo "Oracle reachable: running the database tests"
               for s in BOOKING_SEAT PAYMENT TICKET NOTIFICATION; do export ${s}_TEST_DB_URL=jdbc:oracle:thin:@//oracle:1521/FREEPDB1; done
             else
-              echo "DB TESTS SKIPPED: RUN_DB_TESTS is off or Oracle is not reachable from Jenkins"
+              echo "DB TESTS SKIPPED: $reason"
               unset BOOKING_SEAT_TEST_DB_PASSWORD PAYMENT_TEST_DB_PASSWORD TICKET_TEST_DB_PASSWORD NOTIFICATION_TEST_DB_PASSWORD
             fi
             bash ./gradlew --no-daemon --console=plain test
@@ -52,7 +56,6 @@ pipeline {
         sh 'cd gateway && npm ci && npm test'
         sh 'cd frontend && npm ci && npm run build'
       }
-      post { always { junit allowEmptyResults: true, testResults: 'services/*/build/test-results/test/*.xml' } }
     }
 
     stage('Build images') {

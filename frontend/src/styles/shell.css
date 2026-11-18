@@ -162,7 +162,11 @@
   font-size: 13px;
 }
 
-/* The placeholder wordmark PNG carries its own red background: on the dark footer it is shown as a rounded badge. */
-.site-footer .brand-logo img {
-  border-radius: 8px;
+/* The wordmark PNG carries its own opaque red background, which is right on the red header only. On the dark footer and the dark admin sidebar
+   grayscale + contrast(100) turns that red to black and keeps the white letters, and the screen blend mode makes black see-through, so only
+   the letters remain. The footer and the sidebar have a plain dark background of their own, which is what the blend mode mixes with. */
+.site-footer .brand-logo img,
+.admin-side .brand-logo img {
+  filter: grayscale(1) contrast(100);
+  mix-blend-mode: screen;
 }

@@ -183,6 +183,16 @@
   font-weight: 700;
 }
 
+/* The totals row follows the body, so the last body row keeps its line (the shared rule drops it for cells only, which cut the line short
+   under the segment name), and the buttons get room under the table. */
+.fare-grid tbody tr:last-child td {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.form:has(.fare-grid) .table-wrap {
+  margin-bottom: 16px;
+}
+
 /* ---- Slide-over panel -------------------------------------------------------------------------------------------------------------- */
 /* ---- Slide-over panel (SlideOver component): backdrop, panel from the right, its head and body, and the two entrance animations. ---- */
 .slide-backdrop {

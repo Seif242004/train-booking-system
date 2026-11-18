@@ -1,6 +1,10 @@
+import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { takeActionResult } from '../auth/keycloak';
+import { PasswordCard } from '../components/PasswordCard';
 import { ProfileCard } from '../components/ProfileCard';
+import { useToast } from '../components/Toasts';
 import { initialsOf } from '../components/UserMenu';
 import { config } from '../config';
 
@@ -13,7 +17,7 @@ function accountConsoleUrl(): string {
 }
 
 /** The passenger's account: who they are, their details, password and sessions, shortcuts and sign out. Only things a passenger understands. */
-// Route /account (signed-in users; /profile redirects here). The details card is our own screen on Keycloak's Account API: ProfileCard (first and
+// Route /account (signed-in users; /profile redirects here). The cards are our own screens on Keycloak's Account API: ProfileCard (first and
 // last name). We write no password code and no sign-in pages. The header card shows data already in the access token (name, email, roles).
 // "notice" comes from router state: RequireAdmin redirects a non-admin here with the message "The admin area is only for administrators."
 export function AccountPage() {
@@ -21,6 +25,15 @@ export function AccountPage() {
   const notice = (useLocation().state as { notice?: string } | null)?.notice;
   const displayName = user?.name ?? user?.email ?? 'Your account';
   const isAdmin = hasRole('ADMIN');
+  const toast = useToast();
+
+  // Back from Keycloak's password page: say how it went, once.
+  useEffect(() => {
+    const result = takeActionResult();
+    if (result?.action !== 'UPDATE_PASSWORD') return;
+    if (result.status === 'success') toast.show('Your password was changed');
+    else if (result.status === 'error') toast.show('Your password could not be changed. Try again.', 'error');
+  }, [toast]);
 
   return (
     <section className="account-page">
@@ -39,6 +52,7 @@ export function AccountPage() {
       </div>
 
       <ProfileCard />
+      <PasswordCard />
 
       <h2 className="account-h2">Shortcuts</h2>
       <ul className="account-shortcuts">

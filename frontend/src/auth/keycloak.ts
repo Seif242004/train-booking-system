@@ -9,6 +9,20 @@ export const keycloak = new Keycloak({
   clientId: config.keycloakClientId,
 });
 
+// When the user comes back from a Keycloak required action (kc_action, for example UPDATE_PASSWORD), keycloak-js reports how it went while
+// init() runs, before any page exists. The result is kept here until the page that started the action asks for it once.
+let actionResult: { status: 'success' | 'cancelled' | 'error'; action?: string } | null = null;
+keycloak.onActionUpdate = (status, action) => {
+  actionResult = { status, action };
+};
+
+/** The result of the required action the user just came back from, once; null when there was none. */
+export function takeActionResult() {
+  const result = actionResult;
+  actionResult = null;
+  return result;
+}
+
 // The few fields of the access token that the UI shows. `sub` is the user id that every backend service uses too.
 export interface AuthUser {
   sub: string;

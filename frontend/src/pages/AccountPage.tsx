@@ -4,7 +4,12 @@ import { initialsOf } from '../components/UserMenu';
 import { config } from '../config';
 
 /** Where Keycloak's own account console lives (password, personal details, sessions). We write no account forms ourselves. */
-const ACCOUNT_CONSOLE = `${config.keycloakUrl}/realms/${config.keycloakRealm}/account`;
+// referrer and referrer_uri are the console's own way to show a "Back to Train Booking" link in its header: the client id of this app and the
+// address to return to (Keycloak accepts it only when it matches a redirect URI of that client).
+function accountConsoleUrl(): string {
+  const returnTo = new URLSearchParams({ referrer: config.keycloakClientId, referrer_uri: `${window.location.origin}/account` });
+  return `${config.keycloakUrl}/realms/${config.keycloakRealm}/account?${returnTo}`;
+}
 
 /** The passenger's account: who they are, shortcuts and sign out. Only things a passenger understands; no technical details. */
 // Route /account (signed-in users; /profile redirects here). Shows only data already in the access token (name, email, roles): no request is made.
@@ -71,7 +76,7 @@ export function AccountPage() {
       </ul>
 
       <div className="actions account-actions">
-        <a className="button" href={ACCOUNT_CONSOLE}>Manage account</a>
+        <a className="button" href={accountConsoleUrl()}>Manage account</a>
         <button type="button" className="button" onClick={logout}>Sign out</button>
       </div>
       <p className="muted account-note">Manage account opens the sign-in service, where you can change your password and personal details.</p>

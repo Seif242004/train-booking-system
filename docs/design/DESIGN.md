@@ -6,8 +6,8 @@ Brand direction (from the supervisor): free choice of design, but colours and lo
 
 ## Assets (`assets/`)
 - `hero.jpg`: 1680x944 photo (a train beside palm trees on the Nile at sunset). AI-generated placeholder; a licensed photo may replace it later. Reference it from ONE place so it is swappable.
-- `logo-etisalat-white.png`: 272x64 white wordmark cropped from a screenshot. Placeholder until the official SVG arrives. Reference it from ONE component (`BrandLogo`) so the swap is a one-file change.
-- Destination in the frontend: `frontend/public/brand/` (served as `/brand/hero.jpg`, `/brand/logo-etisalat-white.png`).
+- `logo-etisalat-red.svg` and `logo-etisalat-white.svg`: the official vector logo, 137x50, transparent background (the white one is the red one with the fill changed to #FFFFFF). Reference them from ONE component (`BrandLogo`) so the swap is a one-file change.
+- Destination in the frontend: `frontend/public/brand/` (served as `/brand/hero.jpg`, `/brand/logo-etisalat-white.svg`).
 
 ## Colour tokens (CSS custom properties in `src/styles/tokens.css`)
 | Token | Value | Use |

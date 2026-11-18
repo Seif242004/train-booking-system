@@ -128,13 +128,10 @@ body#keycloak-bg {
 #kc-header-wrapper::before {
   content: '';
   display: block;
-  width: 144px;
-  height: 34px;
-  background: url('../img/logo-etisalat-white.png') no-repeat left center / contain;
-  /* The PNG has an opaque red background of its own. grayscale + contrast(100) turns that red to black and keeps the white letters; the
-     screen blend mode makes black see-through, so only the letters show over the photo. */
-  filter: grayscale(1) contrast(100);
-  mix-blend-mode: screen;
+  width: 142px;
+  height: 52px; /* the logo file has empty space above and below the letters, so this box is taller than the letters */
+  margin: -9px 0;
+  background: url('../img/logo-etisalat-white.svg') no-repeat left center / contain;
 }
 
 /* The headline is the "content" text of a pseudo-element. The next three rules replace it on other pages, using the page id that

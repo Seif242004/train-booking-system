@@ -28,7 +28,7 @@ export function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className="admin-side on-dark">
-        <BrandLogo height={26} />
+        <BrandLogo height={40} />
         <Link className="admin-back-site" to="/">
           ← Back to site
         </Link>

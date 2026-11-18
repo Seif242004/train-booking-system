@@ -67,9 +67,9 @@ custom properties, no UI library, no animation library, no font package (Plus Ja
 - Shared components: `BrandLogo` (the ONE place that names the logo file), `HeroPhoto` (the ONE place that names the hero photo), `SearchForm`,
   `BookingSteps`, `HoldCard` (the countdown), `TicketView`, `SlideOver` (the admin edit panel: modal, focus trap, Escape, focus returns), `AdminLayout`,
   `AdminHeader`, `EmptyState`, `ListSkeleton`.
-- **Brand assets** are placeholders in `public/brand/`: `hero.jpg` (an AI-generated picture; replace it with a licensed photo) and `logo-etisalat-white.png` (a cropped
-  PNG; replace it with the official SVG). Each is named in one file only (`HeroPhoto.tsx`, `BrandLogo.tsx`); the Keycloak theme has its own copies in
-  `infra/keycloak/themes/train-booking/login/resources/img/`.
+- **Brand assets** are in `public/brand/`: `hero.jpg` (an AI-generated placeholder; replace it with a licensed photo) and the official logo as two vector files,
+  `logo-etisalat-red.svg` and `logo-etisalat-white.svg` (transparent background). Each is named in one file only (`HeroPhoto.tsx`, `BrandLogo.tsx`); the Keycloak
+  theme has its own copies in `infra/keycloak/themes/train-booking/login/resources/img/` and `account/resources/img/`.
 - The ticket page shows the real booking data. The ticket's QR code and PDF are made by the Ticket service and e-mailed: nothing in the Gateway serves them
   to the browser, so the page points to the e-mail and offers **Email my ticket again**.
 

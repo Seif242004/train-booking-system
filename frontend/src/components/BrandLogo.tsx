@@ -1,14 +1,15 @@
 import { Link } from 'react-router-dom';
 
-// The ONE place that names the logo files (in public/brand/): the white wordmark for the red header and the dark footer (a PNG until the
-// official white SVG arrives), and the red logo for white surfaces such as the ticket (SVG, 137 x 50). Swapping a file is a change here.
+// The ONE place that names the logo files (in public/brand/): the official vector logo in two colours, both 137 x 50 with a transparent
+// background. White for the red header, the dark footer and the admin sidebar, red for white surfaces such as the ticket.
+// Swapping a file is a change here.
 const LOGOS = {
-  white: { src: '/brand/logo-etisalat-white.png', ratio: 272 / 64 },
+  white: { src: '/brand/logo-etisalat-white.svg', ratio: 137 / 50 },
   red: { src: '/brand/logo-etisalat-red.svg', ratio: 137 / 50 },
 };
 
 interface Props {
-  /** Height in pixels. The header uses 30, the footer 26. */
+  /** Height in pixels of the image box, which has empty space above and below the letters: the header uses 44, the footer and the admin sidebar 40. */
   height?: number;
   /** The header logo links home; the footer one is plain. */
   home?: boolean;

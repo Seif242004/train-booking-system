@@ -12,8 +12,8 @@ The sign-in, registration, forgot-password, error, information and required-acti
   card is the form. Under 900 px the photo becomes a band above the form. `prefers-reduced-motion` switches the drift and the entrance off.
 - `login/messages/messages_en.properties`: the wording of titles, buttons and links (sentence case). Keycloak's field names and its validation
   and error messages are not changed.
-- `login/resources/img/`: copies of `hero.jpg` and `logo-etisalat-white.png`, the placeholders of the web app (`frontend/public/brand/`). Replace them
-  there and here when the licensed photo and the official logo arrive.
+- `login/resources/img/`: copies of `hero.jpg` (a placeholder) and `logo-etisalat-white.svg`, the official logo, from the web app (`frontend/public/brand/`). Replace them
+  there and here when the licensed photo arrives.
 
 No Keycloakify and no template overrides: nothing to build.
 

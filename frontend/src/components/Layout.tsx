@@ -43,7 +43,7 @@ export function Layout() {
       <OfflineBanner />
       <header className="site-header on-dark">
         <div className="site-header-inner">
-          <BrandLogo height={30} />
+          <BrandLogo height={44} />
           <nav className="site-nav" aria-label="Main">
             <NavLink to="/search">Search trains</NavLink>
             {authenticated && <NavLink to="/bookings">My bookings</NavLink>}
@@ -88,7 +88,7 @@ export function Layout() {
       <footer className="site-footer on-dark">
         <div className="site-footer-inner">
           <div className="footer-brand">
-            <BrandLogo height={26} home={false} />
+            <BrandLogo height={40} home={false} />
             <p>Card payments are processed by Stripe.</p>
           </div>
           <nav aria-label="Help and policies">

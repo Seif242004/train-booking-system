@@ -42,10 +42,11 @@ body {
   box-shadow: none;
 }
 
+/* The logo file has empty space above and below the letters, so the image box is 44px tall to show them at the size of the web app's header. */
 .pf-v5-c-masthead__brand img {
   display: block;
   width: auto;
-  height: 30px;
+  height: 44px;
 }
 
 /* Everything on the bar is white; the user menu toggle and the "Back to Train Booking" link are shaped like the web app's header buttons. */

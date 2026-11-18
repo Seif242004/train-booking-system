@@ -2,6 +2,7 @@
   "realm": "train-booking",
   "enabled": true,
   "loginTheme": "train-booking",
+  "accountTheme": "train-booking",
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
   "loginWithEmailAllowed": true,

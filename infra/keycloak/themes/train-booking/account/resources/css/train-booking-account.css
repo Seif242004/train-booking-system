@@ -1,0 +1,123 @@
+/* Account console theme "train-booking": the look of the web app (docs/design/DESIGN.md) on top of the built-in keycloak.v3 account console.
+   CSS only. Same tokens as the login theme. */
+/* The web font (an @import must come first in the file), as in the login theme; if it fails the browser falls back to system-ui. */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --tb-red: #e10801;
+  --tb-red-hover: #b80600;
+  --tb-red-text: #c20700;
+  --tb-ink: #191329;
+  --tb-line: #dcd8e2;
+  --tb-font: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* PatternFly's own variables, so the parent theme's components take our colours and font. */
+  --pf-v5-global--FontFamily--text: var(--tb-font);
+  --pf-v5-global--FontFamily--heading: var(--tb-font);
+  --pf-v5-global--primary-color--100: var(--tb-red);
+  --pf-v5-global--primary-color--200: var(--tb-red-hover);
+  --pf-v5-global--link--Color: var(--tb-red-text);
+  --pf-v5-global--link--Color--hover: var(--tb-red-hover);
+  --pf-v5-global--active-color--100: var(--tb-red);
+}
+
+body {
+  font-family: var(--tb-font);
+  color: var(--tb-ink);
+}
+
+/* Header: the red bar of the web app. The logo PNG has the same red as its own background, so it sits on the bar without a box. */
+.pf-v5-c-masthead {
+  --pf-v5-c-masthead--BackgroundColor: var(--tb-red);
+  --pf-v5-c-masthead--m-display-inline__content--MinHeight: 64px;
+  background-color: var(--tb-red);
+  color: #fff;
+}
+
+/* No line under the bar: the parent draws a dark one that would show as a stripe over the page. */
+.pf-v5-c-masthead,
+.pf-v5-c-masthead::after,
+.pf-v5-c-masthead::before {
+  border-bottom: 0;
+  box-shadow: none;
+}
+
+.pf-v5-c-masthead__brand img {
+  display: block;
+  width: auto;
+  height: 30px;
+}
+
+/* Everything on the bar is white; the user menu toggle and the "Back to Train Booking" link are shaped like the web app's header buttons. */
+.pf-v5-c-masthead .pf-v5-c-button,
+.pf-v5-c-masthead .pf-v5-c-menu-toggle,
+.pf-v5-c-masthead .pf-v5-c-menu-toggle__text,
+.pf-v5-c-masthead a[data-testid='referrer-link'] {
+  --pf-v5-c-button--m-link--Color: #fff;
+  --pf-v5-c-button--m-link--hover--Color: #fff;
+  --pf-v5-c-button--m-plain--Color: #fff;
+  --pf-v5-c-menu-toggle--Color: #fff;
+  color: #fff;
+}
+
+.pf-v5-c-masthead a[data-testid='referrer-link'] {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.pf-v5-c-masthead .pf-v5-c-menu-toggle {
+  background: transparent;
+}
+
+.pf-v5-c-masthead .pf-v5-c-menu-toggle::before {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.pf-v5-c-masthead .pf-v5-c-avatar {
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* Sidebar: the dark ink of the web app's footer and admin sidebar instead of the stock grey. */
+.pf-v5-c-page__sidebar {
+  --pf-v5-c-page__sidebar--BackgroundColor: var(--tb-ink);
+  background-color: var(--tb-ink);
+}
+
+.pf-v5-c-page__sidebar .pf-v5-c-nav {
+  --pf-v5-c-nav__link--m-current--BackgroundColor: var(--tb-red);
+  --pf-v5-c-nav__link--hover--BackgroundColor: rgba(255, 255, 255, 0.12);
+  --pf-v5-c-nav__link--m-current--Color: #fff;
+  --pf-v5-c-nav__link--before--BorderColor: transparent;
+}
+
+.pf-v5-c-page__sidebar .pf-v5-c-nav__link {
+  font-weight: 600;
+}
+
+.pf-v5-c-page__sidebar .pf-v5-c-nav__link.pf-m-current,
+.pf-v5-c-page__sidebar .pf-v5-c-nav__link[aria-current='page'] {
+  background-color: var(--tb-red);
+  color: #fff;
+}
+
+/* Buttons and links in the page take the brand red. */
+.pf-v5-c-button.pf-m-primary {
+  --pf-v5-c-button--m-primary--BackgroundColor: var(--tb-red);
+  --pf-v5-c-button--m-primary--hover--BackgroundColor: var(--tb-red-hover);
+  --pf-v5-c-button--m-primary--focus--BackgroundColor: var(--tb-red-hover);
+  --pf-v5-c-button--m-primary--active--BackgroundColor: var(--tb-red-hover);
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.pf-v5-c-page__main a:not(.pf-v5-c-button) {
+  color: var(--tb-red-text);
+}
+
+:focus-visible {
+  outline: 3px solid var(--tb-ink);
+  outline-offset: 2px;
+}

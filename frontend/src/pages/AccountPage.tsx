@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import { ProfileCard } from '../components/ProfileCard';
 import { initialsOf } from '../components/UserMenu';
 import { config } from '../config';
 
-/** Where Keycloak's own account console lives (password, personal details, sessions). We write no account forms ourselves. */
+/** Where Keycloak's own account console lives. It is only the fallback for what our own screens do not cover (two-factor, linked accounts). */
 // referrer and referrer_uri are the console's own way to show a "Back to Train Booking" link in its header: the client id of this app and the
 // address to return to (Keycloak accepts it only when it matches a redirect URI of that client).
 function accountConsoleUrl(): string {
@@ -11,8 +12,9 @@ function accountConsoleUrl(): string {
   return `${config.keycloakUrl}/realms/${config.keycloakRealm}/account?${returnTo}`;
 }
 
-/** The passenger's account: who they are, shortcuts and sign out. Only things a passenger understands; no technical details. */
-// Route /account (signed-in users; /profile redirects here). Shows only data already in the access token (name, email, roles): no request is made.
+/** The passenger's account: who they are, their details, password and sessions, shortcuts and sign out. Only things a passenger understands. */
+// Route /account (signed-in users; /profile redirects here). The details card is our own screen on Keycloak's Account API: ProfileCard (first and
+// last name). We write no password code and no sign-in pages. The header card shows data already in the access token (name, email, roles).
 // "notice" comes from router state: RequireAdmin redirects a non-admin here with the message "The admin area is only for administrators."
 export function AccountPage() {
   const { user, hasRole, logout } = useAuth();
@@ -36,20 +38,7 @@ export function AccountPage() {
         </div>
       </div>
 
-      <dl className="account-details">
-        <div>
-          <dt>Full name</dt>
-          <dd>{user?.name ?? 'Not set'}</dd>
-        </div>
-        <div>
-          <dt>Email</dt>
-          <dd>{user?.email ?? 'Not set'}</dd>
-        </div>
-        <div>
-          <dt>Username</dt>
-          <dd>{user?.username ?? user?.email ?? 'Not set'}</dd>
-        </div>
-      </dl>
+      <ProfileCard />
 
       <h2 className="account-h2">Shortcuts</h2>
       <ul className="account-shortcuts">
@@ -76,10 +65,12 @@ export function AccountPage() {
       </ul>
 
       <div className="actions account-actions">
-        <a className="button" href={accountConsoleUrl()}>Manage account</a>
         <button type="button" className="button" onClick={logout}>Sign out</button>
       </div>
-      <p className="muted account-note">Manage account opens the sign-in service, where you can change your password and personal details.</p>
+      <p className="account-advanced">
+        <a href={accountConsoleUrl()}>Advanced security settings</a>
+        <span className="muted"> for two-factor sign-in and linked accounts.</span>
+      </p>
     </section>
   );
 }

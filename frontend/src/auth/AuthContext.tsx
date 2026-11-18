@@ -15,6 +15,8 @@ interface AuthState {
   register: () => void;
   logout: () => void;
   hasRole: (role: string) => boolean;
+  /** Renews the access token now and re-reads the name and email from it (after the user changed their details). */
+  refreshUser: () => Promise<void>;
 }
 
 // A React context lets any component read this value without passing props down. null = used outside the provider.
@@ -90,6 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register: () => void keycloak.register({ redirectUri: window.location.href }),
       logout: () => void keycloak.logout({ redirectUri: `${window.location.origin}/` }),
       hasRole: (role) => user?.roles.includes(role) ?? false,
+      // updateToken(-1) renews the token even if it is still valid, so the new claims (name) arrive at once.
+      refreshUser: async () => {
+        await keycloak.updateToken(-1);
+        setUser(userFromToken());
+      },
     }),
     [status, user, error, sessionEnded],
   );

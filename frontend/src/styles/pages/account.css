@@ -24,6 +24,10 @@
   background: var(--red);
 }
 
+.account-who {
+  min-width: 0; /* lets a long email wrap inside the card instead of running out of it */
+}
+
 .account-who p {
   margin: 0;
 }
@@ -36,6 +40,7 @@
 
 .account-sub {
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .account-chips {
@@ -117,6 +122,49 @@
 
 .account-actions {
   margin-top: 28px;
+}
+
+/* ---- The cards of the account page: details, password, sessions. ---- */
+.account-section {
+  margin-top: 20px;
+}
+
+.account-section h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+
+.account-section p {
+  margin: 0 0 14px;
+}
+
+/* Email and username: plain read-only text, label above on a phone and beside on a wide screen. */
+.account-readonly {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 8px;
+}
+
+.account-readonly > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+}
+
+.account-readonly dt {
+  min-width: 6rem;
+  color: var(--muted);
+}
+
+.account-readonly dd {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.account-advanced {
+  margin: 16px 0 0;
+  font-size: 14px;
 }
 
 .account-note {

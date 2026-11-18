@@ -10,6 +10,9 @@ import { label } from '../format';
 import { ListSkeleton } from '../components/ListSkeleton';
 import { EmptyState } from '../components/EmptyState';
 
+/** How many trips the table draws at first and per "Show more" click. */
+const PAGE_SIZE = 50;
+
 interface StopTimes {
   arrival: string; // "HH:mm" or ""
   departure: string;
@@ -50,6 +53,8 @@ export function Trips() {
 
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Client-side paging: the server sends every trip; only the first `shown` rows are drawn, 50 more per click.
+  const [shown, setShown] = useState(PAGE_SIZE);
 
   const load = useCallback(async () => {
     const [tripResult, trainResult, routeResult] = await Promise.all([
@@ -337,7 +342,7 @@ export function Trips() {
             </tr>
           </thead>
           <tbody>
-            {trips.map((trip) => (
+            {trips.slice(0, shown).map((trip) => (
               <tr key={trip.id}>
                 <td className="mono nowrap">{trip.departureDate}</td>
                 <td><span className="mono">{trip.trainNumber}</span></td>
@@ -365,6 +370,14 @@ export function Trips() {
             ))}
           </tbody>
         </table></div>
+      )}
+      {trips && trips.length > PAGE_SIZE && (
+        <div className="actions list-more">
+          <p className="muted" role="status">Showing {Math.min(shown, trips.length)} of {trips.length}</p>
+          {shown < trips.length && (
+            <button type="button" className="button" onClick={() => setShown((n) => n + PAGE_SIZE)}>Show more</button>
+          )}
+        </div>
       )}
     </section>
   );

@@ -193,6 +193,11 @@
   margin-bottom: 16px;
 }
 
+/* "Showing 50 of 291" and "Show more" under a long list: room above, from the table, and below, from the footer. */
+.list-more {
+  margin: 16px 0;
+}
+
 /* ---- Slide-over panel -------------------------------------------------------------------------------------------------------------- */
 /* ---- Slide-over panel (SlideOver component): backdrop, panel from the right, its head and body, and the two entrance animations. ---- */
 .slide-backdrop {

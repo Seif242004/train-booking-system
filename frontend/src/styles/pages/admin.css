@@ -460,11 +460,20 @@
 
 /* ---- Phones: the sidebar becomes a scrolling bar ------------------------------------------------------------------------------------- */
 @media (max-width: 899px) {
+  /* Logo and "Back to site" on one line with a gap between them; the scrolling menu takes the full row below. */
   .admin-side {
+    display: flex;
     flex: 1 1 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 16px;
     min-width: 0;
     max-width: 100%;
     padding: 8px 16px;
+  }
+
+  .admin-side .admin-back-site {
+    margin: 0;
   }
 
   .admin-side-title {
@@ -472,6 +481,7 @@
   }
 
   .admin-nav {
+    flex: 1 1 100%;
     flex-direction: row;
     gap: 4px;
     overflow-x: auto;

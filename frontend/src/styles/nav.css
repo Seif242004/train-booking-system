@@ -289,6 +289,13 @@
   list-style: none;
 }
 
+/* Every item is as tall as the links (the touch target), so the current page, which is plain text, lines up with them. */
+.breadcrumb li {
+  display: flex;
+  align-items: center;
+  min-height: var(--touch);
+}
+
 .breadcrumb li + li::before {
   margin-right: 8px;
   content: '/';

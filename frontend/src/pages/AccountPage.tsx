@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { takeActionResult } from '../auth/keycloak';
 import { PasswordCard } from '../components/PasswordCard';
 import { ProfileCard } from '../components/ProfileCard';
+import { SessionsCard } from '../components/SessionsCard';
 import { useToast } from '../components/Toasts';
 import { initialsOf } from '../components/UserMenu';
 import { config } from '../config';
@@ -17,8 +18,9 @@ function accountConsoleUrl(): string {
 }
 
 /** The passenger's account: who they are, their details, password and sessions, shortcuts and sign out. Only things a passenger understands. */
-// Route /account (signed-in users; /profile redirects here). The cards are our own screens on Keycloak's Account API: ProfileCard (first and
-// last name). We write no password code and no sign-in pages. The header card shows data already in the access token (name, email, roles).
+// Route /account (signed-in users; /profile redirects here). The three cards are our own screens on Keycloak's Account API: ProfileCard (first and
+// last name), PasswordCard (a button to Keycloak's secure password page) and SessionsCard (where the user is signed in). We write no password
+// code and no sign-in pages. The header card shows data already in the access token (name, email, roles).
 // "notice" comes from router state: RequireAdmin redirects a non-admin here with the message "The admin area is only for administrators."
 export function AccountPage() {
   const { user, hasRole, logout } = useAuth();
@@ -53,6 +55,7 @@ export function AccountPage() {
 
       <ProfileCard />
       <PasswordCard />
+      <SessionsCard />
 
       <h2 className="account-h2">Shortcuts</h2>
       <ul className="account-shortcuts">

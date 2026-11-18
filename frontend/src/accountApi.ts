@@ -93,3 +93,55 @@ export async function saveProfile(current: AccountProfile, firstName: string, la
     message: result.status === 0 ? 'Cannot reach the sign-in service. Check your connection and try again.' : 'We could not save your details. Try again in a moment.',
   };
 }
+
+// ---- Sessions ---------------------------------------------------------------------------------------------------------------------
+
+export interface AccountSession {
+  id: string;
+  /** "Chrome 157 on Windows 10". */
+  label: string;
+  ipAddress: string;
+  /** Seconds since 1970, as Keycloak sends them. */
+  started: number;
+  lastAccess: number;
+  current: boolean;
+}
+
+interface DeviceAnswer {
+  os?: string;
+  osVersion?: string;
+  sessions?: { id: string; ipAddress?: string; started: number; lastAccess: number; browser?: string; current?: boolean }[];
+}
+
+/** "Chrome/157.0.0" becomes "Chrome 157". */
+function browserName(browser: string | undefined): string {
+  if (!browser) return 'A browser';
+  return browser.replace(/\/(\d+)[^\s]*/, ' $1');
+}
+
+/** The user's active sessions, one per sign-in, newest activity first (GET /account/sessions/devices). null on a failure. */
+export async function loadSessions(): Promise<AccountSession[] | null> {
+  const result = await accountRequest('GET', '/sessions/devices');
+  if (result.status !== 200 || !Array.isArray(result.body)) return null;
+  const sessions: AccountSession[] = [];
+  for (const device of result.body as DeviceAnswer[]) {
+    const system = [device.os, device.osVersion].filter((v) => v && v !== 'Other').join(' ');
+    for (const s of device.sessions ?? []) {
+      sessions.push({
+        id: s.id,
+        label: system ? `${browserName(s.browser)} on ${system}` : browserName(s.browser),
+        ipAddress: s.ipAddress ?? '',
+        started: s.started,
+        lastAccess: s.lastAccess,
+        current: s.current === true,
+      });
+    }
+  }
+  return sessions.sort((a, b) => Number(b.current) - Number(a.current) || b.lastAccess - a.lastAccess);
+}
+
+/** Ends every session except the one making the call (DELETE /account/sessions). true when Keycloak accepted it. */
+export async function signOutOtherSessions(): Promise<boolean> {
+  const result = await accountRequest('DELETE', '/sessions');
+  return result.status === 204 || result.status === 200;
+}

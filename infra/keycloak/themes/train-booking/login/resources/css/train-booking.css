@@ -131,6 +131,10 @@ body#keycloak-bg {
   width: 144px;
   height: 34px;
   background: url('../img/logo-etisalat-white.png') no-repeat left center / contain;
+  /* The PNG has an opaque red background of its own. grayscale + contrast(100) turns that red to black and keeps the white letters; the
+     screen blend mode makes black see-through, so only the letters show over the photo. */
+  filter: grayscale(1) contrast(100);
+  mix-blend-mode: screen;
 }
 
 /* The headline is the "content" text of a pseudo-element. The next three rules replace it on other pages, using the page id that
